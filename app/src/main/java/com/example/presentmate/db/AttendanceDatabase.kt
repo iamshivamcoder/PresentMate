@@ -4,17 +4,6 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
-import java.util.Date
-
-// --- Entity --- //
-@androidx.room.Entity(tableName = "attendance_records")
-data class AttendanceRecord(
-    @androidx.room.PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val date: Long, // Store date as Long (timestamp)
-    val timeIn: Long? = null, // Store time as Long (timestamp)
-    val timeOut: Long? = null // Store time as Long (timestamp)
-)
 
 // --- DAO --- //
 @androidx.room.Dao
@@ -30,10 +19,26 @@ interface AttendanceDao {
 
     @androidx.room.Update
     suspend fun updateRecord(record: AttendanceRecord)
+
+    @androidx.room.Delete
+    suspend fun deleteRecord(record: AttendanceRecord)
+
+    @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun insertDeletedRecord(record: DeletedRecord)
+
+    @androidx.room.Query("SELECT * FROM deleted_records ORDER BY deletedAt DESC")
+    fun getAllDeletedRecords(): kotlinx.coroutines.flow.Flow<List<DeletedRecord>>
+
+    @androidx.room.Query("DELETE FROM deleted_records WHERE id = :id")
+    suspend fun permanentlyDeleteRecord(id: Int)
 }
 
 // --- Database --- //
-@Database(entities = [AttendanceRecord::class], version = 1, exportSchema = false)
+@Database(
+    entities = [AttendanceRecord::class, DeletedRecord::class],
+    version = 2,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun attendanceDao(): AttendanceDao
 
@@ -47,7 +52,8 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "attendance_database"
-                ).build()
+                ).fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
