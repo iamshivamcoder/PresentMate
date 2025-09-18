@@ -1,11 +1,18 @@
 package com.example.presentmate
 
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos // Updated import
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.outlined.Info // Changed from InfoOutline to Info
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +23,15 @@ import androidx.navigation.NavHostController
 import com.example.presentmate.db.AppDatabase
 import kotlinx.coroutines.flow.map
 
+fun getAppVersion(context: Context): String {
+    return try {
+        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        packageInfo.versionName
+    } catch (e: Exception) {
+        "N/A"
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavHostController) {
@@ -24,11 +40,13 @@ fun SettingsScreen(navController: NavHostController) {
     val deletedRecordsCount by db.attendanceDao().getAllDeletedRecords()
         .map { it.size }
         .collectAsState(initial = 0)
+    val appVersion = remember { getAppVersion(context) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()), // Added for scrollability
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         SettingsItem(
@@ -39,6 +57,25 @@ fun SettingsScreen(navController: NavHostController) {
                 navController.navigate("recycleBin")
             }
         )
+        Divider()
+        SettingsItem(
+            title = "App Version",
+            description = appVersion,
+            icon = Icons.Filled.Verified,
+            onClick = { Toast.makeText(context, "App Version: $appVersion", Toast.LENGTH_SHORT).show() }
+        )
+        SettingsItem(
+            title = "Help",
+            description = "Find answers to your questions",
+            icon = Icons.AutoMirrored.Filled.HelpOutline,
+            onClick = { navController.navigate("helpScreen") } // Navigate to HelpScreen
+        )
+        SettingsItem(
+            title = "Why Present Mate?",
+            description = "Learn about the app's mission",
+            icon = Icons.Outlined.Info, // Changed from InfoOutline to Info
+            onClick = { navController.navigate("whyPresentMateScreen") } // Navigate to WhyPresentMateScreen
+        )
     }
 }
 
@@ -48,7 +85,8 @@ fun SettingsItem(
     title: String,
     description: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    showArrow: Boolean = true // Added parameter to control arrow visibility
 ) {
     Card(
         modifier = modifier
@@ -69,7 +107,9 @@ fun SettingsItem(
                 Text(text = title, style = MaterialTheme.typography.titleMedium)
                 Text(text = description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = "Navigate") // Updated icon
+            if (showArrow) {
+                Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = "Navigate")
+            }
         }
     }
 }

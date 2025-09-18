@@ -1,5 +1,7 @@
 package com.example.presentmate
 
+// import androidx.compose.material3.Card // Replaced by CollapsibleCard
+// import androidx.compose.material3.CardDefaults // Replaced by CollapsibleCard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,9 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-// import androidx.compose.material3.ExperimentalMaterial3Api // Unused import
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-// import androidx.navigation.NavHostController // Unused as navController parameter is removed
 import com.example.presentmate.db.AppDatabase
 import java.time.Instant
 import java.time.LocalDate
@@ -49,7 +47,7 @@ data class DailySummary(
 }
 
 @Composable
-fun OverviewScreen(/*navController: NavHostController*/) { // Removed unused navController
+fun OverviewScreen() {
     val context = LocalContext.current
     val db = AppDatabase.getDatabase(context)
     val attendanceRecords by db.attendanceDao().getAllRecords().collectAsState(initial = emptyList())
@@ -89,26 +87,30 @@ fun OverviewScreen(/*navController: NavHostController*/) { // Removed unused nav
 
 @Composable
 fun DailySummaryItem(summary: DailySummary, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = summary.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)),
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = summary.durationString,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
+    CollapsibleCard(
+        modifier = modifier, // Pass modifier to CollapsibleCard
+        headerContent = {
+            Row(
+                modifier = Modifier.fillMaxWidth(), // Removed padding here, handled by CollapsibleCard
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = summary.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = summary.durationString,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        collapsibleContent = {
+            // Empty for now, or add more details about the summary if available/needed later
+            // For example, if DailySummary contained a list of individual records:
+            // summary.individualRecords.forEach { record -> Text(" Record: ${record.timeIn} - ${record.timeOut}") }
+            Text("No additional details for this day.", style = MaterialTheme.typography.bodySmall)
         }
-    }
+    )
 }
