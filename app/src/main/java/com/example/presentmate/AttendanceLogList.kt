@@ -26,8 +26,6 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
     val scope = rememberCoroutineScope()
     var showEditDialog by remember { mutableStateOf(false) }
     var recordToEdit by remember { mutableStateOf<AttendanceRecord?>(null) }
-    var editedTimeIn by remember { mutableStateOf<Long?>(null) }
-    var editedTimeOut by remember { mutableStateOf<Long?>(null) }
     var editedTimeInText by remember { mutableStateOf("") }
     var editedTimeOutText by remember { mutableStateOf("") }
     val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
@@ -72,8 +70,8 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
                 TextButton(
                     onClick = {
                         scope.launch {
-                            val parsedTimeIn = try { timeFormat.parse(editedTimeInText)?.time } catch (e: Exception) { null }
-                            val parsedTimeOut = try { timeFormat.parse(editedTimeOutText)?.time } catch (e: Exception) { null }
+                            val parsedTimeIn = try { timeFormat.parse(editedTimeInText)?.time } catch (_: Exception) { null }
+                            val parsedTimeOut = try { timeFormat.parse(editedTimeOutText)?.time } catch (_: Exception) { null }
                             db.attendanceDao().updateRecord(
                                 recordToEdit!!.copy(
                                     timeIn = parsedTimeIn,
@@ -120,15 +118,13 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
     }
     LazyColumn(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp) // Changed from 8.dp to 16.dp
     ) {
         items(records) { record ->
             AttendanceRecordItem(
                 record = record,
                 onEdit = { recordToEditParam ->
                     recordToEdit = recordToEditParam
-                    editedTimeIn = recordToEditParam.timeIn
-                    editedTimeOut = recordToEditParam.timeOut
                     editedTimeInText = recordToEditParam.timeIn?.let { timeFormat.format(Date(it)) } ?: ""
                     editedTimeOutText = recordToEditParam.timeOut?.let { timeFormat.format(Date(it)) } ?: ""
                     showEditDialog = true
@@ -144,10 +140,10 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
 
 @Composable
 fun AttendanceRecordItem(
+    modifier: Modifier = Modifier,
     record: AttendanceRecord,
     onEdit: (AttendanceRecord) -> Unit = {},
-    onDelete: (AttendanceRecord) -> Unit = {},
-    modifier: Modifier = Modifier
+    onDelete: (AttendanceRecord) -> Unit = {}
 ) {
     val dateFormat = SimpleDateFormat("EEE, MMM dd, yyyy", Locale.getDefault())
     val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
