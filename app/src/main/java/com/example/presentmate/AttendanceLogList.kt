@@ -1,5 +1,7 @@
 package com.example.presentmate
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,8 +19,14 @@ import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.*
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -32,7 +40,13 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
     var showDeleteDialog by remember { mutableStateOf(false) }
     var recordToDelete by remember { mutableStateOf<AttendanceRecord?>(null) }
 
-    if (records.isEmpty()) {
+    val recordsByDate = remember(records) {
+        records.groupBy {
+            Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate()
+        }.toSortedMap(compareByDescending { it }) // Sort by date descending
+    }
+
+    if (recordsByDate.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -45,13 +59,15 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
         }
         return
     }
+
     if (showEditDialog && recordToEdit != null) {
+        val recordDate = Instant.ofEpochMilli(recordToEdit!!.date).atZone(ZoneId.systemDefault()).toLocalDate()
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
             title = { Text("Edit Session") },
             text = {
                 Column {
-                    Text("Date: ${SimpleDateFormat("EEE, MMM dd, yyyy", Locale.getDefault()).format(Date(recordToEdit!!.date))}")
+                    Text("Date: ${recordDate.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL))}")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Time In:")
                     TextField(
@@ -96,7 +112,6 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
             confirmButton = {
                 TextButton(onClick = {
                     scope.launch {
-                        // Move to recycle bin before deleting
                         db.attendanceDao().insertDeletedRecord(
                             com.example.presentmate.db.DeletedRecord(
                                 originalId = recordToDelete!!.id,
@@ -116,24 +131,38 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
             }
         )
     }
+
     LazyColumn(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp) // Changed from 8.dp to 16.dp
+        modifier = modifier
     ) {
-        items(records) { record ->
-            AttendanceRecordItem(
-                record = record,
-                onEdit = { recordToEditParam ->
-                    recordToEdit = recordToEditParam
-                    editedTimeInText = recordToEditParam.timeIn?.let { timeFormat.format(Date(it)) } ?: ""
-                    editedTimeOutText = recordToEditParam.timeOut?.let { timeFormat.format(Date(it)) } ?: ""
-                    showEditDialog = true
-                },
-                onDelete = { recordToDeleteParam ->
-                    recordToDelete = recordToDeleteParam
-                    showDeleteDialog = true
-                }
-            )
+        recordsByDate.forEach { (date, recordsForDate) ->
+            stickyHeader {
+                Text(
+                    text = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant) 
+                        .padding(vertical = 8.dp, horizontal = 16.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            items(recordsForDate, key = { it.id }) { record ->
+                AttendanceRecordItem(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    record = record,
+                    onEdit = { recordToEditParam ->
+                        recordToEdit = recordToEditParam
+                        editedTimeInText = recordToEditParam.timeIn?.let { timeFormat.format(Date(it)) } ?: ""
+                        editedTimeOutText = recordToEditParam.timeOut?.let { timeFormat.format(Date(it)) } ?: ""
+                        showEditDialog = true
+                    },
+                    onDelete = { recordToDeleteParam ->
+                        recordToDelete = recordToDeleteParam
+                        showDeleteDialog = true
+                    }
+                )
+            }
         }
     }
 }
@@ -145,54 +174,68 @@ fun AttendanceRecordItem(
     onEdit: (AttendanceRecord) -> Unit = {},
     onDelete: (AttendanceRecord) -> Unit = {}
 ) {
-    val dateFormat = SimpleDateFormat("EEE, MMM dd, yyyy", Locale.getDefault())
-    val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+    val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
+
+    val durationString = remember(record.timeIn, record.timeOut) {
+        val timeIn = record.timeIn
+        val timeOut = record.timeOut
+        if (timeIn != null && timeOut != null && timeOut > timeIn) {
+            val diff = timeOut - timeIn
+            val minutes = (diff / (1000 * 60)) % 60
+            val hours = (diff / (1000 * 60 * 60))
+            when {
+                hours > 0 -> "${hours}h ${minutes}m"
+                minutes > 0 -> "${minutes}m"
+                else -> "<1m" 
+            }
+        } else {
+            ""
+        }
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = MaterialTheme.colorScheme.surface // Changed to surface for item
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // Adjusted elevation
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "${record.timeIn?.let { timeFormat.format(Date(it)) } ?: "N/A"} → ${record.timeOut?.let { timeFormat.format(Date(it)) } ?: "N/A"}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (durationString.isNotEmpty()) {
                     Text(
-                        dateFormat.format(Date(record.date)),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        "Time In: ${record.timeIn?.let { timeFormat.format(Date(it)) } ?: "N/A"}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        "Time Out: ${record.timeOut?.let { timeFormat.format(Date(it)) } ?: "N/A"}",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "Duration: $durationString",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Row {
-                    IconButton(onClick = { onEdit(record) }) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Edit record",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    IconButton(onClick = { onDelete(record) }) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete record",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
+            }
+            Row {
+                IconButton(onClick = { onEdit(record) }) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit record",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(onClick = { onDelete(record) }) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete record",
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }

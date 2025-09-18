@@ -39,77 +39,112 @@ fun AttendanceScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.weight(0.1f))
-        // Motivation box at the top
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-        ) {
-            Box(
+        if (sessionInProgress) {
+            Spacer(modifier = Modifier.weight(0.1f))
+            // Motivation box at the top
+            Card(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 20.dp),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
-                MotivationalAnimation()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    MotivationalAnimation()
+                }
             }
+            Spacer(modifier = Modifier.height(24.dp))
+        } else {
+            Spacer(modifier = Modifier.weight(0.1f))
+            Spacer(modifier = Modifier.height(24.dp))
         }
-        Spacer(modifier = Modifier.height(24.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Button(
-                onClick = {
-                    val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
-                    dialogMessage = "Start session at $currentTime?"
-                    recordedTimeAction = {
-                        scope.launch {
-                            if (!sessionInProgress) {
+            val timeInButtonModifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+            val timeOutButtonModifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+
+            if (sessionInProgress) {
+                // Session is in progress: Time In is Outlined, Time Out is Filled
+                OutlinedButton(
+                    onClick = {
+                        // This button should ideally be disabled or have different logic
+                        // if a session is already in progress. For now, it mirrors previous disabled state.
+                    },
+                    enabled = !sessionInProgress, // Effectively false
+                    modifier = timeInButtonModifier,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Time In", style = MaterialTheme.typography.titleMedium)
+                }
+                Button(
+                    onClick = {
+                        val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+                        dialogMessage = "End session at $currentTime?"
+                        recordedTimeAction = {
+                            scope.launch {
+                                ongoingSession?.let {
+                                    db.attendanceDao().updateRecord(
+                                        it.copy(timeOut = System.currentTimeMillis())
+                                    )
+                                }
+                            }
+                        }
+                        showDialog = true
+                    },
+                    enabled = sessionInProgress,
+                    modifier = timeOutButtonModifier,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Time Out", style = MaterialTheme.typography.titleMedium)
+                }
+            } else {
+                // No session in progress: Time In is Filled, Time Out is Outlined
+                Button(
+                    onClick = {
+                        val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+                        dialogMessage = "Start session at $currentTime?"
+                        recordedTimeAction = {
+                            scope.launch {
                                 val now = System.currentTimeMillis()
                                 db.attendanceDao().insertRecord(
                                     AttendanceRecord(date = now, timeIn = now, timeOut = null)
                                 )
                             }
                         }
-                    }
-                    showDialog = true
-                },
-                enabled = !sessionInProgress,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("Time In", style = MaterialTheme.typography.titleMedium)
-            }
-            Button(
-                onClick = {
-                    val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
-                    dialogMessage = "End session at $currentTime?"
-                    recordedTimeAction = {
-                        scope.launch {
-                            ongoingSession?.let {
-                                db.attendanceDao().updateRecord(
-                                    it.copy(timeOut = System.currentTimeMillis())
-                                )
-                            }
-                        }
-                    }
-                    showDialog = true
-                },
-                enabled = sessionInProgress,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("Time Out", style = MaterialTheme.typography.titleMedium)
+                        showDialog = true
+                    },
+                    enabled = !sessionInProgress,
+                    modifier = timeInButtonModifier,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Time In", style = MaterialTheme.typography.titleMedium)
+                }
+                OutlinedButton(
+                    onClick = {
+                        // This button should ideally be disabled or have different logic
+                        // if no session is in progress. For now, it mirrors previous disabled state.
+                    },
+                    enabled = sessionInProgress, // Effectively false
+                    modifier = timeOutButtonModifier,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Time Out", style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
+
         if (sessionInProgress) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(

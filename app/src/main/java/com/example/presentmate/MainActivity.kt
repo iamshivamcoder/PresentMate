@@ -4,44 +4,70 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.capitalize
+import androidx.compose.ui.text.intl.Locale
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.presentmate.ui.theme.PresentMateTheme
-import androidx.compose.ui.Modifier
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.Composable
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+
+// Sealed class for Bottom Navigation items
+sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    object Home : Screen("main", "Home", Icons.Filled.Home)
+    object Overview : Screen("overview", "Overview", Icons.Filled.BarChart)
+    object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
+}
+
+val bottomNavItems = listOf(
+    Screen.Home,
+    Screen.Overview,
+    Screen.Settings,
+)
 
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             PresentMateTheme {
                 val navController = rememberNavController()
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentDestination = navBackStackEntry?.destination
+                val currentScreenTitle = bottomNavItems.find { it.route == currentDestination?.route }?.label ?: "Present Mate"
+
                 Scaffold(
                     topBar = {
-                        TopAppBarWithSettings(navController)
+                        AppTopBar(title = currentScreenTitle)
+                    },
+                    bottomBar = {
+                        AppBottomNavigationBar(navController = navController)
                     },
                     modifier = Modifier.fillMaxSize()
                 ) { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = "main",
+                        startDestination = Screen.Home.route,
                         modifier = Modifier.padding(innerPadding)
                     ) {
-                        composable("main") { AttendanceScreen(navController = navController) }
-                        composable("settings") { SettingsScreen(navController = navController) }
+                        composable(Screen.Home.route) { AttendanceScreen(navController = navController) }
+                        composable(Screen.Overview.route) { OverviewScreen(navController = navController) }
+                        composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
+                        composable("recycleBin") { RecycleBinScreen(navController = navController) } // Not in bottom nav
                     }
                 }
             }
@@ -51,13 +77,39 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBarWithSettings(navController: NavHostController) {
-    androidx.compose.material3.TopAppBar(
-        title = { Text("Present Mate") },
-        actions = {
-            IconButton(onClick = { navController.navigate("settings") }) {
-                Icon(Icons.Default.Settings, contentDescription = "Settings")
-            }
-        }
+fun AppTopBar(title: String) {
+    TopAppBar(
+        title = { Text(title) }
     )
+}
+
+@Composable
+fun AppBottomNavigationBar(navController: NavHostController) {
+    NavigationBar {
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentDestination = navBackStackEntry?.destination
+
+        bottomNavItems.forEach { screen ->
+            NavigationBarItem(
+                icon = { Icon(screen.icon, contentDescription = screen.label) },
+                label = { Text(screen.label) },
+                selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                onClick = {
+                    navController.navigate(screen.route) {
+                        // Pop up to the start destination of the graph to
+                        // avoid building up a large stack of destinations
+                        // on the back stack as users select items
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        // Avoid multiple copies of the same destination when
+                        // reselecting the same item
+                        launchSingleTop = true
+                        // Restore state when reselecting a previously selected item
+                        restoreState = true
+                    }
+                }
+            )
+        }
+    }
 }
