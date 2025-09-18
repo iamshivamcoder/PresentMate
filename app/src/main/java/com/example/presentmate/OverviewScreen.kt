@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+// import androidx.compose.material3.ExperimentalMaterial3Api // Unused import
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
+// import androidx.navigation.NavHostController // Unused as navController parameter is removed
 import com.example.presentmate.db.AppDatabase
 import java.time.Instant
 import java.time.LocalDate
@@ -49,7 +49,7 @@ data class DailySummary(
 }
 
 @Composable
-fun OverviewScreen(navController: NavHostController) {
+fun OverviewScreen(/*navController: NavHostController*/) { // Removed unused navController
     val context = LocalContext.current
     val db = AppDatabase.getDatabase(context)
     val attendanceRecords by db.attendanceDao().getAllRecords().collectAsState(initial = emptyList())
@@ -70,7 +70,7 @@ fun OverviewScreen(navController: NavHostController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp) // Removed Scaffold's paddingValues, direct padding
+            .padding(16.dp)
     ) {
         if (dailySummaries.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -84,10 +84,6 @@ fun OverviewScreen(navController: NavHostController) {
                 }
             }
         }
-         // Placeholder for a chart - Future enhancement
-        // Box(modifier = Modifier.fillMaxWidth().height(200.dp).background(MaterialTheme.colorScheme.surfaceVariant)) {
-        // Text("Chart will be here", modifier = Modifier.align(Alignment.Center))
-        // }
     }
 }
 

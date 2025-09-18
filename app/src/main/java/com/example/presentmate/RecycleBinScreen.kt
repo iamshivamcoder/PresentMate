@@ -13,73 +13,62 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
+// import androidx.navigation.NavHostController // Unused import
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
-import com.example.presentmate.db.DeletedRecord // Ensure this import is correct
+import com.example.presentmate.db.DeletedRecord
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class) // Retained for Card, etc.
 @Composable
-fun RecycleBinScreen(navController: NavHostController) {
+fun RecycleBinScreen(/*navController: NavHostController*/) { // Removed unused navController
     val context = LocalContext.current
     val db = AppDatabase.getDatabase(context)
     val scope = rememberCoroutineScope()
     val deletedRecords by db.attendanceDao().getAllDeletedRecords().collectAsState(initial = emptyList())
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Recycle Bin") },
-                navigationIcon = {
-                    // Optionally add a back button if not handled by NavHost
-                }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (deletedRecords.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Recycle Bin is empty", style = MaterialTheme.typography.bodyLarge)
-                }
-            } else {
-                Text("${deletedRecords.size} item(s)", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(16.dp))
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(deletedRecords, key = { it.id }) { deletedRecord ->
-                        DeletedRecordItem(
-                            record = deletedRecord,
-                            onRestore = {
-                                scope.launch {
-                                    db.attendanceDao().insertRecord(
-                                        AttendanceRecord(
-                                            id = it.originalId, // Use originalId for restoring
-                                            date = it.date,
-                                            timeIn = it.timeIn,
-                                            timeOut = it.timeOut
-                                        )
+    // Removed Scaffold and TopAppBar as this is handled by MainActivity's Scaffold
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp), // Direct padding
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (deletedRecords.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Recycle Bin is empty", style = MaterialTheme.typography.bodyLarge)
+            }
+        } else {
+            Text("${deletedRecords.size} item(s)", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(deletedRecords, key = { it.id }) { deletedRecord ->
+                    DeletedRecordItem(
+                        record = deletedRecord,
+                        onRestore = {
+                            scope.launch {
+                                db.attendanceDao().insertRecord(
+                                    AttendanceRecord(
+                                        id = it.originalId, 
+                                        date = it.date,
+                                        timeIn = it.timeIn,
+                                        timeOut = it.timeOut
                                     )
-                                    db.attendanceDao().permanentlyDeleteRecord(it.id)
-                                }
-                            },
-                            onPermanentDelete = {
-                                scope.launch {
-                                    db.attendanceDao().permanentlyDeleteRecord(it.id)
-                                }
+                                )
+                                db.attendanceDao().permanentlyDeleteRecord(it.id)
                             }
-                        )
-                    }
+                        },
+                        onPermanentDelete = {
+                            scope.launch {
+                                db.attendanceDao().permanentlyDeleteRecord(it.id)
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -100,7 +89,7 @@ fun DeletedRecordItem(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) // Adjusted color
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {

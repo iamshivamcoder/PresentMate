@@ -4,7 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos // Updated import
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,7 +16,7 @@ import androidx.navigation.NavHostController
 import com.example.presentmate.db.AppDatabase
 import kotlinx.coroutines.flow.map
 
-@OptIn(ExperimentalMaterial3Api::class) // Retained for Card and potential future Material3 components
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavHostController) {
     val context = LocalContext.current
@@ -28,7 +28,6 @@ fun SettingsScreen(navController: NavHostController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // .padding(paddingValues) // Removed as Scaffold is removed
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -40,11 +39,6 @@ fun SettingsScreen(navController: NavHostController) {
                 navController.navigate("recycleBin")
             }
         )
-        // Add other settings items here if needed
-
-        // Removed the Spacer and Back to Home button as navigation is handled by BottomNavBar
-        // If direct popBackStack is still desired for a specific action within settings,
-        // it can be added to a specific settings item or a dedicated button if design requires.
     }
 }
 
@@ -75,7 +69,7 @@ fun SettingsItem(
                 Text(text = title, style = MaterialTheme.typography.titleMedium)
                 Text(text = description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Default.ArrowForwardIos, contentDescription = "Navigate")
+            Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = "Navigate") // Updated icon
         }
     }
 }

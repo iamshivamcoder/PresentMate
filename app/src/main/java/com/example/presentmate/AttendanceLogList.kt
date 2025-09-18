@@ -20,7 +20,7 @@ import com.example.presentmate.db.AttendanceRecord
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.Instant
-import java.time.LocalDate
+// import java.time.LocalDate // Unused import
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle

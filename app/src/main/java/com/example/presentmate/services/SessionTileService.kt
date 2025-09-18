@@ -6,7 +6,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.example.presentmate.R // Added import for project resources
+import com.example.presentmate.R
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
 import kotlinx.coroutines.CoroutineScope
@@ -33,7 +33,8 @@ class SessionTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val tile = qsTile ?: return
+        // val tile = qsTile ?: return // qsTile is checked in updateTile, not directly needed here for the logic
+        if (qsTile == null) return // Ensure qsTile is not null before proceeding with logic that relies on its state or updateTile()
 
         serviceScope.launch {
             try {
@@ -51,7 +52,7 @@ class SessionTileService : TileService() {
             } catch (e: Exception) {
                 Log.e("SessionTileService", "Error onClick: ", e)
             }
-            updateTile()
+            updateTile() // updateTile itself checks for qsTile != null
         }
     }
 
@@ -66,7 +67,6 @@ class SessionTileService : TileService() {
 
     override fun onTileRemoved() {
         super.onTileRemoved()
-        // No specific cleanup needed for SupervisorJob with IO dispatcher for this use case
     }
 
     private fun updateTile() {
@@ -89,7 +89,6 @@ class SessionTileService : TileService() {
                  Log.e("SessionTileService", "Error updateTile: ", e)
                 tile.state = Tile.STATE_UNAVAILABLE
                 tile.label = "Error"
-                 // Consider a more specific error icon if available
                 tile.icon = Icon.createWithResource(this@SessionTileService, R.drawable.ic_session) 
             }
             tile.updateTile()
@@ -98,6 +97,5 @@ class SessionTileService : TileService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // SupervisorJob cancels its children when the scope is cancelled, which happens implicitly if service is unbound and destroyed.
     }
 }

@@ -6,10 +6,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
+// import androidx.navigation.NavHostController // Unused
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
-import com.example.presentmate.AttendanceLogList
+// import com.example.presentmate.AttendanceLogList // Unused
 import com.example.presentmate.MotivationalAnimation
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -19,8 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
 fun AttendanceScreen(
-    modifier: Modifier = Modifier,
-    navController: NavHostController? = null
+    modifier: Modifier = Modifier
+    // navController: NavHostController? = null // Unused
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var dialogMessage by remember { mutableStateOf("") }
@@ -76,13 +76,10 @@ fun AttendanceScreen(
                 .height(56.dp)
 
             if (sessionInProgress) {
-                // Session is in progress: Time In is Outlined, Time Out is Filled
+                // Session is in progress: Time In is Outlined and Disabled, Time Out is Filled and Enabled
                 OutlinedButton(
-                    onClick = {
-                        // This button should ideally be disabled or have different logic
-                        // if a session is already in progress. For now, it mirrors previous disabled state.
-                    },
-                    enabled = !sessionInProgress, // Effectively false
+                    onClick = { /* Time In is disabled when session is in progress */ },
+                    enabled = false, // Corrected: Time In button is disabled when session is in progress
                     modifier = timeInButtonModifier,
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -103,14 +100,14 @@ fun AttendanceScreen(
                         }
                         showDialog = true
                     },
-                    enabled = sessionInProgress,
+                    enabled = true, // Corrected: Time Out button is enabled when session is in progress
                     modifier = timeOutButtonModifier,
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text("Time Out", style = MaterialTheme.typography.titleMedium)
                 }
             } else {
-                // No session in progress: Time In is Filled, Time Out is Outlined
+                // No session in progress: Time In is Filled and Enabled, Time Out is Outlined and Disabled
                 Button(
                     onClick = {
                         val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
@@ -125,18 +122,15 @@ fun AttendanceScreen(
                         }
                         showDialog = true
                     },
-                    enabled = !sessionInProgress,
+                    enabled = true, // Corrected: Time In button is enabled when no session is in progress
                     modifier = timeInButtonModifier,
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text("Time In", style = MaterialTheme.typography.titleMedium)
                 }
                 OutlinedButton(
-                    onClick = {
-                        // This button should ideally be disabled or have different logic
-                        // if no session is in progress. For now, it mirrors previous disabled state.
-                    },
-                    enabled = sessionInProgress, // Effectively false
+                    onClick = { /* Time Out is disabled when no session is in progress */ },
+                    enabled = false, // Corrected: Time Out button is disabled when no session is in progress
                     modifier = timeOutButtonModifier,
                     shape = RoundedCornerShape(16.dp)
                 ) {

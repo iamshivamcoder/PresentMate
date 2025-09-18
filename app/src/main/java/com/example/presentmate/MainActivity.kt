@@ -14,8 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.capitalize
-import androidx.compose.ui.text.intl.Locale
+// import androidx.compose.ui.text.capitalize // Unused import
+// import androidx.compose.ui.text.intl.Locale // Unused import
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -64,10 +64,10 @@ class MainActivity : ComponentActivity() {
                         startDestination = Screen.Home.route,
                         modifier = Modifier.padding(innerPadding)
                     ) {
-                        composable(Screen.Home.route) { AttendanceScreen(navController = navController) }
-                        composable(Screen.Overview.route) { OverviewScreen(navController = navController) }
+                        composable(Screen.Home.route) { AttendanceScreen() } 
+                        composable(Screen.Overview.route) { OverviewScreen() } 
                         composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
-                        composable("recycleBin") { RecycleBinScreen(navController = navController) } // Not in bottom nav
+                        composable("recycleBin") { RecycleBinScreen() } // navController removed
                     }
                 }
             }
@@ -96,16 +96,10 @@ fun AppBottomNavigationBar(navController: NavHostController) {
                 selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                 onClick = {
                     navController.navigate(screen.route) {
-                        // Pop up to the start destination of the graph to
-                        // avoid building up a large stack of destinations
-                        // on the back stack as users select items
                         popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true
                         }
-                        // Avoid multiple copies of the same destination when
-                        // reselecting the same item
                         launchSingleTop = true
-                        // Restore state when reselecting a previously selected item
                         restoreState = true
                     }
                 }
