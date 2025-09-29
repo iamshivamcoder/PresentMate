@@ -1,1 +1,140 @@
-package com.example.presentmate\n\nimport androidx.compose.foundation.Canvas\nimport androidx.compose.foundation.layout.Arrangement\nimport androidx.compose.foundation.layout.Box\nimport androidx.compose.foundation.layout.Column\nimport androidx.compose.foundation.layout.Row\nimport androidx.compose.foundation.layout.Spacer\nimport androidx.compose.foundation.layout.fillMaxSize\nimport androidx.compose.foundation.layout.fillMaxWidth\nimport androidx.compose.foundation.layout.height\nimport androidx.compose.foundation.layout.padding\nimport androidx.compose.foundation.layout.size\nimport androidx.compose.foundation.lazy.LazyColumn\nimport androidx.compose.foundation.lazy.items\nimport androidx.compose.material.icons.Icons\nimport androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft\nimport androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight\nimport androidx.compose.material3.Button\nimport androidx.compose.material3.Icon\nimport androidx.compose.material3.IconButton\nimport androidx.compose.material3.MaterialTheme\nimport androidx.compose.material3.OutlinedButton\nimport androidx.compose.material3.Text\nimport androidx.compose.runtime.Composable\nimport androidx.compose.runtime.collectAsState\nimport androidx.compose.runtime.getValue\nimport androidx.compose.runtime.mutableStateOf\nimport androidx.compose.runtime.remember\nimport androidx.compose.runtime.setValue\nimport androidx.compose.ui.Alignment\nimport androidx.compose.ui.Modifier\nimport androidx.compose.ui.geometry.Offset\nimport androidx.compose.ui.graphics.Color\nimport androidx.compose.ui.platform.LocalContext\nimport androidx.compose.ui.text.style.TextAlign\nimport androidx.compose.ui.unit.dp\nimport com.example.presentmate.db.AppDatabase\nimport com.example.presentmate.db.AttendanceRecord\nimport java.text.SimpleDateFormat\nimport java.time.DayOfWeek\nimport java.time.Instant\nimport java.time.LocalDate\nimport java.time.ZoneId\nimport java.time.format.DateTimeFormatter\nimport java.time.format.FormatStyle\nimport java.time.format.TextStyle\nimport java.time.temporal.ChronoUnit\nimport java.time.temporal.TemporalAdjusters\nimport java.time.temporal.WeekFields\nimport java.util.Locale\nimport java.util.concurrent.TimeUnit\n\nenum class GraphViewType { WEEKLY, MONTHLY }\n\ndata class DailySummary(\n    val date: LocalDate,\n    val totalDurationMillis: Long,\n    val records: List<AttendanceRecord>\n) {\n    val durationString: String\n        get() {\n            if (totalDurationMillis <= 0) return \"0m\"\n            val hours = TimeUnit.MILLISECONDS.toHours(totalDurationMillis)\n            val minutes = TimeUnit.MILLISECONDS.toMinutes(totalDurationMillis) % 60\n            return when {\n                hours > 0 -> \"${hours}h ${minutes}m\"\n                minutes > 0 -> \"${minutes}m\"\n                else -> \"<1m\"\n            }\n        }\n}\n\n// Aggregate data for the graph\ndata class GraphDataPoint(\n    val label: String, // e.g., \"Mon\", \"Week 1\", \"Jan\"\n    val value: Float, // e.g., total hours\n    val rawMillis: Long = 0L\n)\n\nfun formatMillisToHours(millis: Long): Float {\n    return millis / (1000f * 60 * 60)\n}\n\n@Composable\nfun OverviewScreen() {\n    val context = LocalContext.current\n    val db = AppDatabase.getDatabase(context)\n    val attendanceRecords by db.attendanceDao().getAllRecords().collectAsState(initial = emptyList())\n\n    var selectedGraphViewType by remember { mutableStateOf(GraphViewType.WEEKLY) }\n    var currentDisplayDate by remember { mutableStateOf(LocalDate.now()) }\n\n    val dailySummaries = remember(attendanceRecords) {\n        attendanceRecords\n            .filter { it.timeIn != null && it.timeOut != null && it.timeOut > it.timeIn }\n            .groupBy { Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate() }\n            .map { (date, recordsOnDate) ->\n                val totalDuration = recordsOnDate.sumOf { it.timeOut!! - it.timeIn!! }\n                DailySummary(date, totalDuration, recordsOnDate)\n            }\n            .sortedByDescending { it.date }\n    }\n\n    val graphData = remember(attendanceRecords, selectedGraphViewType, currentDisplayDate) {\n        calculateGraphData(attendanceRecords, selectedGraphViewType, currentDisplayDate, context)\n    }\n\n    Column(\n        modifier = Modifier\n            .fillMaxSize()\n            .padding(16.dp)\n    ) {\n        GraphSection(selectedGraphViewType, currentDisplayDate, graphData,\n            onViewTypeChange = { selectedGraphViewType = it },\n            onDateChange = { currentDisplayDate = it }\n        )\n\n        Spacer(modifier = Modifier.height(24.dp))\n\n        if (dailySummaries.isEmpty()) {\n            Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {\n                Text(\"No attendance data to display.\", style = MaterialTheme.typography.bodyLarge)\n            }\n        } else {\n            Text(\"Daily Breakdown\", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 10.dp))\n            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {\n                items(dailySummaries, key = { it.date.toEpochDay() }) { summary ->\n                    DailySummaryItem(summary = summary)\n                }\n            }\n        }\n    }\n}\n\n@Composable\nfun GraphSection(\n    viewType: GraphViewType,\n    displayDate: LocalDate,\n    data: List<GraphDataPoint>,\n    onViewTypeChange: (GraphViewType) -> Unit,\n    onDateChange: (LocalDate) -> Unit\n) {\n    Column {\n        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {\n            OutlinedButton(onClick = { onViewTypeChange(GraphViewType.WEEKLY) }, enabled = viewType != GraphViewType.WEEKLY) {\n                Text(\"Weekly\")\n            }\n            Spacer(modifier = Modifier.size(8.dp))\n            OutlinedButton(onClick = { onViewTypeChange(GraphViewType.MONTHLY) }, enabled = viewType != GraphViewType.MONTHLY) {\n                Text(\"Monthly\")\n            }\n        }\n        Spacer(modifier = Modifier.height(8.dp))\n        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {\n            IconButton(onClick = {\n                val newDate = if (viewType == GraphViewType.WEEKLY) displayDate.minusWeeks(1) else displayDate.minusMonths(1)\n                onDateChange(newDate)\n            }) {\n                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = \"Previous Period\")\n            }\n            Text(\n                text = when (viewType) {\n                    GraphViewType.WEEKLY -> \"Week of ${displayDate.with(WeekFields.of(Locale.getDefault()).firstDayOfWeek).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT))}\"\n                    GraphViewType.MONTHLY -> displayDate.format(DateTimeFormatter.ofPattern(\"MMMM yyyy\"))\n                },\n                style = MaterialTheme.typography.titleMedium,\n                textAlign = TextAlign.Center\n            )\n            IconButton(onClick = {\n                val newDate = if (viewType == GraphViewType.WEEKLY) displayDate.plusWeeks(1) else displayDate.plusMonths(1)\n                onDateChange(newDate)\n            }) {\n                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = \"Next Period\")\n            }\n        }\n        Spacer(modifier = Modifier.height(16.dp))\n        if (data.isEmpty()) {\n            Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {\n                Text(\"No data for this period.\")\n            }\n        } else {\n            BarChart(data = data)\n        }\n    }\n}\n\nfun calculateGraphData(\n    records: List<AttendanceRecord>,\n    viewType: GraphViewType,\n    displayDate: LocalDate,\n    context: Context // For locale-specific formatting if needed\n): List<GraphDataPoint> {\n    val locale = Locale.getDefault()\n    val filteredRecords = records.filter { it.timeIn != null && it.timeOut != null && it.timeOut > it.timeIn }\n\n    return when (viewType) {\n        GraphViewType.WEEKLY -> {\n            val startOfWeek = displayDate.with(WeekFields.of(locale).firstDayOfWeek)\n            val endOfWeek = startOfWeek.plusDays(6)\n            val weekRecords = filteredRecords.filter {\n                val recordDate = Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate()\n                !recordDate.isBefore(startOfWeek) && !recordDate.isAfter(endOfWeek)\n            }\n\n            (0..6).map {\n                val day = startOfWeek.plusDays(it.toLong())\n                val totalMillis = weekRecords.filter {\n                    Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate() == day\n                }.sumOf { it.timeOut!! - it.timeIn!! }\n                GraphDataPoint(label = day.dayOfWeek.getDisplayName(TextStyle.SHORT, locale), value = formatMillisToHours(totalMillis), rawMillis = totalMillis)\n            }\n        }\n        GraphViewType.MONTHLY -> {\n            val startOfMonth = displayDate.withDayOfMonth(1)\n            val endOfMonth = displayDate.with(TemporalAdjusters.lastDayOfMonth())\n            val monthRecords = filteredRecords.filter {\n                val recordDate = Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate()\n                !recordDate.isBefore(startOfMonth) && !recordDate.isAfter(endOfMonth)\n            }\n            // Aggregate by day of month\n            (1..endOfMonth.dayOfMonth).map {\n                val day = startOfMonth.plusDays(it.toLong() - 1)\n                val totalMillis = monthRecords.filter {\n                     Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate() == day\n                }.sumOf { it.timeOut!! - it.timeIn!! }\n                 GraphDataPoint(label = day.dayOfMonth.toString(), value = formatMillisToHours(totalMillis), rawMillis = totalMillis)\n            }\n        }\n    }\n}\n\n@Composable\nfun BarChart(data: List<GraphDataPoint>, modifier: Modifier = Modifier) {\n    if (data.isEmpty()) return\n\n    val maxVal = data.maxOfOrNull { it.value } ?: 0f\n    val barColor = MaterialTheme.colorScheme.primary\n\n    Column(modifier = modifier.fillMaxWidth().height(200.dp)) {\n        Row(modifier = Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.Bottom) {\n            data.forEach {\ dataPoint ->\n                Column(\n                    modifier = Modifier.weight(1f),\n                    horizontalAlignment = Alignment.CenterHorizontally,\n                    verticalArrangement = Arrangement.Bottom\n                ) {\n                    Box(\n                        modifier = Modifier\n                            .fillMaxWidth(0.6f)\n                            .height(if (maxVal > 0) (dataPoint.value / maxVal * 180).dp else 0.dp) // Max height 180.dp\n                            .padding(horizontal = 2.dp)\n                    ) {\n                        Canvas(modifier = Modifier.fillMaxSize()) { // Canvas to draw the bar\n                            drawRect(\n                                color = barColor,\n                                topLeft = Offset(0f, size.height - (if (maxVal > 0) (dataPoint.value / maxVal * size.height) else 0f)),\n                                size = androidx.compose.ui.geometry.Size(size.width, if (maxVal > 0) (dataPoint.value / maxVal * size.height) else 0f)\n                            )\n                        }\n                    }\n                    Text(\n                        text = dataPoint.label,\n                        style = MaterialTheme.typography.labelSmall,\n                        textAlign = TextAlign.Center,\n                        modifier = Modifier.padding(top = 4.dp)\n                    )\n                }\n            }\n        }\n         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {\n            Text(\"Time (Hours)\", style = MaterialTheme.typography.labelSmall)\n        }\n    }\n}\n\n\n@Composable\nfun DailySummaryItem(summary: DailySummary, modifier: Modifier = Modifier) {\n    val timeFormatter = remember { SimpleDateFormat(\"hh:mm a\", Locale.getDefault()) }\n\n    CollapsibleCard(\n        modifier = modifier,\n        headerContent = {\n            Row(\n                modifier = Modifier.fillMaxWidth(),\n                verticalAlignment = Alignment.CenterVertically,\n                horizontalArrangement = Arrangement.SpaceBetween\n            ) {\n                Text(\n                    text = summary.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)),\n                    style = MaterialTheme.typography.titleMedium\n                )\n                Text(\n                    text = summary.durationString,\n                    style = MaterialTheme.typography.titleMedium,\n                    color = MaterialTheme.colorScheme.primary\n                )\n            }\n        },\n        collapsibleContent = {\n            Column(modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp, bottom = 8.dp)) {\n                if (summary.records.isEmpty()) {\n                    Text(\"No individual records for this day.\", style = MaterialTheme.typography.bodySmall)\n                } else {\n                    summary.records.sortedBy { it.timeIn }.forEach { record ->\n                        Row(\n                            modifier = Modifier.fillMaxWidth(),\n                            horizontalArrangement = Arrangement.SpaceBetween\n                        ) {\n                            Text(\n                                text = \"Session:\",\n                                style = MaterialTheme.typography.bodyMedium\n                            )\n                            Text(\n                                text = \"${timeFormatter.format(record.timeIn)} - ${record.timeOut?.let { timeFormatter.format(it) } ?: \"Ongoing\"}\",\n                                style = MaterialTheme.typography.bodyMedium\n                            )\n                        }\n                        Spacer(modifier = Modifier.height(4.dp))\n                    }\n                }\n            }\n        }\n    )\n}\n
+package com.example.presentmate
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import com.example.presentmate.db.AppDatabase
+import com.example.presentmate.db.AttendanceRecord
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+
+data class DailySummary(
+    val date: LocalDate,
+    val totalDurationMillis: Long,
+    val records: List<AttendanceRecord> // Added to hold individual records
+) {
+    val durationString: String
+        get() {
+            if (totalDurationMillis <= 0) return "0m"
+            val hours = TimeUnit.MILLISECONDS.toHours(totalDurationMillis)
+            val minutes = TimeUnit.MILLISECONDS.toMinutes(totalDurationMillis) % 60
+            return when {
+                hours > 0 -> "${hours}h ${minutes}m"
+                minutes > 0 -> "${minutes}m"
+                else -> "<1m" // Represent very short durations
+            }
+        }
+}
+
+@Composable
+fun OverviewScreen() {
+    val context = LocalContext.current
+    val db = AppDatabase.getDatabase(context)
+    val attendanceRecords by db.attendanceDao().getAllRecords().collectAsState(initial = emptyList())
+
+    val dailySummaries = remember(attendanceRecords) {
+        attendanceRecords
+            .filter { it.timeIn != null && it.timeOut != null && it.timeOut > it.timeIn }
+            .groupBy {
+                Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate()
+            }
+            .map { (date, recordsOnDate) ->
+                val totalDuration = recordsOnDate.sumOf { it.timeOut!! - it.timeIn!! }
+                DailySummary(date, totalDuration, recordsOnDate) // Populate individual records
+            }
+            .sortedByDescending { it.date }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        if (dailySummaries.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No attendance data to display.", style = MaterialTheme.typography.bodyLarge)
+            }
+        } else {
+            Text("Daily Attendance Summary", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(dailySummaries, key = { it.date.toEpochDay() }) { summary ->
+                    DailySummaryItem(summary = summary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DailySummaryItem(summary: DailySummary, modifier: Modifier = Modifier) {
+    val timeFormatter = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
+
+    CollapsibleCard(
+        modifier = modifier,
+        headerContent = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = summary.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)),
+                    style = MaterialTheme.typography.titleMedium // Slightly larger for the date
+                )
+                Text(
+                    text = summary.durationString,
+                    style = MaterialTheme.typography.titleMedium, // Consistent style for duration
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        collapsibleContent = {
+            Column(modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                if (summary.records.isEmpty()) {
+                    Text("No individual records for this day.", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    summary.records.sortedBy { it.timeIn }.forEach { record ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Session:",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "${timeFormatter.format(record.timeIn)} - ${record.timeOut?.let { timeFormatter.format(it) } ?: "Ongoing"}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+            }
+        }
+    )
+}
