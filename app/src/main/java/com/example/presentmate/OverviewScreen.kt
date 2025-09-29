@@ -1,5 +1,6 @@
 package com.example.presentmate
 
+// Import graph components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +17,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,7 +38,7 @@ import java.util.concurrent.TimeUnit
 data class DailySummary(
     val date: LocalDate,
     val totalDurationMillis: Long,
-    val records: List<AttendanceRecord> // Added to hold individual records
+    val records: List<AttendanceRecord> 
 ) {
     val durationString: String
         get() {
@@ -45,7 +48,7 @@ data class DailySummary(
             return when {
                 hours > 0 -> "${hours}h ${minutes}m"
                 minutes > 0 -> "${minutes}m"
-                else -> "<1m" // Represent very short durations
+                else -> "<1m"
             }
         }
 }
@@ -56,17 +59,30 @@ fun OverviewScreen() {
     val db = AppDatabase.getDatabase(context)
     val attendanceRecords by db.attendanceDao().getAllRecords().collectAsState(initial = emptyList())
 
+    var selectedGraphViewType by remember { mutableStateOf(GraphViewType.WEEKLY) }
+    var currentDisplayDate by remember { mutableStateOf(LocalDate.now()) }
+
     val dailySummaries = remember(attendanceRecords) {
         attendanceRecords
             .filter { it.timeIn != null && it.timeOut != null && it.timeOut > it.timeIn }
-            .groupBy {
-                Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate()
-            }
+            .groupBy { Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate() }
             .map { (date, recordsOnDate) ->
                 val totalDuration = recordsOnDate.sumOf { it.timeOut!! - it.timeIn!! }
-                DailySummary(date, totalDuration, recordsOnDate) // Populate individual records
+                DailySummary(date, totalDuration, recordsOnDate)
             }
             .sortedByDescending { it.date }
+    }
+
+    val graphData = remember(attendanceRecords, selectedGraphViewType, currentDisplayDate) {
+        calculateGraphData(attendanceRecords, selectedGraphViewType, currentDisplayDate)
+    }
+
+    val stats = remember(attendanceRecords, graphData) {
+        val totalHours = graphData.map { it.value }.sum()
+        val averageHours = if (graphData.isNotEmpty()) totalHours / graphData.size else 0f
+        val bestDay = graphData.maxByOrNull { it.value }?.label ?: "-"
+        val goalProgress = totalHours // You can adjust this if you have a goal value
+        GraphStats(totalHours, averageHours, bestDay, goalProgress)
     }
 
     Column(
@@ -74,13 +90,24 @@ fun OverviewScreen() {
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        GraphSection(
+            viewType = selectedGraphViewType,
+            displayDate = currentDisplayDate,
+            data = graphData,
+            stats = stats,
+            onViewTypeChange = { selectedGraphViewType = it },
+            onDateChange = { currentDisplayDate = it }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         if (dailySummaries.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
                 Text("No attendance data to display.", style = MaterialTheme.typography.bodyLarge)
             }
         } else {
-            Text("Daily Attendance Summary", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Daily Breakdown", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 10.dp))
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(dailySummaries, key = { it.date.toEpochDay() }) { summary ->
                     DailySummaryItem(summary = summary)
                 }
@@ -103,11 +130,11 @@ fun DailySummaryItem(summary: DailySummary, modifier: Modifier = Modifier) {
             ) {
                 Text(
                     text = summary.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)),
-                    style = MaterialTheme.typography.titleMedium // Slightly larger for the date
+                    style = MaterialTheme.typography.titleMedium
                 )
                 Text(
                     text = summary.durationString,
-                    style = MaterialTheme.typography.titleMedium, // Consistent style for duration
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
