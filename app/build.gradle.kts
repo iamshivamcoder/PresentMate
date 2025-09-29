@@ -103,6 +103,10 @@ dependencies {
     kapt("androidx.room:room-compiler:2.6.1")
     annotationProcessor("androidx.room:room-compiler:2.6.1")
 
+    // Apache POI for .doc export
+    implementation("org.apache.poi:poi:5.4.1")
+    implementation("org.apache.poi:poi-scratchpad:5.4.1") // Added for HWPF support
+
     // Debug dependencies
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

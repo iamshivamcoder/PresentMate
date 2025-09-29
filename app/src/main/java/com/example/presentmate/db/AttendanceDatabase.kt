@@ -14,6 +14,9 @@ interface AttendanceDao {
     @androidx.room.Query("SELECT * FROM attendance_records ORDER BY date DESC")
     fun getAllRecords(): kotlinx.coroutines.flow.Flow<List<AttendanceRecord>>
 
+    @androidx.room.Query("SELECT * FROM attendance_records ORDER BY date DESC") // Added for synchronous export
+    fun getAllRecordsNonFlow(): List<AttendanceRecord> // Added for synchronous export
+
     @androidx.room.Query("SELECT * FROM attendance_records WHERE date = :date LIMIT 1")
     suspend fun getRecordByDate(date: Long): AttendanceRecord?
 
@@ -36,7 +39,7 @@ interface AttendanceDao {
 // --- Database --- //
 @Database(
     entities = [AttendanceRecord::class, DeletedRecord::class],
-    version = 2,
+    version = 2, // Consider incrementing version if schema changed and no migration provided for new table/column, though just adding a query method is fine.
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

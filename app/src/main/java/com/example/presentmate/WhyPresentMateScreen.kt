@@ -28,7 +28,7 @@ val qnaList = listOf(
     QnaItem("10. Is my attendance data private?", "Absolutely. All attendance data is stored locally on your device only. We do not collect or store your personal attendance information on any servers."),
     QnaItem("11. What is the Quick Settings Tile?", "It\'s a shortcut for your phone\'s Quick Settings panel that lets you quickly 'Time In' or 'Time Out' without opening the app fully."),
     QnaItem("12. How accurate is the time tracking?", "The app uses your device\'s system time, so it\'s as accurate as your phone\'s clock."),
-    QnaItem("13. Can I export my attendance data?", "Currently, direct export functionality is not available, but this is a feature we are considering for the future."),
+    QnaItem("13. Can I export my attendance data?", "Yes, you can export your attendance data to a .doc file and import it back from the Settings screen. This is useful for backups or transferring data."),
     QnaItem("14. What platforms does Present Mate support?", "Present Mate is an Android application."),
     QnaItem("15. How can I provide feedback or report a bug?", "We appreciate feedback! For now, please consider reaching out through the platform where you downloaded the app (if a feedback mechanism is provided there)."),
     QnaItem("16. Will there be more features in the future?", "Yes, we aim to continuously improve Present Mate and add new useful features based on user needs and feedback."),

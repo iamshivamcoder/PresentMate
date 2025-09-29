@@ -1,11 +1,9 @@
 package com.example.presentmate.services
 
 import android.graphics.drawable.Icon
-import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
-import androidx.annotation.RequiresApi
 import com.example.presentmate.R
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
@@ -15,7 +13,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
-@RequiresApi(Build.VERSION_CODES.N)
 class SessionTileService : TileService() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -59,14 +56,6 @@ class SessionTileService : TileService() {
     override fun onStartListening() {
         super.onStartListening()
         updateTile()
-    }
-
-    override fun onStopListening() {
-        super.onStopListening()
-    }
-
-    override fun onTileRemoved() {
-        super.onTileRemoved()
     }
 
     private fun updateTile() {
