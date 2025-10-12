@@ -1,6 +1,7 @@
 package com.example.presentmate
 
 import android.app.Application
+import android.preference.PreferenceManager
 import org.osmdroid.config.Configuration
 
 class PresentMateApplication : Application() {
@@ -8,7 +9,7 @@ class PresentMateApplication : Application() {
         super.onCreate()
         Configuration.getInstance().load(
             this,
-            getSharedPreferences("osmdroid", MODE_PRIVATE)
+            PreferenceManager.getDefaultSharedPreferences(this)
         )
     }
 }
