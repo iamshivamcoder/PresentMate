@@ -30,6 +30,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.presentmate.ui.screens.AttendanceScreen
+import com.example.presentmate.ui.screens.HelpScreen
+import com.example.presentmate.ui.screens.RecycleBinScreen
+import com.example.presentmate.ui.screens.WhyPresentMateScreen
 import com.example.presentmate.ui.theme.PresentMateTheme
 import kotlinx.coroutines.launch
 
@@ -146,8 +150,8 @@ class MainActivity : ComponentActivity() {
                             composable(Screen.Overview.route) { OverviewScreen() }
                             composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
                             composable("recycleBin") { RecycleBinScreen() }
-                            composable("helpScreen") { HelpScreen(navController = navController) } 
-                            composable("whyPresentMateScreen") { WhyPresentMateScreen(navController = navController) } 
+                            composable("helpScreen") { HelpScreen(navController = navController) }
+                            composable("whyPresentMateScreen") { WhyPresentMateScreen(navController = navController) }
                         }
                     }
                 }

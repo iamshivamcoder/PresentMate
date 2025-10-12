@@ -8,7 +8,6 @@ import android.graphics.Color
 import android.location.Address
 import android.location.Geocoder
 import android.os.Bundle
-import android.preference.PreferenceManager
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -85,7 +84,7 @@ class LocationPickerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         // Configure OSMDroid BEFORE creating MapView
-        Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
+        Configuration.getInstance().load(this, this.getSharedPreferences("osmdroid", MODE_PRIVATE))
         Configuration.getInstance().userAgentValue = packageName
 
         searchHistoryRepository = SearchHistoryRepository(this)
@@ -174,6 +173,14 @@ fun LocationPickerScreen(
 
             // Configure tile source for better loading
             setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+        }
+    }
+
+    // Handle MapView lifecycle to prevent memory leaks
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            mapView.onPause()
+            mapView.onDetach()
         }
     }
 
@@ -339,8 +346,8 @@ fun LocationPickerScreen(
                             // Add geofence circle
                             val circle = Polygon().apply {
                                 points = Polygon.pointsAsCircle(p, 100.0)
-                                fillColor = 0x30FF0000
-                                strokeColor = Color.RED
+                                fillColor = ComposeColor.Red.copy(alpha = 0.19f).value.toInt() // 0x30FF0000 equivalent
+                                strokeColor = ComposeColor.Red.value.toInt()
                                 strokeWidth = 2f
                             }
                             map.overlays.add(circle)
@@ -355,6 +362,8 @@ fun LocationPickerScreen(
                                     }
                                     addressText = addresses?.firstOrNull()?.getAddressLine(0)
                                         ?: "Lat: ${String.format("%.6f", p.latitude)}, Lng: ${String.format("%.6f", p.longitude)}"
+                                } catch (e: java.io.IOException) {
+                                    addressText = "Network error"
                                 } catch (e: Exception) {
                                     addressText = "Lat: ${String.format("%.6f", p.latitude)}, Lng: ${String.format("%.6f", p.longitude)}"
                                 }

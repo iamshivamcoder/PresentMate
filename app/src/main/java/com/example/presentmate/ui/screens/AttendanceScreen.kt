@@ -1,4 +1,4 @@
-package com.example.presentmate
+package com.example.presentmate.ui.screens
 
 // import androidx.navigation.NavHostController // Unused
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.presentmate.AttendanceLogList
+import com.example.presentmate.MotivationalAnimation
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
 import kotlinx.coroutines.launch

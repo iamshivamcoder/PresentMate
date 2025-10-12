@@ -1,4 +1,4 @@
-package com.example.presentmate
+package com.example.presentmate.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

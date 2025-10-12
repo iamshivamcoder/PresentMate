@@ -1,4 +1,4 @@
-package com.example.presentmate
+package com.example.presentmate.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.example.presentmate.CollapsibleCard
 
 data class QnaItem(val question: String, val answer: String)
 
@@ -56,7 +57,11 @@ fun WhyPresentMateScreen(navController: NavHostController) {
         items(qnaList) { qna ->
             CollapsibleCard(
                 headerContent = {
-                    Text(qna.question, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        qna.question,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 },
                 collapsibleContent = {
                     Text(qna.answer, style = MaterialTheme.typography.bodyLarge)
