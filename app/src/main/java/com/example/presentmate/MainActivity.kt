@@ -1,6 +1,10 @@
 package com.example.presentmate
 
+import android.content.Context
+import android.content.Intent
+import android.location.LocationManager
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,14 +16,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Menu // Added for drawer icon
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope // Added for drawer
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp // Added for Spacer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -28,14 +31,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.presentmate.ui.theme.PresentMateTheme
-import kotlinx.coroutines.launch // Added for drawer
+import kotlinx.coroutines.launch
 
 // Sealed class for Navigation items
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Home : Screen("main", "Home", Icons.Filled.Home)
     object Overview : Screen("overview", "Overview", Icons.Filled.BarChart)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
-    // You can add other screens here if they need to be in the drawer/bottom nav
 }
 
 val navItems = listOf(
@@ -54,6 +56,24 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
+                val context = LocalContext.current
+
+                var showLocationDialog by remember { mutableStateOf(false) }
+
+                // Check for location services
+                val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+                if (!isLocationEnabled) {
+                    showLocationDialog = true
+                }
+
+                if (showLocationDialog) {
+                    LocationServicesDisabledDialog(onDismiss = { showLocationDialog = false }) {
+                        val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                        context.startActivity(intent)
+                        showLocationDialog = false
+                    }
+                }
 
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
@@ -70,7 +90,6 @@ class MainActivity : ComponentActivity() {
                         else -> "Present Mate"
                     }
                 }
-
 
                 ModalNavigationDrawer(
                     drawerState = drawerState,
@@ -127,14 +146,33 @@ class MainActivity : ComponentActivity() {
                             composable(Screen.Overview.route) { OverviewScreen() }
                             composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
                             composable("recycleBin") { RecycleBinScreen() }
-                            composable("helpScreen") { HelpScreen(navController = navController) } // Added HelpScreen route
-                            composable("whyPresentMateScreen") { WhyPresentMateScreen(navController = navController) } // Added WhyPresentMateScreen route
+                            composable("helpScreen") { HelpScreen(navController = navController) } 
+                            composable("whyPresentMateScreen") { WhyPresentMateScreen(navController = navController) } 
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun LocationServicesDisabledDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Location Services Disabled") },
+        text = { Text("Please enable location services for automatic session tracking.") },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Enable")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -162,7 +200,7 @@ fun AppBottomNavigationBar(navController: NavHostController) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
 
-        navItems.forEach { screen -> // Changed from bottomNavItems to navItems
+        navItems.forEach { screen ->
             NavigationBarItem(
                 icon = { Icon(screen.icon, contentDescription = screen.label) },
                 label = { Text(screen.label) },

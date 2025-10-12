@@ -18,17 +18,24 @@
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
 
+    <!-- Geofencing permissions -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
     <application
+        android:name=".PresentMateApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@drawable/ic_launcher_foreground"
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_launcher_foreground"
-        android:supportsRtl="true"
+        android.supportsRtl="true"
         android:theme="@style/Theme.PresentMate"
         android:requestLegacyExternalStorage="true"
         tools:targetApi="31">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -40,16 +47,26 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".LocationPickerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.PresentMate" />
+
         <service
             android:name=".services.SessionTileService"
             android:exported="true"
             android:icon="@drawable/ic_session"
             android:label="Session"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            android.permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
+
+        <receiver
+            android:name=".geofence.GeofenceBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true" />
 
     </application>
 

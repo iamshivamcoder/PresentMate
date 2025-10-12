@@ -34,6 +34,9 @@ interface AttendanceDao {
 
     @androidx.room.Query("DELETE FROM deleted_records WHERE id = :id")
     suspend fun permanentlyDeleteRecord(id: Int)
+
+    @androidx.room.Query("SELECT * FROM attendance_records WHERE timeOut IS NULL ORDER BY timeIn DESC LIMIT 1")
+    fun getOngoingSession(): AttendanceRecord?
 }
 
 // --- Database --- //

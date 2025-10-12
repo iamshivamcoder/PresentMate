@@ -10,6 +10,7 @@ It focuses on simplicity, privacy (with offline-first data storage), and a clean
 *   **Attendance Overview:** Get a summary of your attendance, showing total hours/minutes logged.
 *   **Recycle Bin:** Deleted records are moved to a recycle bin, allowing for restoration or permanent deletion.
 *   **Quick Settings Tile:** Log 'Time In/Out' quickly via a shortcut in your phone's Quick Settings panel without opening the app.
+*   **Automatic Session Tracking with Geofencing:** Automatically starts and stops study sessions when you enter and exit a predefined location (e.g., a library). This feature is power-efficient, works in the background, and ensures hands-free, accurate attendance logging.
 *   **Data Export & Import:** Backup your attendance data to a `.doc` file and restore it when needed, accessible via the Settings screen.
 *   **Privacy Focused:** All attendance data is stored locally on your device. No data is collected or stored on external servers.
 *   **Offline Functionality:** Core features work completely offline.
@@ -22,6 +23,7 @@ It focuses on simplicity, privacy (with offline-first data storage), and a clean
 *   **Hilt:** For dependency injection (as inferred from build files, though not explicitly seen in the 5 files read for this specific task).
 *   **Coroutines:** For managing background tasks and asynchronous operations.
 *   **Apache POI:** Used for exporting and importing data to/from `.doc` files.
+*   **Google Play Services - Location:** Used for the geofencing feature.
 
 ## Setup
 

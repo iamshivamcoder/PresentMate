@@ -1,7 +1,10 @@
 package com.example.presentmate
 
 import android.Manifest
+import android.app.Activity
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
@@ -25,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
@@ -36,6 +40,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -50,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import com.example.presentmate.db.AppDatabase
+import com.example.presentmate.geofence.GeofenceBroadcastReceiver
+import com.example.presentmate.geofence.GeofenceManager
 import kotlinx.coroutines.flow.map
 
 fun getAppVersion(context: Context): String {
@@ -119,6 +126,42 @@ fun SettingsScreen(navController: NavHostController) {
     val appVersion = remember { getAppVersion(context) }
     val backupFileName = "PresentMate_Backup.doc"
     var showUnderProgressDialog by remember { mutableStateOf(false) }
+    var geofenceEnabled by remember { mutableStateOf(false) }
+    val geofenceManager = remember { GeofenceManager(context) }
+
+    val locationPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val data = result.data
+                val latitude = data?.getDoubleExtra("latitude", 0.0) ?: 0.0
+                val longitude = data?.getDoubleExtra("longitude", 0.0) ?: 0.0
+
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    0,
+                    Intent(context, GeofenceBroadcastReceiver::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+                geofenceManager.addGeofence("library_geofence", latitude, longitude, 100f, pendingIntent)
+                geofenceEnabled = true
+            }
+        }
+    )
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissions ->
+            if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            ) {
+                val intent = Intent(context, LocationPickerActivity::class.java)
+                locationPickerLauncher.launch(intent)
+            } else {
+                Toast.makeText(context, "Location permission denied.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
 
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -134,10 +177,6 @@ fun SettingsScreen(navController: NavHostController) {
             }
         }
     )
-
-    // Removed launchExportProcess as it's not directly used with the dialog approach for now.
-    // If permissions were granted, the original export/import logic would have run.
-    // Now, we just show "under progress".
 
     if (showUnderProgressDialog) {
         UnderProgressDialog { showUnderProgressDialog = false }
@@ -156,6 +195,39 @@ fun SettingsScreen(navController: NavHostController) {
             icon = Icons.Default.DeleteOutline,
             onClick = {
                 navController.navigate("recycleBin")
+            }
+        )
+        HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+        SettingsItem(
+            title = "Automatic Session Tracking",
+            description = if (geofenceEnabled) "Enabled" else "Disabled",
+            icon = Icons.Default.LocationOn,
+            onClick = { /* Toggle Switch will handle it */ },
+            showArrow = false,
+            trailingContent = {
+                Switch(
+                    checked = geofenceEnabled,
+                    onCheckedChange = { checked ->
+                        if (checked) {
+                            locationPermissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                                )
+                            )
+                        } else {
+                            val pendingIntent = PendingIntent.getBroadcast(
+                                context,
+                                0,
+                                Intent(context, GeofenceBroadcastReceiver::class.java),
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                            )
+                            geofenceManager.removeGeofence(pendingIntent)
+                            geofenceEnabled = false
+                        }
+                    }
+                )
             }
         )
         HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
@@ -233,7 +305,8 @@ fun SettingsItem(
     description: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
-    showArrow: Boolean = true
+    showArrow: Boolean = true,
+    trailingContent: @Composable (() -> Unit)? = null
 ) {
     Card(
         modifier = modifier
@@ -254,7 +327,9 @@ fun SettingsItem(
                 Text(text = title, style = MaterialTheme.typography.titleMedium)
                 Text(text = description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (showArrow) {
+            if (trailingContent != null) {
+                trailingContent()
+            } else if (showArrow) {
                 Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = "Navigate")
             }
         }
