@@ -4,14 +4,12 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.location.Address
 import android.location.Geocoder
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +51,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -71,7 +70,6 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
 import java.util.Locale
-import androidx.compose.ui.graphics.Color as ComposeColor
 
 class LocationPickerActivity : ComponentActivity() {
     private val fusedLocationClient by lazy {
@@ -89,29 +87,9 @@ class LocationPickerActivity : ComponentActivity() {
 
         searchHistoryRepository = SearchHistoryRepository(this)
 
-        val requestPermissionLauncher = registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { permissions ->
-            val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-            val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-
-            if (fineLocationGranted || coarseLocationGranted) {
-                getCurrentLocation()
-            }
-        }
-
-        when {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
-                getCurrentLocation()
-            }
-            else -> {
-                requestPermissionLauncher.launch(arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ))
-            }
-        }
+        // Permissions are now handled in SettingsScreen before launching this activity.
+        // We can directly try to get the current location.
+        getCurrentLocation()
 
         setContent {
             LocationPickerScreen(
@@ -157,6 +135,7 @@ fun LocationPickerScreen(
     var searchHistory by remember { mutableStateOf(searchHistoryRepository.getSearchHistory()) }
     var isSearching by remember { mutableStateOf(false) }
     var showSuggestions by remember { mutableStateOf(false) }
+    val searchCache = remember { mutableMapOf<String, List<Address>>() }
 
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -188,6 +167,12 @@ fun LocationPickerScreen(
     fun performSearch(query: String) {
         if (query.trim().isEmpty()) return
 
+        if (searchCache.containsKey(query)) {
+            searchSuggestions = searchCache.getValue(query)
+            showSuggestions = true
+            return
+        }
+
         coroutineScope.launch {
             try {
                 isSearching = true
@@ -197,6 +182,7 @@ fun LocationPickerScreen(
 
                 if (addresses != null && addresses.isNotEmpty()) {
                     searchSuggestions = addresses
+                    searchCache[query] = addresses
                     showSuggestions = true
                 } else {
                     searchSuggestions = emptyList()
@@ -346,8 +332,8 @@ fun LocationPickerScreen(
                             // Add geofence circle
                             val circle = Polygon().apply {
                                 points = Polygon.pointsAsCircle(p, 100.0)
-                                fillColor = ComposeColor.Red.copy(alpha = 0.19f).value.toInt() // 0x30FF0000 equivalent
-                                strokeColor = ComposeColor.Red.value.toInt()
+                                fillColor = Color.Red.copy(alpha = 0.19f).value.toInt() // 0x30FF0000 equivalent
+                                strokeColor = Color.Red.value.toInt()
                                 strokeWidth = 2f
                             }
                             map.overlays.add(circle)
@@ -403,12 +389,12 @@ fun LocationPickerScreen(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .background(
-                            ComposeColor.Black.copy(alpha = 0.5f),
+                            Color.Black.copy(alpha = 0.5f),
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
                         )
                         .padding(16.dp)
                 ) {
-                    CircularProgressIndicator(color = ComposeColor.White)
+                    CircularProgressIndicator(color = Color.White)
                 }
             }
         }
@@ -472,14 +458,14 @@ fun LocationPickerScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(ComposeColor.Red)
+                                    .background(Color.Red)
                                     .padding(horizontal = 20.dp),
                                 contentAlignment = Alignment.CenterEnd
                             ) {
                                 Icon(
                                     Icons.Default.Delete,
                                     contentDescription = "Delete",
-                                    tint = ComposeColor.White
+                                    tint = Color.White
                                 )
                             }
                         }

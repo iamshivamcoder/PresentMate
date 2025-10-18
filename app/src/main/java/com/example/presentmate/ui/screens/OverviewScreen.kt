@@ -1,4 +1,4 @@
-package com.example.presentmate
+package com.example.presentmate.ui.screens
 
 // Import graph components
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.presentmate.CollapsibleCard
+import com.example.presentmate.GraphSection
+import com.example.presentmate.GraphStats
+import com.example.presentmate.GraphViewType
+import com.example.presentmate.calculateGraphData
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
 import java.text.SimpleDateFormat
@@ -140,9 +145,19 @@ fun DailySummaryItem(summary: DailySummary, modifier: Modifier = Modifier) {
             }
         },
         collapsibleContent = {
-            Column(modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+            Column(
+                modifier = Modifier.padding(
+                    top = 8.dp,
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = 8.dp
+                )
+            ) {
                 if (summary.records.isEmpty()) {
-                    Text("No individual records for this day.", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "No individual records for this day.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 } else {
                     summary.records.sortedBy { it.timeIn }.forEach { record ->
                         Row(
@@ -154,7 +169,13 @@ fun DailySummaryItem(summary: DailySummary, modifier: Modifier = Modifier) {
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "${timeFormatter.format(record.timeIn)} - ${record.timeOut?.let { timeFormatter.format(it) } ?: "Ongoing"}",
+                                text = "${timeFormatter.format(record.timeIn)} - ${
+                                    record.timeOut?.let {
+                                        timeFormatter.format(
+                                            it
+                                        )
+                                    } ?: "Ongoing"
+                                }",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }

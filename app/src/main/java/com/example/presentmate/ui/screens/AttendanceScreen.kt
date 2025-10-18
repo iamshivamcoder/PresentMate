@@ -148,7 +148,7 @@ fun AttendanceScreen(
                     modifier = timeInButtonModifier,
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Time In", style = MaterialTheme.typography.titleMedium)
+                    Text("Start Session", style = MaterialTheme.typography.titleMedium)
                 }
                 OutlinedButton(
                     onClick = { /* Time Out is disabled when no session is in progress */ },
@@ -156,7 +156,7 @@ fun AttendanceScreen(
                     modifier = timeOutButtonModifier,
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Time Out", style = MaterialTheme.typography.titleMedium)
+                        Text("End Session", style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
