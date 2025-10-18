@@ -60,7 +60,7 @@ import kotlinx.coroutines.flow.map
 fun getAppVersion(context: Context): String {
     return try {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-        packageInfo.versionName
+        packageInfo.versionName ?: "N/A"
     } catch (_: Exception) {
         "N/A"
     }

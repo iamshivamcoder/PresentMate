@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.example.presentmate"
-    compileSdk = 34
+    compileSdk = 35
 
     kapt {
         correctErrorTypes = true
@@ -79,6 +79,7 @@ dependencies {
     // Core Android dependencies
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 

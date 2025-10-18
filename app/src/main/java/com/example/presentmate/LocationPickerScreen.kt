@@ -3,8 +3,6 @@ package com.example.presentmate
 
 import android.location.Address
 import android.location.Geocoder
-import android.os.Build
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,11 +39,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,8 +52,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+// Import this for the .collectAsStateWithLifecycle() optimization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -64,364 +63,368 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
 import java.util.Locale
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocationPickerScreen(
     initialLocation: MutableState<GeoPoint?>,
     searchHistoryRepository: SearchHistoryRepository,
-    onLocationSelected: (GeoPoint) -> Unit
+    onLocationConfirmed: (GeoPoint) -> Unit
 ) {
-    var selectedLocation by remember { mutableStateOf<GeoPoint?>(null) }
-    var addressText by remember { mutableStateOf("Tap on map to select location") }
-    var searchQuery by remember { mutableStateOf("") }
-    var searchSuggestions by remember { mutableStateOf<List<Address>>(emptyList()) }
-    var searchHistory by remember { mutableStateOf(searchHistoryRepository.getSearchHistory()) }
-    var isSearching by remember { mutableStateOf(false) }
-    var showSuggestions by remember { mutableStateOf(false) }
-    val searchCache = remember { mutableMapOf<String, List<Address>>() }
-
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    // Use remember for dependencies that shouldn't change
     val geocoder = remember { Geocoder(context, Locale.getDefault()) }
-    val keyboardController = LocalSoftwareKeyboardController.current
+    val viewModel: LocationPickerViewModel = viewModel(
+        factory = LocationPickerViewModel.provideFactory(geocoder, searchHistoryRepository, initialLocation.value)
+    )
 
-    suspend fun getAddressText(geoPoint: GeoPoint): String {
-        return suspendCancellableCoroutine { continuation ->
-            try {
-                if (Build.VERSION.SDK_INT >= 33) {
-                    geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1) { addresses ->
-                        val address = addresses.firstOrNull()?.getAddressLine(0)
-                            ?: String.format(Locale.US, "Lat: %.6f, Lng: %.6f", geoPoint.latitude, geoPoint.longitude)
-                        continuation.resume(address)
-                    }
-                } else {
-                    @Suppress("DEPRECATION")
-                    val addresses = geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1)
-                    val address = addresses?.firstOrNull()?.getAddressLine(0)
-                        ?: String.format(Locale.US, "Lat: %.6f, Lng: %.6f", geoPoint.latitude, geoPoint.longitude)
-                    continuation.resume(address)
+    // Use collectAsStateWithLifecycle for better performance
+    // It stops collecting when the app is in the background.
+    // You may need to add: implementation "androidx.lifecycle:lifecycle-runtime-compose:2.8.3"
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // --- Main Layout Change ---
+    // Use Box as the root. Everything floats on top of the map.
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // Layer 1: The Map (fills the whole screen)
+        MapViewContainer(
+            modifier = Modifier.fillMaxSize(),
+            selectedLocation = uiState.selectedLocation,
+            initialLocation = initialLocation.value,
+            onMapTap = viewModel::onLocationSelected
+        )
+
+        // Layer 2: UI Elements floating on top
+
+        // Search bar and lists, aligned to the top
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+        ) {
+            LocationSearchBar(
+                searchQuery = uiState.searchQuery,
+                onSearchQueryChanged = viewModel::onSearchQueryChanged,
+                onPerformSearch = viewModel::onPerformSearch,
+                onClearSearch = viewModel::onClearSearch,
+                onLocationConfirmed = {
+                    uiState.selectedLocation?.let(onLocationConfirmed)
+                    viewModel.addSearchToHistory()
+                },
+                isLocationSelected = uiState.selectedLocation != null,
+                onGoToCurrentLocation = {
+                    initialLocation.value?.let { viewModel.onLocationSelected(it) }
                 }
-            } catch (e: Exception) {
-                continuation.resumeWithException(e)
+            )
+
+            // Lists appear below the search bar, overlaying the map
+            if (uiState.showSuggestions) {
+                SuggestionList(
+                    suggestions = uiState.suggestions,
+                    onSuggestionClicked = viewModel::onSuggestionClicked
+                )
+            } else if (uiState.searchQuery.isEmpty() && uiState.history.isNotEmpty()) {
+                // Show history only if query is empty and history is not
+                HistoryList(
+                    history = uiState.history,
+                    onHistoryItemClicked = viewModel::onHistoryItemClicked,
+                    onRemoveFromHistory = viewModel::onRemoveFromHistory
+                )
+            }
+        }
+
+        // Selected Address Card, aligned to the bottom
+        SelectedAddressCard(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+            addressText = uiState.addressText,
+            isVisible = uiState.selectedLocation != null
+        )
+
+        // Loading spinner, aligned to the center
+        if (uiState.isSearching) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(
+                        Color.Black.copy(alpha = 0.5f),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                    )
+                    .padding(16.dp)
+            ) {
+                CircularProgressIndicator(color = Color.White)
             }
         }
     }
+}
 
+// (LocationSearchBar is unchanged, no need to copy it)
+@Composable
+private fun LocationSearchBar(
+    searchQuery: String,
+    onSearchQueryChanged: (String) -> Unit,
+    onPerformSearch: () -> Unit,
+    onClearSearch: () -> Unit,
+    onLocationConfirmed: () -> Unit,
+    isLocationSelected: Boolean,
+    onGoToCurrentLocation: () -> Unit
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    placeholder = { Text("Search for a location") },
+                    modifier = Modifier.weight(1f),
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = onClearSearch) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            onPerformSearch()
+                            keyboardController?.hide()
+                        }
+                    ),
+                    singleLine = true
+                )
+                IconButton(onClick = onGoToCurrentLocation) {
+                    Icon(Icons.Default.MyLocation, contentDescription = "My Location")
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Button(
+                    onClick = onGoToCurrentLocation,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 4.dp)
+                ) {
+                    Text("Current Location")
+                }
+                Button(
+                    onClick = onLocationConfirmed,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 4.dp),
+                    enabled = isLocationSelected
+                ) {
+                    Text("Select Location")
+                }
+            }
+        }
+    }
+}
+
+
+// (MapViewContainer is unchanged)
+@Composable
+private fun MapViewContainer(
+    modifier: Modifier = Modifier,
+    selectedLocation: GeoPoint?,
+    initialLocation: GeoPoint?,
+    onMapTap: (GeoPoint) -> Unit
+) {
+    val context = LocalContext.current
 
     val mapView = remember {
         MapView(context).apply {
             setMultiTouchControls(true)
             controller.setZoom(15.0)
-            controller.setCenter(GeoPoint(20.5937, 78.9629)) // Default to India center
+            controller.setCenter(initialLocation ?: GeoPoint(20.5937, 78.9629))
             setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
         }
     }
+    val marker = remember { Marker(mapView) }
+    val circle = remember { Polygon() }
+    val mapEventsOverlay = remember {
+        val mapEventsReceiver = object : MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
+                onMapTap(p)
+                return true
+            }
+
+            override fun longPressHelper(p: GeoPoint): Boolean = false
+        }
+        MapEventsOverlay(mapEventsReceiver)
+    }
+
+    LaunchedEffect(selectedLocation) {
+        mapView.overlays.remove(marker)
+        mapView.overlays.remove(circle)
+
+        selectedLocation?.let { geoPoint ->
+            marker.apply {
+                position = geoPoint
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                title = "Selected Location"
+            }
+            circle.apply {
+                points = Polygon.pointsAsCircle(geoPoint, 100.0)
+                fillPaint.color = Color.Red.copy(alpha = 0.19f).toArgb()
+                outlinePaint.color = Color.Red.toArgb()
+                outlinePaint.strokeWidth = 2f
+            }
+            mapView.overlays.add(marker)
+            mapView.overlays.add(circle)
+            mapView.controller.animateTo(geoPoint)
+        }
+        mapView.invalidate()
+    }
 
     DisposableEffect(Unit) {
+        mapView.overlays.add(0, mapEventsOverlay)
         onDispose {
             mapView.onPause()
             mapView.onDetach()
         }
     }
 
-    LaunchedEffect(initialLocation.value) {
-        initialLocation.value?.let {
-            mapView.controller.setCenter(it)
-        }
-    }
+    AndroidView(
+        factory = { mapView },
+        modifier = modifier
+    )
+}
 
-    LaunchedEffect(selectedLocation) {
-        selectedLocation?.let { geoPoint ->
-            coroutineScope.launch {
-                addressText = getAddressText(geoPoint)
+// (SuggestionList is unchanged)
+@Composable
+private fun SuggestionList(
+    suggestions: List<Address>,
+    onSuggestionClicked: (Address) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 200.dp)
+            .background(MaterialTheme.colorScheme.surface)
+            // Add padding so the list doesn't touch the search card
+            .padding(horizontal = 16.dp)
+    ) {
+        items(suggestions) { address ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Remove horizontal padding from here, it's on the LazyColumn now
+                    .padding(vertical = 2.dp)
+                    .clickable { onSuggestionClicked(address) }
+            ) {
+                Text(
+                    text = address.getAddressLine(0) ?: "Unknown Location",
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
     }
+}
 
-    fun performSearch(query: String) {
-        if (query.trim().isEmpty()) return
-
-        if (searchCache.containsKey(query)) {
-            searchSuggestions = searchCache.getValue(query)
-            showSuggestions = true
-            return
-        }
-
-        coroutineScope.launch {
-            try {
-                isSearching = true
-                val addresses = suspendCancellableCoroutine<List<Address>?> { continuation ->
-                    if (Build.VERSION.SDK_INT >= 33) {
-                        geocoder.getFromLocationName(query, 5) { addressList ->
-                            continuation.resume(addressList)
-                        }
+// (HistoryList is unchanged)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HistoryList(
+    history: List<String>,
+    onHistoryItemClicked: (String) -> Unit,
+    onRemoveFromHistory: (String) -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 150.dp)
+            .background(MaterialTheme.colorScheme.surface)
+            // Add padding so the list doesn't touch the search card
+            .padding(horizontal = 16.dp)
+    ) {
+        items(history, key = { it }) { query ->
+            val dismissState = rememberSwipeToDismissBoxState(
+                confirmValueChange = {
+                    if (it == SwipeToDismissBoxValue.EndToStart || it == SwipeToDismissBoxValue.StartToEnd) {
+                        coroutineScope.launch { onRemoveFromHistory(query) }
+                        true
                     } else {
-                        @Suppress("DEPRECATION")
-                        continuation.resume(geocoder.getFromLocationName(query, 5))
+                        false
                     }
-                }
-
-                if (addresses?.isNotEmpty() == true) {
-                    searchSuggestions = addresses
-                    searchCache[query] = addresses
-                    showSuggestions = true
-                } else {
-                    searchSuggestions = emptyList()
-                    showSuggestions = false
-                }
-            } catch (e: Exception) {
-                Log.e("LocationPicker", "Search failed", e)
-                searchSuggestions = emptyList()
-                showSuggestions = false
-            } finally {
-                isSearching = false
-            }
-        }
-    }
-
-    fun goToCurrentLocation() {
-        initialLocation.value?.let { currentLoc ->
-            selectedLocation = currentLoc
-            mapView.controller.animateTo(currentLoc)
-        }
-    }
-
-    Column {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Column {
-                Row(
-                    modifier = Modifier.padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            if (it.isEmpty()) {
-                                showSuggestions = false
-                                searchHistory = searchHistoryRepository.getSearchHistory()
-                            }
-                        },
-                        placeholder = { Text("Search for a location") },
-                        modifier = Modifier.weight(1f),
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = {
-                                    searchQuery = ""
-                                    showSuggestions = false
-                                    searchSuggestions = emptyList()
-                                }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Clear")
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                performSearch(searchQuery)
-                                keyboardController?.hide()
-                            }
-                        ),
-                        singleLine = true
-                    )
-                    IconButton(onClick = { goToCurrentLocation() }) {
-                        Icon(Icons.Default.MyLocation, contentDescription = "My Location")
-                    }
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Button(
-                        onClick = { goToCurrentLocation() },
-                        modifier = Modifier.weight(1f).padding(end = 4.dp)
-                    ) {
-                        Text("Current Location")
-                    }
-                    Button(
-                        onClick = {
-                            selectedLocation?.let { onLocationSelected(it) }
-                            if (searchQuery.isNotEmpty()) {
-                                searchHistoryRepository.addToSearchHistory(searchQuery)
-                            }
-                        },
-                        modifier = Modifier.weight(1f).padding(start = 4.dp),
-                        enabled = selectedLocation != null
-                    ) {
-                        Text("Select Location")
-                    }
-                }
-            }
-        }
-
-        Box(modifier = Modifier.weight(1f)) {
-            AndroidView(
-                factory = { mapView },
-                modifier = Modifier.fillMaxSize(),
-                update = { map ->
-                    map.overlays.clear()
-
-                    val mapEventsReceiver = object : MapEventsReceiver {
-                        override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                            selectedLocation = p
-                            return true
-                        }
-
-                        override fun longPressHelper(p: GeoPoint): Boolean = false
-                    }
-
-                    val mapEventsOverlay = MapEventsOverlay(mapEventsReceiver)
-                    map.overlays.add(0, mapEventsOverlay)
-
-                    selectedLocation?.let { geoPoint ->
-                        val marker = Marker(map).apply {
-                            position = geoPoint
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                            title = "Selected Location"
-                        }
-                        val circle = Polygon().apply {
-                            points = Polygon.pointsAsCircle(geoPoint, 100.0)
-                            // Use Paint objects instead of deprecated convenience properties
-                            fillPaint.color = Color.Red.copy(alpha = 0.19f).toArgb()
-                            outlinePaint.color = Color.Red.toArgb()
-                            outlinePaint.strokeWidth = 2f
-                        }
-                        map.overlays.add(marker)
-                        map.overlays.add(circle)
-                    }
-
-                    map.invalidate()
                 }
             )
 
-            if (selectedLocation != null) {
+            SwipeToDismissBox(
+                state = dismissState,
+                backgroundContent = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Red)
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = Color.White
+                        )
+                    }
+                }
+            ) {
                 Card(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                        .fillMaxWidth()
+                        // Remove horizontal padding from here
+                        .padding(vertical = 2.dp)
+                        .clickable { onHistoryItemClicked(query) }
                 ) {
                     Text(
-                        text = addressText,
+                        text = query,
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
-
-            if (isSearching) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .background(
-                            Color.Black.copy(alpha = 0.5f),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                        )
-                        .padding(16.dp)
-                ) {
-                    CircularProgressIndicator(color = Color.White)
-                }
-            }
         }
+    }
+}
 
-        if (showSuggestions && searchSuggestions.isNotEmpty()) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 200.dp)
-                    .background(MaterialTheme.colorScheme.surface)
-            ) {
-                items(searchSuggestions) { address ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 2.dp)
-                            .clickable {
-                                val newLocation = GeoPoint(address.latitude, address.longitude)
-                                selectedLocation = newLocation
-                                mapView.controller.animateTo(newLocation)
-                                searchQuery = address.getAddressLine(0) ?: ""
-                                showSuggestions = false
-                                searchSuggestions = emptyList()
-                            }
-                    ) {
-                        Text(
-                            text = address.getAddressLine(0) ?: "Unknown Location",
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-        } else if (searchQuery.isEmpty() && searchHistory.isNotEmpty()) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 150.dp)
-            ) {
-                items(searchHistory, key = { it }) { query ->
-                    val dismissState = rememberSwipeToDismissBoxState(
-                        confirmValueChange = {
-                            if (it == SwipeToDismissBoxValue.EndToStart || it == SwipeToDismissBoxValue.StartToEnd) {
-                                coroutineScope.launch {
-                                    searchHistoryRepository.removeFromSearchHistory(query)
-                                    searchHistory = searchHistoryRepository.getSearchHistory()
-                                }
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                    )
-
-                    SwipeToDismissBox(
-                        state = dismissState,
-                        backgroundContent = {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Red)
-                                    .padding(horizontal = 20.dp),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    tint = Color.White
-                                )
-                            }
-                        }
-                    ) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 2.dp)
-                                .clickable {
-                                    searchQuery = query
-                                    performSearch(query)
-                                }
-                        ) {
-                            Text(
-                                text = query,
-                                modifier = Modifier.padding(16.dp),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-            }
+// --- Modified Composable ---
+// Added a Modifier parameter so it can be aligned
+@Composable
+private fun SelectedAddressCard(
+    modifier: Modifier = Modifier, // Accept a modifier
+    addressText: String,
+    isVisible: Boolean
+) {
+    if (isVisible) {
+        Card(
+            // Apply the passed-in modifier here
+            modifier = modifier
+                .fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Text(
+                text = addressText,
+                modifier = Modifier.padding(16.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }
