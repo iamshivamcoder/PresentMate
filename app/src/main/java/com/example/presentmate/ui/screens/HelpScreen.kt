@@ -26,8 +26,9 @@ val faqs = listOf(
     // Add more FAQs as needed
 )
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
-fun HelpScreen(navController: NavHostController) {
+fun HelpScreen(_navController: NavHostController) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()

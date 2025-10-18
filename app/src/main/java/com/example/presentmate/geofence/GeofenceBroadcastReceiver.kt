@@ -26,12 +26,12 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
         if (geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER) {
             Log.d("GeofenceReceiver", "Geofence Entered")
-            triggeringGeofences?.forEach { geofence ->
+            triggeringGeofences?.forEach { _ ->
                 startSession(context)
             }
         } else if (geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT) {
             Log.d("GeofenceReceiver", "Geofence Exited")
-            triggeringGeofences?.forEach { geofence ->
+            triggeringGeofences?.forEach { _ ->
                 endSession(context)
             }
         }

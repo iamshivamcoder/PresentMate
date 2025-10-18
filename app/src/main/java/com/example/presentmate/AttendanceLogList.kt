@@ -144,7 +144,7 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
         recordsByDate.forEach { (date, recordsForDate) ->
             stickyHeader {
                 Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
-                    Divider()
+                    HorizontalDivider()
                     Text(
                         text = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)),
                         modifier = Modifier

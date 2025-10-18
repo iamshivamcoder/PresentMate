@@ -3,7 +3,6 @@ package com.example.presentmate.geofence
 import android.Manifest
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.app.ActivityCompat
@@ -43,24 +42,22 @@ class GeofenceManager(private val context: Context) {
             .addGeofence(geofence)
             .build()
 
-        geofencingClient.addGeofences(geofencingRequest, pendingIntent)?.run {
-            addOnSuccessListener {
+        geofencingClient.addGeofences(geofencingRequest, pendingIntent)
+            .addOnSuccessListener {
                 Log.d("GeofenceManager", "Geofence added successfully.")
             }
-            addOnFailureListener {
+            .addOnFailureListener {
                 Log.e("GeofenceManager", "Failed to add geofence.", it)
             }
-        }
     }
 
     fun removeGeofence(pendingIntent: PendingIntent) {
-        geofencingClient.removeGeofences(pendingIntent)?.run {
-            addOnSuccessListener {
+        geofencingClient.removeGeofences(pendingIntent)
+            .addOnSuccessListener {
                 Log.d("GeofenceManager", "Geofence removed successfully.")
             }
-            addOnFailureListener {
+            .addOnFailureListener {
                 Log.e("GeofenceManager", "Failed to remove geofence.", it)
             }
-        }
     }
 }

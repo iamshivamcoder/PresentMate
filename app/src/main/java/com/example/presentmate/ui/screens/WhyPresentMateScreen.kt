@@ -39,8 +39,9 @@ val qnaList = listOf(
     QnaItem("20. How is Present Mate different from other trackers?", "Present Mate focuses on simplicity, privacy (offline-first), and a clean user experience for personal attendance tracking without unnecessary bells and whistles.")
 )
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
-fun WhyPresentMateScreen(navController: NavHostController) {
+fun WhyPresentMateScreen(_navController: NavHostController) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()

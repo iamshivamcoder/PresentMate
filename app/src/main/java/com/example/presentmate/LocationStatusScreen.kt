@@ -40,6 +40,7 @@ import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
@@ -111,11 +112,10 @@ fun LocationStatusScreen() {
                 context, Manifest.permission.ACCESS_COARSE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            val locationRequest = LocationRequest.create().apply {
-                interval = 10000
-                fastestInterval = 5000
-                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-            }
+            // Use the modern builder-style API for LocationRequest (create() and setters are deprecated)
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000L)
+                .setMinUpdateIntervalMillis(5000L)
+                .build()
             fusedLocationClient.requestLocationUpdates(
                 locationRequest,
                 locationCallback,

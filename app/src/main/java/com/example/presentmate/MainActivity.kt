@@ -35,7 +35,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -77,7 +76,6 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
-                val context = LocalContext.current
 
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
@@ -151,8 +149,8 @@ class MainActivity : ComponentActivity() {
                             composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
                             composable(Screen.LocationStatus.route) { LocationStatusScreen() }
                             composable("recycleBin") { RecycleBinScreen() }
-                            composable("helpScreen") { HelpScreen(navController = navController) }
-                            composable("whyPresentMateScreen") { WhyPresentMateScreen(navController = navController) }
+                            composable("helpScreen") { HelpScreen(_navController = navController) }
+                            composable("whyPresentMateScreen") { WhyPresentMateScreen(_navController = navController) }
                         }
                     }
                 }

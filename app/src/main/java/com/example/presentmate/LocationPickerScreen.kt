@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION")
 package com.example.presentmate
 
 import android.location.Address
@@ -291,9 +292,10 @@ fun LocationPickerScreen(
                         }
                         val circle = Polygon().apply {
                             points = Polygon.pointsAsCircle(geoPoint, 100.0)
-                            fillColor = Color.Red.copy(alpha = 0.19f).toArgb()
-                            strokeColor = Color.Red.toArgb()
-                            strokeWidth = 2f
+                            // Use Paint objects instead of deprecated convenience properties
+                            fillPaint.color = Color.Red.copy(alpha = 0.19f).toArgb()
+                            outlinePaint.color = Color.Red.toArgb()
+                            outlinePaint.strokeWidth = 2f
                         }
                         map.overlays.add(marker)
                         map.overlays.add(circle)
