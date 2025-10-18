@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.outlined.Info
@@ -35,7 +36,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.presentmate.db.AppDatabase
@@ -113,7 +114,13 @@ fun SettingsScreen(navController: NavHostController) {
                     Intent(context, GeofenceBroadcastReceiver::class.java),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
                 )
-                geofenceManager.addGeofence("library_geofence", latitude, longitude, 100f, pendingIntent)
+                geofenceManager.addGeofence(
+                    "library_geofence",
+                    latitude,
+                    longitude,
+                    100f,
+                    pendingIntent
+                )
                 geofenceEnabled = true
             }
         }
@@ -146,89 +153,113 @@ fun SettingsScreen(navController: NavHostController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        SettingsItem(
-            title = "Recycle Bin",
-            description = "$deletedRecordsCount items",
-            icon = Icons.Default.DeleteOutline,
-            onClick = { navController.navigate("recycleBin") }
-        )
-        HorizontalDivider()
-        SettingsItem(
-            title = "Automatic Session Tracking",
-            description = if (geofenceEnabled) "Enabled" else "Disabled",
-            icon = Icons.Default.LocationOn,
-            onClick = { /* Toggle Switch will handle it */ },
-            showArrow = false,
-            trailingContent = {
-                Switch(
-                    checked = geofenceEnabled,
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            val permissions = mutableListOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                            )
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        SettingsGroup("Data Management") {
+            SettingsItem(
+                title = "Automatic Session Tracking",
+                description = if (geofenceEnabled) "Enabled" else "Disabled",
+                icon = Icons.Default.LocationOn,
+                onClick = { /* Toggle Switch will handle it */ },
+                showArrow = false,
+                trailingContent = {
+                    Switch(
+                        checked = geofenceEnabled,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                val permissions = mutableListOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                                }
+                                locationPermissionLauncher.launch(permissions.toTypedArray())
+                            } else {
+                                with(prefs.edit()) {
+                                    remove("geofence_latitude")
+                                    remove("geofence_longitude")
+                                    putBoolean("geofence_enabled", false)
+                                    apply()
+                                }
+                                val pendingIntent = PendingIntent.getBroadcast(
+                                    context,
+                                    0,
+                                    Intent(context, GeofenceBroadcastReceiver::class.java),
+                                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                                )
+                                geofenceManager.removeGeofence(pendingIntent)
+                                geofenceEnabled = false
                             }
-                            locationPermissionLauncher.launch(permissions.toTypedArray())
-                        } else {
-                            with(prefs.edit()) {
-                                remove("geofence_latitude")
-                                remove("geofence_longitude")
-                                putBoolean("geofence_enabled", false)
-                                apply()
-                            }
-                            val pendingIntent = PendingIntent.getBroadcast(
-                                context,
-                                0,
-                                Intent(context, GeofenceBroadcastReceiver::class.java),
-                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                            )
-                            geofenceManager.removeGeofence(pendingIntent)
-                            geofenceEnabled = false
                         }
-                    }
-                )
-            }
+                    )
+                }
+            )
+            SettingsItem(
+                title = "Recycle Bin",
+                description = "$deletedRecordsCount items",
+                icon = Icons.Default.DeleteOutline,
+                onClick = { navController.navigate("recycleBin") }
+            )
+            SettingsItem(
+                title = "Export Data",
+                description = "Save records to a file",
+                icon = Icons.Filled.FileUpload,
+                onClick = { showUnderProgressDialog = true }
+            )
+            SettingsItem(
+                title = "Import Data",
+                description = "Restore records from a file",
+                icon = Icons.Filled.FileDownload,
+                onClick = { showUnderProgressDialog = true }
+            )
+        }
+
+        SettingsGroup("General") {
+            SettingsItem(
+                title = "App Version",
+                description = appVersion,
+                icon = Icons.Filled.Verified,
+                onClick = { Toast.makeText(context, "App Version: $appVersion", Toast.LENGTH_SHORT).show() }
+            )
+        }
+
+        SettingsGroup("Information") {
+            SettingsItem(
+                title = "Help",
+                description = "Find answers to your questions",
+                icon = Icons.AutoMirrored.Filled.HelpOutline,
+                onClick = { navController.navigate("helpScreen") }
+            )
+            SettingsItem(
+                title = "Why Present Mate?",
+                description = "Learn about the app's mission",
+                icon = Icons.Outlined.Info,
+                onClick = { navController.navigate("whyPresentMateScreen") }
+            )
+            SettingsItem(
+                title = "About Developer",
+                description = "Learn more about the creator",
+                icon = Icons.Filled.Info,
+                onClick = { navController.navigate("aboutDeveloper") }
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsGroup(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp)
         )
-        HorizontalDivider()
-        SettingsItem(
-            title = "App Version",
-            description = appVersion,
-            icon = Icons.Filled.Verified,
-            onClick = { Toast.makeText(context, "App Version: $appVersion", Toast.LENGTH_SHORT).show() }
-        )
-        HorizontalDivider()
-        SettingsItem(
-            title = "Help",
-            description = "Find answers to your questions",
-            icon = Icons.AutoMirrored.Filled.HelpOutline,
-            onClick = { navController.navigate("helpScreen") }
-        )
-        SettingsItem(
-            title = "Why Present Mate?",
-            description = "Learn about the app's mission",
-            icon = Icons.Outlined.Info,
-            onClick = { navController.navigate("whyPresentMateScreen") }
-        )
-        HorizontalDivider()
-        SettingsItem(
-            title = "Export Data",
-            description = "Save records to a file",
-            icon = Icons.Filled.FileUpload,
-            onClick = { showUnderProgressDialog = true }
-        )
-        SettingsItem(
-            title = "Import Data",
-            description = "Restore records from a file",
-            icon = Icons.Filled.FileDownload,
-            onClick = { showUnderProgressDialog = true }
-        )
+        content()
     }
 }
 
@@ -258,7 +289,11 @@ fun SettingsItem(
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, style = MaterialTheme.typography.titleMedium)
-                Text(text = description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             if (trailingContent != null) {
                 trailingContent()

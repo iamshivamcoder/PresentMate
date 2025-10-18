@@ -1,6 +1,5 @@
 package com.example.presentmate.ui.screens
 
-// Import graph components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,8 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,13 +23,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.presentmate.CollapsibleCard
+import com.example.presentmate.db.AppDatabase
+import com.example.presentmate.db.AttendanceRecord
+import com.example.presentmate.ui.components.CollapsibleCard
 import com.example.presentmate.ui.components.GraphSection
 import com.example.presentmate.ui.components.GraphStats
 import com.example.presentmate.ui.components.GraphViewType
 import com.example.presentmate.ui.components.calculateGraphData
-import com.example.presentmate.db.AppDatabase
-import com.example.presentmate.db.AttendanceRecord
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -43,7 +42,7 @@ import java.util.concurrent.TimeUnit
 data class DailySummary(
     val date: LocalDate,
     val totalDurationMillis: Long,
-    val records: List<AttendanceRecord> 
+    val records: List<AttendanceRecord>
 ) {
     val durationString: String
         get() {
@@ -93,6 +92,7 @@ fun OverviewScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         GraphSection(
@@ -107,15 +107,13 @@ fun OverviewScreen() {
         Spacer(modifier = Modifier.height(24.dp))
 
         if (dailySummaries.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("No attendance data to display.", style = MaterialTheme.typography.bodyLarge)
             }
         } else {
             Text("Daily Breakdown", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 10.dp))
-            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(dailySummaries, key = { it.date.toEpochDay() }) { summary ->
-                    DailySummaryItem(summary = summary)
-                }
+            dailySummaries.forEach { summary ->
+                DailySummaryItem(summary = summary, modifier = Modifier.padding(bottom = 8.dp))
             }
         }
     }
@@ -169,7 +167,7 @@ fun DailySummaryItem(summary: DailySummary, modifier: Modifier = Modifier) {
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "${timeFormatter.format(record.timeIn)} - ${
+                                text = "${record.timeIn?.let { timeFormatter.format(it) } ?: "N/A"} - ${
                                     record.timeOut?.let {
                                         timeFormatter.format(
                                             it

@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.presentmate.CollapsibleCard
+import com.example.presentmate.ui.components.CollapsibleCard
 
 data class QnaItem(val question: String, val answer: String)
 

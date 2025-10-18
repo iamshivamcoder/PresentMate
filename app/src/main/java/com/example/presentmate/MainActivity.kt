@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
@@ -43,6 +44,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.presentmate.ui.screens.AboutDeveloperScreen
 import com.example.presentmate.ui.screens.AttendanceScreen
 import com.example.presentmate.ui.screens.HelpScreen
 import com.example.presentmate.ui.screens.OverviewScreen
@@ -57,6 +59,7 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Overview : Screen("overview", "Overview", Icons.Filled.BarChart)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
     object LocationStatus : Screen("locationStatus", "Location Status", Icons.Filled.LocationOn)
+    object AboutDeveloper : Screen("aboutDeveloper", "About Developer", Icons.Filled.Info)
 }
 
 val navItems = listOf(
@@ -89,6 +92,7 @@ class MainActivity : ComponentActivity() {
                         "recycleBin" -> "Recycle Bin"
                         "helpScreen" -> "Help"
                         "whyPresentMateScreen" -> "Why Present Mate?"
+                        "aboutDeveloper" -> "About the Developer"
                         else -> "Present Mate"
                     }
                 }
@@ -148,6 +152,7 @@ class MainActivity : ComponentActivity() {
                             composable(Screen.Overview.route) { OverviewScreen() }
                             composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
                             composable(Screen.LocationStatus.route) { LocationStatusScreen() }
+                            composable(Screen.AboutDeveloper.route) { AboutDeveloperScreen() }
                             composable("recycleBin") { RecycleBinScreen() }
                             composable("helpScreen") { HelpScreen(_navController = navController) }
                             composable("whyPresentMateScreen") { WhyPresentMateScreen(_navController = navController) }

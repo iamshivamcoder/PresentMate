@@ -1,4 +1,4 @@
-package com.example.presentmate
+package com.example.presentmate.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
