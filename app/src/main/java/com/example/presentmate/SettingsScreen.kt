@@ -35,8 +35,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DividerDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,7 +50,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.geofence.GeofenceBroadcastReceiver
@@ -65,39 +62,6 @@ fun getAppVersion(context: Context): String {
         packageInfo.versionName
     } catch (_: Exception) {
         "N/A"
-    }
-}
-
-// Helper function to check if storage permissions are granted
-fun hasStoragePermissions(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        // Android 13+ (API 33+) - Check for READ_MEDIA_DOCUMENTS
-        ContextCompat.checkSelfPermission(
-            context,
-            "android.permission.READ_MEDIA_DOCUMENTS"
-        ) == PackageManager.PERMISSION_GRANTED
-    } else {
-        // For all other versions, check READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        ) == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-    }
-}
-
-// Helper function to get required permissions for current Android version
-fun getRequiredPermissions(): Array<String> {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        arrayOf("android.permission.READ_MEDIA_DOCUMENTS")
-    } else {
-        arrayOf(
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        )
     }
 }
 
@@ -115,18 +79,17 @@ fun UnderProgressDialog(onDismiss: () -> Unit) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavHostController) {
     val context = LocalContext.current
     val db = AppDatabase.getDatabase(context)
+    val prefs = remember { context.getSharedPreferences("geofence_prefs", Context.MODE_PRIVATE) }
     val deletedRecordsCount by db.attendanceDao().getAllDeletedRecords()
         .map { it.size }
         .collectAsState(initial = 0)
     val appVersion = remember { getAppVersion(context) }
-    val backupFileName = "PresentMate_Backup.doc"
     var showUnderProgressDialog by remember { mutableStateOf(false) }
-    var geofenceEnabled by remember { mutableStateOf(false) }
+    var geofenceEnabled by remember { mutableStateOf(prefs.getBoolean("geofence_enabled", false)) }
     val geofenceManager = remember { GeofenceManager(context) }
 
     val locationPickerLauncher = rememberLauncherForActivityResult(
@@ -136,6 +99,13 @@ fun SettingsScreen(navController: NavHostController) {
                 val data = result.data
                 val latitude = data?.getDoubleExtra("latitude", 0.0) ?: 0.0
                 val longitude = data?.getDoubleExtra("longitude", 0.0) ?: 0.0
+
+                with(prefs.edit()) {
+                    putFloat("geofence_latitude", latitude.toFloat())
+                    putFloat("geofence_longitude", longitude.toFloat())
+                    putBoolean("geofence_enabled", true)
+                    apply()
+                }
 
                 val pendingIntent = PendingIntent.getBroadcast(
                     context,
@@ -152,28 +122,19 @@ fun SettingsScreen(navController: NavHostController) {
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions ->
-            if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            if (permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
+                permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)
             ) {
-                val intent = Intent(context, LocationPickerActivity::class.java)
-                locationPickerLauncher.launch(intent)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                    !permissions.getOrDefault(Manifest.permission.ACCESS_BACKGROUND_LOCATION, false)
+                ) {
+                    // TODO: Explain to the user why background location is needed
+                } else {
+                    val intent = Intent(context, LocationPickerActivity::class.java)
+                    locationPickerLauncher.launch(intent)
+                }
             } else {
                 Toast.makeText(context, "Location permission denied.", Toast.LENGTH_SHORT).show()
-            }
-        }
-    )
-
-    val requestPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-        onResult = { permissions: Map<String, Boolean> ->
-            val allGranted = permissions.values.all { it }
-            if (allGranted || hasStoragePermissions(context)) {
-                // Permissions granted, proceed with export
-                // This logic will be replaced by the dialog
-                Toast.makeText(context, "Permissions granted, but feature is under progress.", Toast.LENGTH_LONG).show()
-            } else {
-                // Permissions denied
-                Toast.makeText(context, "Storage permission denied. Export/Import cancelled.", Toast.LENGTH_LONG).show()
             }
         }
     )
@@ -193,11 +154,9 @@ fun SettingsScreen(navController: NavHostController) {
             title = "Recycle Bin",
             description = "$deletedRecordsCount items",
             icon = Icons.Default.DeleteOutline,
-            onClick = {
-                navController.navigate("recycleBin")
-            }
+            onClick = { navController.navigate("recycleBin") }
         )
-        HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+        HorizontalDivider()
         SettingsItem(
             title = "Automatic Session Tracking",
             description = if (geofenceEnabled) "Enabled" else "Disabled",
@@ -209,14 +168,21 @@ fun SettingsScreen(navController: NavHostController) {
                     checked = geofenceEnabled,
                     onCheckedChange = { checked ->
                         if (checked) {
-                            locationPermissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
-                                )
+                            val permissions = mutableListOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
                             )
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                            }
+                            locationPermissionLauncher.launch(permissions.toTypedArray())
                         } else {
+                            with(prefs.edit()) {
+                                remove("geofence_latitude")
+                                remove("geofence_longitude")
+                                putBoolean("geofence_enabled", false)
+                                apply()
+                            }
                             val pendingIntent = PendingIntent.getBroadcast(
                                 context,
                                 0,
@@ -230,42 +196,14 @@ fun SettingsScreen(navController: NavHostController) {
                 )
             }
         )
-        HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+        HorizontalDivider()
         SettingsItem(
             title = "App Version",
             description = appVersion,
             icon = Icons.Filled.Verified,
             onClick = { Toast.makeText(context, "App Version: $appVersion", Toast.LENGTH_SHORT).show() }
         )
-        HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
-        SettingsItem(
-            title = "Check Permissions",
-            description = if (hasStoragePermissions(context)) "Storage permissions granted" else "Storage permissions needed",
-            icon = Icons.Filled.Verified,
-            onClick = {
-                val hasPerms = hasStoragePermissions(context)
-                if (hasPerms) {
-                    Toast.makeText(
-                        context,
-                        "All required storage permissions are granted",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    val requiredPermissions = getRequiredPermissions()
-                    if (requiredPermissions.isNotEmpty()) {
-                        Toast.makeText(context, "Requesting permissions...", Toast.LENGTH_SHORT)
-                            .show()
-                        requestPermissionLauncher.launch(requiredPermissions)
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "No permissions required for this Android version",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
-            }
-        )
+        HorizontalDivider()
         SettingsItem(
             title = "Help",
             description = "Find answers to your questions",
@@ -278,22 +216,18 @@ fun SettingsScreen(navController: NavHostController) {
             icon = Icons.Outlined.Info,
             onClick = { navController.navigate("whyPresentMateScreen") }
         )
-        HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+        HorizontalDivider()
         SettingsItem(
             title = "Export Data",
-            description = "Save records to $backupFileName",
+            description = "Save records to a file",
             icon = Icons.Filled.FileUpload,
-            onClick = {
-                showUnderProgressDialog = true
-            }
+            onClick = { showUnderProgressDialog = true }
         )
         SettingsItem(
             title = "Import Data",
-            description = "Restore records from $backupFileName",
+            description = "Restore records from a file",
             icon = Icons.Filled.FileDownload,
-            onClick = {
-                showUnderProgressDialog = true
-            }
+            onClick = { showUnderProgressDialog = true }
         )
     }
 }
@@ -316,8 +250,7 @@ fun SettingsItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 20.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

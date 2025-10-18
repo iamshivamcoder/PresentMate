@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -56,12 +57,14 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Home : Screen("main", "Home", Icons.Filled.Home)
     object Overview : Screen("overview", "Overview", Icons.Filled.BarChart)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
+    object LocationStatus : Screen("locationStatus", "Location Status", Icons.Filled.LocationOn)
 }
 
 val navItems = listOf(
     Screen.Home,
     Screen.Overview,
     Screen.Settings,
+    Screen.LocationStatus
 )
 
 class MainActivity : ComponentActivity() {
@@ -146,6 +149,7 @@ class MainActivity : ComponentActivity() {
                             composable(Screen.Home.route) { AttendanceScreen() }
                             composable(Screen.Overview.route) { OverviewScreen() }
                             composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
+                            composable(Screen.LocationStatus.route) { LocationStatusScreen() }
                             composable("recycleBin") { RecycleBinScreen() }
                             composable("helpScreen") { HelpScreen(navController = navController) }
                             composable("whyPresentMateScreen") { WhyPresentMateScreen(navController = navController) }

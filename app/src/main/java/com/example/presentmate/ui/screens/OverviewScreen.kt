@@ -25,10 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.presentmate.CollapsibleCard
-import com.example.presentmate.GraphSection
-import com.example.presentmate.GraphStats
-import com.example.presentmate.GraphViewType
-import com.example.presentmate.calculateGraphData
+import com.example.presentmate.ui.components.GraphSection
+import com.example.presentmate.ui.components.GraphStats
+import com.example.presentmate.ui.components.GraphViewType
+import com.example.presentmate.ui.components.calculateGraphData
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
 import java.text.SimpleDateFormat
