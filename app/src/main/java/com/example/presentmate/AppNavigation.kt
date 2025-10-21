@@ -63,10 +63,13 @@ fun AppNavigation() {
             "whyPresentMateScreen" -> "Why Present Mate?"
             "aboutDeveloper" -> "About the Developer"
             "locationPickerMap" -> "Select Location"
+            "locationPickerScreen" -> "Select Location"
             "geofenceScreen" -> "Geofences"
             else -> "Present Mate"
         }
     }
+
+    val routesWithoutBottomBar = listOf("locationPickerMap", "locationPickerScreen")
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -110,12 +113,16 @@ fun AppNavigation() {
                 )
             },
             bottomBar = {
-                AppBottomNavigationBar(navController = navController)
+                if (currentRoute !in routesWithoutBottomBar) {
+                    AppBottomNavigationBar(navController = navController)
+                }
             },
             modifier = Modifier.fillMaxSize()
         ) { innerPadding ->
             val context = LocalContext.current
             val searchHistoryRepository = remember { SearchHistoryRepository(context) }
+            val database = remember { com.example.presentmate.data.AppDatabase.getDatabase(context) }
+            val savedPlacesRepository = remember { com.example.presentmate.data.SavedPlacesRepository(database.savedPlaceDao()) }
 
             NavHost(
                 navController = navController,
@@ -128,6 +135,7 @@ fun AppNavigation() {
                 composable("locationPickerMap") {
                     LocationPickerScreen(
                         searchHistoryRepository = searchHistoryRepository,
+                        savedPlacesRepository = savedPlacesRepository,
                         initialLocation = null, // Or fetch a default location
                         onLocationConfirmed = { _ ->
                             // Handle location confirmation, e.g., navigate back or show a confirmation message
@@ -138,6 +146,7 @@ fun AppNavigation() {
                 composable("locationPickerScreen") {
                     LocationPickerScreen(
                         searchHistoryRepository = searchHistoryRepository,
+                        savedPlacesRepository = savedPlacesRepository,
                         initialLocation = null, // Or fetch a default location
                         onLocationConfirmed = { _ ->
                             // Handle location confirmation, e.g., navigate back or show a confirmation message

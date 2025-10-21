@@ -1,21 +1,34 @@
 package com.example.presentmate.ui.components
 
 import android.content.Context
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.example.presentmate.R
 import kotlinx.coroutines.delay
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
@@ -26,6 +39,12 @@ import org.osmdroid.views.MapView
 
 private const val MAP_DEBOUNCE_DELAY = 500L
 
+/**
+ * Creates and configures a MapView.
+ *
+ * @param context The context.
+ * @return The configured MapView.
+ */
 private fun createMapView(context: Context): MapView {
     return MapView(context).apply {
         setMultiTouchControls(true)
@@ -36,6 +55,14 @@ private fun createMapView(context: Context): MapView {
     }
 }
 
+/**
+ * A container for the osmdroid MapView.
+ *
+ * @param modifier The modifier to be applied to the MapView.
+ * @param initialLocation The initial location to display on the map.
+ * @param onMapMove Called when the map is moved.
+ * @param onMapMoveFinished Called when the map movement is finished.
+ */
 @Composable
 internal fun MapViewContainer(
     modifier: Modifier = Modifier,
@@ -45,6 +72,9 @@ internal fun MapViewContainer(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    val currentOnMapMove by rememberUpdatedState(onMapMove)
+    val currentOnMapMoveFinished by rememberUpdatedState(onMapMoveFinished)
 
     val mapView = remember {
         createMapView(context).apply {
@@ -59,7 +89,7 @@ internal fun MapViewContainer(
         if (isMapMoving) {
             delay(MAP_DEBOUNCE_DELAY)
             isMapMoving = false
-            onMapMoveFinished()
+            currentOnMapMoveFinished()
         }
     }
 
@@ -67,14 +97,14 @@ internal fun MapViewContainer(
         object : MapListener {
             override fun onScroll(event: ScrollEvent?): Boolean {
                 val center = mapView.mapCenter as? GeoPoint ?: return false
-                onMapMove(center)
+                currentOnMapMove(center)
                 isMapMoving = true
                 return true
             }
 
             override fun onZoom(event: ZoomEvent?): Boolean {
                 val center = mapView.mapCenter as? GeoPoint ?: return false
-                onMapMove(center)
+                currentOnMapMove(center)
                 isMapMoving = true
                 return true
             }
@@ -104,7 +134,49 @@ internal fun MapViewContainer(
     AndroidView(
         factory = { mapView },
         modifier = modifier.semantics {
-            contentDescription = "Interactive map for location selection"
+            contentDescription = context.getString(R.string.map_content_description)
+        }
+    )
+}
+
+@Composable
+internal fun LocationPermissionRationaleDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.MyLocation,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.Companion.size(32.dp)
+            )
+        },
+        title = {
+            Text(
+                text = "Location Access Needed",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Companion.Bold
+            )
+        },
+        text = {
+            Text(
+                text = "This app needs access to your device's location to provide accurate location-based features. Your location data is used only for selecting locations on the map and is not shared with third parties.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Grant Permission")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Not Now")
+            }
         }
     )
 }

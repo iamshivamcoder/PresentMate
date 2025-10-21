@@ -28,6 +28,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.presentmate.LocationPickerViewModel
 import com.example.presentmate.SearchHistoryRepository
+import com.example.presentmate.data.AppDatabase
+import com.example.presentmate.data.SavedPlacesRepository
 import com.example.presentmate.ui.components.InitialLoadingContent
 import com.example.presentmate.ui.components.LocationPermissionRationaleDialog
 import com.example.presentmate.ui.components.LocationPickerContent
@@ -41,6 +43,7 @@ import org.osmdroid.util.GeoPoint
 @Composable
 fun LocationPickerScreen(
     searchHistoryRepository: SearchHistoryRepository,
+    savedPlacesRepository: SavedPlacesRepository, // Add this
     onLocationConfirmed: (GeoPoint) -> Unit,
     onNavigateBack: () -> Unit = {},
     initialLocation: GeoPoint? = null
@@ -59,6 +62,7 @@ fun LocationPickerScreen(
         factory = LocationPickerViewModel.Companion.provideFactory(
             geocoder,
             searchHistoryRepository,
+            savedPlacesRepository,
             initialLocation
         )
     )
@@ -136,7 +140,7 @@ fun LocationPickerScreen(
                         onDismiss = onNavigateBack
                     )
                 }
-                uiState.isSearching && uiState.searchQuery.isEmpty() -> {
+                uiState.isInitializing -> {
                     InitialLoadingContent()
                 }
                 else -> {
@@ -156,8 +160,11 @@ fun LocationPickerScreen(
 fun LocationPickerScreenPreview() {
     val context = LocalContext.current
     val searchHistoryRepository = remember { SearchHistoryRepository(context) }
+    val database = remember { AppDatabase.getDatabase(context) }
+    val savedPlacesRepository = remember { SavedPlacesRepository(database.savedPlaceDao()) }
     LocationPickerScreen(
         searchHistoryRepository = searchHistoryRepository,
+        savedPlacesRepository = savedPlacesRepository,
         onLocationConfirmed = {},
         onNavigateBack = {},
         initialLocation = GeoPoint(40.7128, -74.0060) // New York City

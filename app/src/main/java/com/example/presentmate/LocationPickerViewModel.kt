@@ -7,10 +7,13 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.presentmate.data.SavedPlace
+import com.example.presentmate.data.SavedPlacesRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -18,22 +21,35 @@ import org.osmdroid.util.GeoPoint
 import java.util.Locale
 import kotlin.coroutines.resume
 
+/**
+ * Represents the UI state for the location picker screen.
+ */
 data class LocationPickerUiState(
     val selectedLocation: GeoPoint? = null,
     val addressText: String = "Move the map to select a location",
     val searchQuery: String = "",
     val suggestions: List<Address> = emptyList(),
     val history: List<String> = emptyList(),
-    val savedPlaces: List<String> = emptyList(),
+    val savedPlaces: List<SavedPlace> = emptyList(),
     val isSearching: Boolean = false,
     val isSearchFocused: Boolean = false,
     val isMapMoving: Boolean = false,
+    val isInitializing: Boolean = true,
     val error: String? = null
 )
 
+/**
+ * ViewModel for the location picker screen.
+ *
+ * @param geocoder The geocoder to use for reverse geocoding.
+ * @param searchHistoryRepository The repository for search history.
+ * @param savedPlacesRepository The repository for saved places.
+ * @param initialLocation The initial location to display on the map.
+ */
 class LocationPickerViewModel(
     private val geocoder: Geocoder,
     private val searchHistoryRepository: SearchHistoryRepository,
+    private val savedPlacesRepository: SavedPlacesRepository,
     val initialLocation: GeoPoint?
 ) : ViewModel() {
 
@@ -41,21 +57,34 @@ class LocationPickerViewModel(
     val uiState = _uiState.asStateFlow()
 
     private val searchCache = mutableMapOf<String, List<Address>>()
+    private val addressCache = mutableMapOf<GeoPoint, String>()
     private var searchJob: Job? = null
 
     init {
-        _uiState.update {
-            it.copy(
-                history = searchHistoryRepository.getSearchHistory(),
-                savedPlaces = listOf("Home", "Work") // Placeholder
-            )
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    history = searchHistoryRepository.getSearchHistory()
+                )
+            }
+            savedPlacesRepository.getAll().collect { savedPlaces ->
+                _uiState.update { it.copy(savedPlaces = savedPlaces) }
+            }
         }
-        initialLocation?.let {
-            onMapMove(it)
-            onMapMoveFinished()
+
+        viewModelScope.launch {
+            val startingLocation = initialLocation ?: GeoPoint(20.5937, 78.9629) // Default to India
+            onMapMove(startingLocation)
+            val address = getAddressText(startingLocation)
+            _uiState.update { it.copy(addressText = address, isInitializing = false, isMapMoving = false) }
         }
     }
 
+    /**
+     * Called when the search query changes.
+     *
+     * @param query The new search query.
+     */
     fun onSearchQueryChanged(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
         searchJob?.cancel()
@@ -74,6 +103,11 @@ class LocationPickerViewModel(
         }
     }
 
+    /**
+     * Called when the search bar focus changes.
+     *
+     * @param isFocused Whether the search bar is focused.
+     */
     fun onSearchFocusChanged(isFocused: Boolean) {
         _uiState.update { it.copy(isSearchFocused = isFocused) }
         if (isFocused) {
@@ -81,6 +115,11 @@ class LocationPickerViewModel(
         }
     }
 
+    /**
+     * Performs a search for the given query.
+     *
+     * @param query The query to search for.
+     */
     fun onPerformSearch(query: String = _uiState.value.searchQuery) {
         if (query.trim().isEmpty()) return
 
@@ -130,10 +169,18 @@ class LocationPickerViewModel(
         }
     }
 
+    /**
+     * Called when the map is moved.
+     *
+     * @param geoPoint The new center of the map.
+     */
     fun onMapMove(geoPoint: GeoPoint) {
         _uiState.update { it.copy(selectedLocation = geoPoint, isMapMoving = true) }
     }
 
+    /**
+     * Called when the map movement is finished.
+     */
     fun onMapMoveFinished() {
         viewModelScope.launch {
             _uiState.value.selectedLocation?.let { geoPoint ->
@@ -143,6 +190,11 @@ class LocationPickerViewModel(
         }
     }
 
+    /**
+     * Called when a search suggestion is clicked.
+     *
+     * @param address The selected address.
+     */
     fun onSuggestionClicked(address: Address) {
         val newLocation = GeoPoint(address.latitude, address.longitude)
         val addressText = address.getAddressLine(0) ?: ""
@@ -158,16 +210,36 @@ class LocationPickerViewModel(
         onMapMoveFinished() // Update address text
     }
 
+    /**
+     * Called when a search history item is clicked.
+     *
+     * @param query The selected query.
+     */
     fun onHistoryItemClicked(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
         onPerformSearch(query)
     }
 
-    fun onSavedPlaceClicked(place: String) {
-        _uiState.update { it.copy(searchQuery = place) }
-        onPerformSearch(place)
+    /**
+     * Called when a saved place is clicked.
+     *
+     * @param place The selected place.
+     */
+    fun onSavedPlaceClicked(place: SavedPlace) {
+        val newLocation = GeoPoint(place.latitude, place.longitude)
+        _uiState.update {
+            it.copy(
+                selectedLocation = newLocation,
+                searchQuery = place.address,
+                isSearchFocused = false
+            )
+        }
+        onMapMoveFinished() // Update address text
     }
 
+    /**
+     * Clears the search query.
+     */
     fun onClearSearch() {
         _uiState.update {
             it.copy(
@@ -177,6 +249,11 @@ class LocationPickerViewModel(
         }
     }
 
+    /**
+     * Removes a query from the search history.
+     *
+     * @param query The query to remove.
+     */
     fun onRemoveFromHistory(query: String) {
         viewModelScope.launch {
             searchHistoryRepository.removeFromSearchHistory(query)
@@ -184,19 +261,39 @@ class LocationPickerViewModel(
         }
     }
 
+    /**
+     * Adds a query to the search history.
+     *
+     * @param query The query to add.
+     */
     private fun addSearchToHistory(query: String) {
         if (query.isNotEmpty()) {
             searchHistoryRepository.addToSearchHistory(query)
         }
     }
 
+    /**
+     * Clears the error message.
+     */
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
 
+    /**
+     * Gets the address text for a given GeoPoint.
+     *
+     * @param geoPoint The GeoPoint to get the address for.
+     * @return The address text.
+     */
     private suspend fun getAddressText(geoPoint: GeoPoint): String {
-        return try {
-            suspendCancellableCoroutine { continuation ->
+        val roundedLat = String.format(Locale.US, "%.6f", geoPoint.latitude).toDouble()
+        val roundedLon = String.format(Locale.US, "%.6f", geoPoint.longitude).toDouble()
+        val cacheKey = GeoPoint(roundedLat, roundedLon)
+
+        addressCache[cacheKey]?.let { return it }
+
+        val newAddress = try {
+            suspendCancellableCoroutine<String> { continuation ->
                 if (Build.VERSION.SDK_INT >= 33) {
                     geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1) { addresses ->
                         val address = addresses.firstOrNull()?.getAddressLine(0)
@@ -232,12 +329,16 @@ class LocationPickerViewModel(
                 geoPoint.longitude
             )
         }
+
+        addressCache[cacheKey] = newAddress
+        return newAddress
     }
 
     companion object {
         fun provideFactory(
             geocoder: Geocoder,
             searchHistoryRepository: SearchHistoryRepository,
+            savedPlacesRepository: SavedPlacesRepository, // Add this
             initialLocation: GeoPoint?
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -245,6 +346,7 @@ class LocationPickerViewModel(
                 return LocationPickerViewModel(
                     geocoder,
                     searchHistoryRepository,
+                    savedPlacesRepository, // Pass this
                     initialLocation
                 ) as T
             }

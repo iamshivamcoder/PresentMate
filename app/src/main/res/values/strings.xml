@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">PresentMate</string>
+    <string name="map_content_description">Interactive map for location selection</string>
 </resources>

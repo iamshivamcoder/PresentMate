@@ -71,7 +71,7 @@ android {
 }
 
 dependencies {
- 
+
     implementation(libs.androidx.appcompat)
     val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
     implementation(composeBom)
@@ -89,7 +89,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
