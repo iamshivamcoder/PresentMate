@@ -38,6 +38,8 @@ class LocationPickerActivity : ComponentActivity() {
         Configuration.getInstance().userAgentValue = packageName
 
         searchHistoryRepository = SearchHistoryRepository(this)
+        val database = com.example.presentmate.data.AppDatabase.getDatabase(this)
+        val savedPlacesRepository = com.example.presentmate.data.SavedPlacesRepository(database.savedPlaceDao())
 
         setContent {
             var initialLocation by remember { mutableStateOf<GeoPoint?>(null) }
@@ -57,6 +59,7 @@ class LocationPickerActivity : ComponentActivity() {
             } else {
                 LocationPickerScreen(
                     searchHistoryRepository = searchHistoryRepository,
+                    savedPlacesRepository = savedPlacesRepository,
                     initialLocation = initialLocation,
                     onLocationConfirmed = { geoPoint ->
                         val intent = Intent().apply {
