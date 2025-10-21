@@ -41,6 +41,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.example.presentmate.LocationPickerViewModel
 import com.example.presentmate.SearchHistoryRepository
 import com.example.presentmate.data.AppDatabase
@@ -60,6 +61,7 @@ import java.util.Locale
 fun LocationPickerScreen(
     searchHistoryRepository: SearchHistoryRepository,
     savedPlacesRepository: SavedPlacesRepository,
+    navController: NavController? = null,
     onLocationConfirmed: (GeoPoint) -> Unit,
     onNavigateBack: () -> Unit = {}
 ) {
@@ -159,6 +161,7 @@ fun LocationPickerScreen(
                         if (locationName.isNotBlank()) {
                             viewModel.saveSelectedLocation(locationName)
                             showSaveDialog = false
+                            navController?.popBackStack() ?: onNavigateBack()
                         }
                     },
                     enabled = locationName.isNotBlank()

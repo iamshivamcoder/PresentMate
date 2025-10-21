@@ -138,7 +138,8 @@ fun AppNavigation() {
                         onLocationConfirmed = { _ ->
                             // Handle location confirmation, e.g., navigate back or show a confirmation message
                             navController.popBackStack()
-                        }
+                        },
+                        onNavigateBack = { navController.popBackStack() } // Add this line
                     )
                 }
                 composable("locationPickerScreen") {
@@ -148,7 +149,8 @@ fun AppNavigation() {
                         onLocationConfirmed = { _ ->
                             // Handle location confirmation, e.g., navigate back or show a confirmation message
                             navController.popBackStack()
-                        }
+                        },
+                        onNavigateBack = { navController.popBackStack() } // Add this line
                     )
                 }
                 composable("geofenceScreen") { GeofenceScreen(navController = navController) }

@@ -40,14 +40,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.presentmate.data.AppDatabase
+import com.example.presentmate.data.SavedPlacesRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +61,16 @@ fun LocationScreen(
 ) {
     var isTrackingEnabled by remember { mutableStateOf(true) }
     val view = LocalView.current
+
+    // Location state management
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getDatabase(context) }
+    val savedPlacesRepository = remember { SavedPlacesRepository(db.savedPlaceDao()) }
+    val savedPlaces by savedPlacesRepository.getAll().collectAsStateWithLifecycle(initialValue = emptyList())
+
+    // Get the latest selected location (most recently added)
+    val selectedLocation = savedPlaces.lastOrNull()?.let { org.osmdroid.util.GeoPoint(it.latitude, it.longitude) }
+    val selectedLocationName = savedPlaces.lastOrNull()?.name
 
     Scaffold(
     ) { paddingValues ->
@@ -71,7 +85,7 @@ fun LocationScreen(
             // Current Status Card
             CurrentStatusCard(
                 isTracking = isTrackingEnabled,
-                location = "Office",
+                location = selectedLocationName ?: "No location selected",
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -89,7 +103,7 @@ fun LocationScreen(
 
             // Manage Geofences Card
             ManageGeofencesCard(
-                savedLocations = 3,
+                savedLocations = if (selectedLocation != null) 1 else 0,
                 onClick = {
                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                     navController.navigate("geofenceScreen")
@@ -98,13 +112,77 @@ fun LocationScreen(
             )
 
             // Add New Geofence Card
-            AddGeofenceCard(
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    navController.navigate("locationPickerScreen")
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (selectedLocation == null) {
+                AddGeofenceCard(
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        navController.navigate("locationPickerScreen")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            navController.navigate("locationPickerScreen")
+                        }
+                        .semantics { contentDescription = "Change selected location" },
+                    colors = CardDefaults.cardColors(
+                        containerColor = colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Change Location",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = selectedLocationName ?: "Selected location",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
 
 
             Spacer(modifier = Modifier.height(80.dp))
