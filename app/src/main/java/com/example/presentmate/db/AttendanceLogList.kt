@@ -1,4 +1,4 @@
-package com.example.presentmate
+package com.example.presentmate.db
 
 import androidx.compose.foundation.Canvas // Added import for Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape // For the dot
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -16,14 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset // For Canvas drawing
-import androidx.compose.ui.graphics.Color // For Canvas drawing
-import androidx.compose.ui.graphics.PathEffect // For dashed line, if needed
-import androidx.compose.ui.graphics.drawscope.Stroke // For Canvas stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.presentmate.db.AppDatabase
-import com.example.presentmate.db.AttendanceRecord
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -119,7 +113,7 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
                 TextButton(onClick = {
                     scope.launch {
                         db.attendanceDao().insertDeletedRecord(
-                            com.example.presentmate.db.DeletedRecord(
+                            DeletedRecord(
                                 originalId = recordToDelete!!.id,
                                 date = recordToDelete!!.date,
                                 timeIn = recordToDelete!!.timeIn,

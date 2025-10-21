@@ -7,6 +7,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -16,60 +18,70 @@ import org.osmdroid.util.GeoPoint
 import java.util.Locale
 import kotlin.coroutines.resume
 
-// This data class will hold all your UI state
 data class LocationPickerUiState(
     val selectedLocation: GeoPoint? = null,
-    val addressText: String = "Tap on map to select location",
+    val addressText: String = "Move the map to select a location",
     val searchQuery: String = "",
     val suggestions: List<Address> = emptyList(),
     val history: List<String> = emptyList(),
     val isSearching: Boolean = false,
-    val showSuggestions: Boolean = false
+    val isSearchFocused: Boolean = false,
+    val isMapMoving: Boolean = false,
+    val error: String? = null
 )
 
 class LocationPickerViewModel(
     private val geocoder: Geocoder,
     private val searchHistoryRepository: SearchHistoryRepository,
-    initialLocation: GeoPoint?
+    val initialLocation: GeoPoint?
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LocationPickerUiState())
     val uiState = _uiState.asStateFlow()
 
-    // In-memory cache survives configuration changes
     private val searchCache = mutableMapOf<String, List<Address>>()
+    private var searchJob: Job? = null
 
     init {
-        // Set initial location if provided
-        initialLocation?.let {
-            onLocationSelected(it)
-        }
-        // Load initial search history
         _uiState.update { it.copy(history = searchHistoryRepository.getSearchHistory()) }
+        initialLocation?.let {
+            onMapMove(it)
+            onMapMoveFinished()
+        }
     }
-
-    // --- Event Handlers ---
 
     fun onSearchQueryChanged(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+        searchJob?.cancel()
         if (query.isEmpty()) {
-            _uiState.update { it.copy(
-                showSuggestions = false,
-                suggestions = emptyList(),
-                history = searchHistoryRepository.getSearchHistory()
-            )}
+            _uiState.update {
+                it.copy(
+                    suggestions = emptyList(),
+                    history = searchHistoryRepository.getSearchHistory()
+                )
+            }
+        } else {
+            searchJob = viewModelScope.launch {
+                delay(300) // Debounce
+                onPerformSearch(query)
+            }
         }
     }
 
-    fun onPerformSearch() {
-        val query = _uiState.value.searchQuery
+    fun onSearchFocusChanged(isFocused: Boolean) {
+        _uiState.update { it.copy(isSearchFocused = isFocused) }
+        if (isFocused) {
+            _uiState.update { it.copy(history = searchHistoryRepository.getSearchHistory()) }
+        }
+    }
+
+    fun onPerformSearch(query: String = _uiState.value.searchQuery) {
         if (query.trim().isEmpty()) return
 
+        addSearchToHistory(query)
+
         if (searchCache.containsKey(query)) {
-            _uiState.update { it.copy(
-                suggestions = searchCache.getValue(query),
-                showSuggestions = true
-            )}
+            _uiState.update { it.copy(suggestions = searchCache.getValue(query)) }
             return
         }
 
@@ -89,75 +101,87 @@ class LocationPickerViewModel(
 
                 if (addresses?.isNotEmpty() == true) {
                     searchCache[query] = addresses
-                    _uiState.update { it.copy(
-                        suggestions = addresses,
-                        showSuggestions = true
-                    )}
+                    _uiState.update { it.copy(suggestions = addresses) }
                 } else {
-                    _uiState.update { it.copy(
-                        suggestions = emptyList(),
-                        showSuggestions = false
-                    )}
+                    _uiState.update {
+                        it.copy(
+                            suggestions = emptyList(),
+                            error = "No results found for \"$query\""
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("LocationPickerVM", "Search failed", e)
-                _uiState.update { it.copy(
-                    suggestions = emptyList(),
-                    showSuggestions = false
-                )}
+                _uiState.update {
+                    it.copy(
+                        suggestions = emptyList(),
+                        error = "Search failed: ${e.message}"
+                    )
+                }
             } finally {
                 _uiState.update { it.copy(isSearching = false) }
             }
         }
     }
 
-    fun onLocationSelected(geoPoint: GeoPoint) {
-        _uiState.update { it.copy(selectedLocation = geoPoint) }
+    fun onMapMove(geoPoint: GeoPoint) {
+        _uiState.update { it.copy(selectedLocation = geoPoint, isMapMoving = true) }
+    }
+
+    fun onMapMoveFinished() {
         viewModelScope.launch {
-            val address = getAddressText(geoPoint)
-            _uiState.update { it.copy(addressText = address) }
+            _uiState.value.selectedLocation?.let { geoPoint ->
+                val address = getAddressText(geoPoint)
+                _uiState.update { it.copy(addressText = address, isMapMoving = false) }
+            }
         }
     }
 
     fun onSuggestionClicked(address: Address) {
         val newLocation = GeoPoint(address.latitude, address.longitude)
-        onLocationSelected(newLocation) // This will update addressText
-        _uiState.update { it.copy(
-            searchQuery = address.getAddressLine(0) ?: "",
-            showSuggestions = false,
-            suggestions = emptyList()
-        )}
+        val addressText = address.getAddressLine(0) ?: ""
+        _uiState.update {
+            it.copy(
+                selectedLocation = newLocation,
+                searchQuery = addressText,
+                isSearchFocused = false,
+                suggestions = emptyList()
+            )
+        }
+        addSearchToHistory(addressText)
+        onMapMoveFinished() // Update address text
     }
 
     fun onHistoryItemClicked(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
-        onPerformSearch()
+        onPerformSearch(query)
     }
 
     fun onClearSearch() {
-        _uiState.update { it.copy(
-            searchQuery = "",
-            showSuggestions = false,
-            suggestions = emptyList()
-        )}
+        _uiState.update {
+            it.copy(
+                searchQuery = "",
+                suggestions = emptyList()
+            )
+        }
     }
 
     fun onRemoveFromHistory(query: String) {
         viewModelScope.launch {
             searchHistoryRepository.removeFromSearchHistory(query)
-            _uiState.update { it.copy(
-                history = searchHistoryRepository.getSearchHistory()
-            )}
+            _uiState.update { it.copy(history = searchHistoryRepository.getSearchHistory()) }
         }
     }
 
-    fun addSearchToHistory() {
-        if (_uiState.value.searchQuery.isNotEmpty()) {
-            searchHistoryRepository.addToSearchHistory(_uiState.value.searchQuery)
+    private fun addSearchToHistory(query: String) {
+        if (query.isNotEmpty()) {
+            searchHistoryRepository.addToSearchHistory(query)
         }
     }
 
-    // --- Private suspend function ---
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
 
     private suspend fun getAddressText(geoPoint: GeoPoint): String {
         return try {
@@ -165,20 +189,37 @@ class LocationPickerViewModel(
                 if (Build.VERSION.SDK_INT >= 33) {
                     geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1) { addresses ->
                         val address = addresses.firstOrNull()?.getAddressLine(0)
-                            ?: String.format(Locale.US, "Lat: %.6f, Lng: %.6f", geoPoint.latitude, geoPoint.longitude)
+                            ?: String.format(
+                                Locale.US,
+                                "Lat: %.6f, Lng: %.6f",
+                                geoPoint.latitude,
+                                geoPoint.longitude
+                            )
                         continuation.resume(address)
                     }
                 } else {
                     @Suppress("DEPRECATION")
-                    val addresses = geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1)
+                    val addresses =
+                        geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1)
                     val address = addresses?.firstOrNull()?.getAddressLine(0)
-                        ?: String.format(Locale.US, "Lat: %.6f, Lng: %.6f", geoPoint.latitude, geoPoint.longitude)
+                        ?: String.format(
+                            Locale.US,
+                            "Lat: %.6f, Lng: %.6f",
+                            geoPoint.latitude,
+                            geoPoint.longitude
+                        )
                     continuation.resume(address)
                 }
             }
         } catch (e: Exception) {
             Log.e("LocationPickerVM", "Get address failed", e)
-            String.format(Locale.US, "Lat: %.6f, Lng: %.6f", geoPoint.latitude, geoPoint.longitude)
+            _uiState.update { it.copy(error = "Failed to get address: ${e.message}") }
+            return String.format(
+                Locale.US,
+                "Lat: %.6f, Lng: %.6f",
+                geoPoint.latitude,
+                geoPoint.longitude
+            )
         }
     }
 
@@ -190,7 +231,11 @@ class LocationPickerViewModel(
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return LocationPickerViewModel(geocoder, searchHistoryRepository, initialLocation) as T
+                return LocationPickerViewModel(
+                    geocoder,
+                    searchHistoryRepository,
+                    initialLocation
+                ) as T
             }
         }
     }

@@ -1,11 +1,10 @@
-package com.example.presentmate
+package com.example.presentmate.ui.screens
 
 import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -48,10 +47,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.example.presentmate.LocationPickerActivity
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.geofence.GeofenceBroadcastReceiver
 import com.example.presentmate.geofence.GeofenceManager
@@ -268,7 +269,7 @@ fun SettingsItem(
     modifier: Modifier = Modifier,
     title: String,
     description: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onClick: () -> Unit,
     showArrow: Boolean = true,
     trailingContent: @Composable (() -> Unit)? = null

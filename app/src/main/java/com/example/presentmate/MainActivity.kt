@@ -34,8 +34,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -49,6 +51,7 @@ import com.example.presentmate.ui.screens.AttendanceScreen
 import com.example.presentmate.ui.screens.HelpScreen
 import com.example.presentmate.ui.screens.OverviewScreen
 import com.example.presentmate.ui.screens.RecycleBinScreen
+import com.example.presentmate.ui.screens.SettingsScreen
 import com.example.presentmate.ui.screens.WhyPresentMateScreen
 import com.example.presentmate.ui.theme.PresentMateTheme
 import kotlinx.coroutines.launch
@@ -57,6 +60,7 @@ import kotlinx.coroutines.launch
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Home : Screen("main", "Home", Icons.Filled.Home)
     object Overview : Screen("overview", "Overview", Icons.Filled.BarChart)
+    object LocationPicker : Screen("locationPicker", "Location", Icons.Filled.LocationOn) // Added
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
     object LocationStatus : Screen("locationStatus", "Location Status", Icons.Filled.LocationOn)
     object AboutDeveloper : Screen("aboutDeveloper", "About Developer", Icons.Filled.Info)
@@ -65,8 +69,8 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
 val navItems = listOf(
     Screen.Home,
     Screen.Overview,
-    Screen.Settings,
-    Screen.LocationStatus
+    Screen.LocationPicker, // Added
+    Screen.Settings
 )
 
 class MainActivity : ComponentActivity() {
@@ -143,6 +147,9 @@ class MainActivity : ComponentActivity() {
                         },
                         modifier = Modifier.fillMaxSize()
                     ) { innerPadding ->
+                        val context = LocalContext.current
+                        val searchHistoryRepository = remember { SearchHistoryRepository(context) }
+
                         NavHost(
                             navController = navController,
                             startDestination = Screen.Home.route,
@@ -150,6 +157,16 @@ class MainActivity : ComponentActivity() {
                         ) {
                             composable(Screen.Home.route) { AttendanceScreen() }
                             composable(Screen.Overview.route) { OverviewScreen() }
+                            composable(Screen.LocationPicker.route) { // Added
+                                LocationPickerScreen(
+                                    searchHistoryRepository = searchHistoryRepository,
+                                    initialLocation = null, // Or fetch a default location
+                                    onLocationConfirmed = { geoPoint ->
+                                        // Handle location confirmation, e.g., navigate back or show a confirmation message
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
                             composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
                             composable(Screen.LocationStatus.route) { LocationStatusScreen() }
                             composable(Screen.AboutDeveloper.route) { AboutDeveloperScreen() }
