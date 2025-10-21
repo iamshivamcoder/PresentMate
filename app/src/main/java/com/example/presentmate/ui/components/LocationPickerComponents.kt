@@ -1,4 +1,4 @@
-package com.example.presentmate
+package com.example.presentmate.ui.components
 
 import android.content.Context
 import android.location.Address
@@ -42,8 +42,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -58,12 +59,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+
+private val CenterPinMovingElevation = 8.dp
+private val CenterPinStoppedElevation = 2.dp
+private val CenterPinMovingSize = 40.dp
+private val CenterPinStoppedSize = 32.dp
 
 @Composable
 internal fun LocationSearchBar(
@@ -118,10 +125,10 @@ internal fun LocationSearchBar(
     }
 }
 
-internal fun createMapView(context: Context): MapView {
+private fun createMapView(context: Context): MapView {
     return MapView(context).apply {
         setMultiTouchControls(true)
-        setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+        setTileSource(TileSourceFactory.MAPNIK)
     }
 }
 
@@ -140,20 +147,32 @@ internal fun MapViewContainer(
         }
     }
 
+    var isMapMoving by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isMapMoving) {
+        if (isMapMoving) {
+            delay(500) // Debounce time
+            isMapMoving = false
+            onMapMoveFinished()
+        }
+    }
+
     val mapListener = remember {
         object : MapListener {
             override fun onScroll(event: ScrollEvent?): Boolean {
                 onMapMove(mapView.mapCenter as GeoPoint)
+                isMapMoving = true
                 return true
             }
 
             override fun onZoom(event: ZoomEvent?): Boolean {
                 onMapMove(mapView.mapCenter as GeoPoint)
+                isMapMoving = true
                 return true
             }
         }
     }
-    
+
     LaunchedEffect(mapView) {
         mapView.addMapListener(mapListener)
     }
@@ -183,9 +202,9 @@ internal fun MapViewContainer(
 
 @Composable
 internal fun CenterPin(isMapMoving: Boolean) {
-    val elevation by animateDpAsState(if (isMapMoving) 8.dp else 2.dp, label = "pin_elevation")
-    val size by animateDpAsState(if (isMapMoving) 40.dp else 32.dp, label = "pin_size")
-    
+    val elevation by animateDpAsState(if (isMapMoving) CenterPinMovingElevation else CenterPinStoppedElevation, label = "pin_elevation")
+    val size by animateDpAsState(if (isMapMoving) CenterPinMovingSize else CenterPinStoppedSize, label = "pin_size")
+
     Box(
         modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
@@ -220,26 +239,31 @@ internal fun SearchOverlay(
     modifier: Modifier = Modifier,
     suggestions: List<Address>,
     history: List<String>,
+    savedPlaces: List<String>,
     onSuggestionClicked: (Address) -> Unit,
     onHistoryItemClicked: (String) -> Unit,
     onRemoveFromHistory: (String) -> Unit,
+    onSavedPlaceClicked: (String) -> Unit,
 ) {
     Column(
         modifier = modifier
             .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp)
     ) {
-        // Saved Places Section
-        Text("Saved Places", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            SavedPlaceItem(label = "Home", onClick = { /* TODO */ })
-            SavedPlaceItem(label = "Work", onClick = { /* TODO */ })
+        if (savedPlaces.isNotEmpty()) {
+            Text("Saved Places", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                savedPlaces.forEach { place ->
+                    SavedPlaceItem(label = place, onClick = { onSavedPlaceClicked(place) })
+                }
+            }
         }
 
-        // History or Suggestions
         if (suggestions.isNotEmpty()) {
             SuggestionList(suggestions, onSuggestionClicked)
         } else {
@@ -267,7 +291,7 @@ private fun SuggestionList(
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(suggestions) { address ->
+        items(suggestions, key = { it.hashCode() }) { address ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -290,7 +314,6 @@ private fun HistoryList(
     onHistoryItemClicked: (String) -> Unit,
     onRemoveFromHistory: (String) -> Unit
 ) {
-    val coroutineScope = rememberCoroutineScope()
     if (history.isNotEmpty()) {
         Text("Recent Searches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
         LazyColumn(
@@ -299,12 +322,10 @@ private fun HistoryList(
             items(history, key = { it }) { query ->
                 val dismissState = rememberSwipeToDismissBoxState(
                     confirmValueChange = {
-                        if (it == SwipeToDismissBoxValue.EndToStart || it == SwipeToDismissBoxValue.StartToEnd) {
-                            coroutineScope.launch { onRemoveFromHistory(query) }
-                            true
-                        } else {
-                            false
+                        if (it != SwipeToDismissBoxValue.Settled) {
+                            onRemoveFromHistory(query)
                         }
+                        it != SwipeToDismissBoxValue.Settled
                     }
                 )
 
@@ -319,7 +340,6 @@ private fun HistoryList(
                         )
                         val alignment = when (dismissState.dismissDirection) {
                             SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                            SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
                             else -> Alignment.CenterEnd
                         }
                         Box(

@@ -48,7 +48,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.presentmate.ui.screens.AboutDeveloperScreen
 import com.example.presentmate.ui.screens.AttendanceScreen
+import com.example.presentmate.ui.screens.GeofenceScreen
 import com.example.presentmate.ui.screens.HelpScreen
+import com.example.presentmate.ui.screens.LocationPickerScreen
+import com.example.presentmate.ui.screens.LocationScreen
 import com.example.presentmate.ui.screens.OverviewScreen
 import com.example.presentmate.ui.screens.RecycleBinScreen
 import com.example.presentmate.ui.screens.SettingsScreen
@@ -60,7 +63,7 @@ import kotlinx.coroutines.launch
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Home : Screen("main", "Home", Icons.Filled.Home)
     object Overview : Screen("overview", "Overview", Icons.Filled.BarChart)
-    object LocationPicker : Screen("locationPicker", "Location", Icons.Filled.LocationOn) // Added
+    object Location : Screen("location", "Location", Icons.Filled.LocationOn)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
     object LocationStatus : Screen("locationStatus", "Location Status", Icons.Filled.LocationOn)
     object AboutDeveloper : Screen("aboutDeveloper", "About Developer", Icons.Filled.Info)
@@ -69,7 +72,7 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
 val navItems = listOf(
     Screen.Home,
     Screen.Overview,
-    Screen.LocationPicker, // Added
+    Screen.Location,
     Screen.Settings
 )
 
@@ -97,6 +100,8 @@ class MainActivity : ComponentActivity() {
                         "helpScreen" -> "Help"
                         "whyPresentMateScreen" -> "Why Present Mate?"
                         "aboutDeveloper" -> "About the Developer"
+                        "locationPickerMap" -> "Select Location"
+                        "geofenceScreen" -> "Geofences"
                         else -> "Present Mate"
                     }
                 }
@@ -157,16 +162,18 @@ class MainActivity : ComponentActivity() {
                         ) {
                             composable(Screen.Home.route) { AttendanceScreen() }
                             composable(Screen.Overview.route) { OverviewScreen() }
-                            composable(Screen.LocationPicker.route) { // Added
+                            composable(Screen.Location.route) { LocationScreen(navController = navController) }
+                            composable("locationPickerMap") {
                                 LocationPickerScreen(
                                     searchHistoryRepository = searchHistoryRepository,
                                     initialLocation = null, // Or fetch a default location
-                                    onLocationConfirmed = { geoPoint ->
+                                    onLocationConfirmed = { _ ->
                                         // Handle location confirmation, e.g., navigate back or show a confirmation message
                                         navController.popBackStack()
                                     }
                                 )
                             }
+                            composable("geofenceScreen") { GeofenceScreen() }
                             composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
                             composable(Screen.LocationStatus.route) { LocationStatusScreen() }
                             composable(Screen.AboutDeveloper.route) { AboutDeveloperScreen() }

@@ -24,6 +24,7 @@ data class LocationPickerUiState(
     val searchQuery: String = "",
     val suggestions: List<Address> = emptyList(),
     val history: List<String> = emptyList(),
+    val savedPlaces: List<String> = emptyList(),
     val isSearching: Boolean = false,
     val isSearchFocused: Boolean = false,
     val isMapMoving: Boolean = false,
@@ -43,7 +44,12 @@ class LocationPickerViewModel(
     private var searchJob: Job? = null
 
     init {
-        _uiState.update { it.copy(history = searchHistoryRepository.getSearchHistory()) }
+        _uiState.update {
+            it.copy(
+                history = searchHistoryRepository.getSearchHistory(),
+                savedPlaces = listOf("Home", "Work") // Placeholder
+            )
+        }
         initialLocation?.let {
             onMapMove(it)
             onMapMoveFinished()
@@ -155,6 +161,11 @@ class LocationPickerViewModel(
     fun onHistoryItemClicked(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
         onPerformSearch(query)
+    }
+
+    fun onSavedPlaceClicked(place: String) {
+        _uiState.update { it.copy(searchQuery = place) }
+        onPerformSearch(place)
     }
 
     fun onClearSearch() {

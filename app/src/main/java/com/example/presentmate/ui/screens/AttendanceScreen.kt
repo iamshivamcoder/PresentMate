@@ -31,7 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.presentmate.db.AttendanceLogList
-import com.example.presentmate.MotivationalAnimation
+import com.example.presentmate.ui.components.MotivationalAnimation
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
 import kotlinx.coroutines.launch

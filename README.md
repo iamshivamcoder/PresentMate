@@ -11,6 +11,7 @@ It focuses on simplicity, privacy (with offline-first data storage), and a clean
 *   **Recycle Bin:** Deleted records are moved to a recycle bin, allowing for restoration or permanent deletion.
 *   **Quick Settings Tile:** Log 'Time In/Out' quickly via a shortcut in your phone's Quick Settings panel without opening the app.
 *   **Automatic Session Tracking with Geofencing:** Automatically starts and stops study sessions when you enter and exit a predefined location (e.g., a library). This feature is power-efficient, works in the background, and ensures hands-free, accurate attendance logging.
+*   **Centralized Location Hub:** A dedicated 'Location' tab that groups all location-related functionalities, including the automatic location picker, geofence management, and real-time location status.
 *   **Data Export & Import:** Backup your attendance data to a `.doc` file and restore it when needed, accessible via the Settings screen.
 *   **Privacy Focused:** All attendance data is stored locally on your device. No data is collected or stored on external servers.
 *   **Offline Functionality:** Core features work completely offline.
@@ -33,5 +34,25 @@ It focuses on simplicity, privacy (with offline-first data storage), and a clean
 
 ## How to Use
 
-Use the main screen to log your 'Time In' and 'Time Out'. Edit records as needed. View summaries in the 'Overview' section.
-Export and import your data via the options available in the Settings screen. Utilize the Quick Settings Tile for even faster logging.
+1.  **Basic Attendance Tracking:**
+    *   Use the main screen to tap 'Time In' when you start an activity.
+    *   Tap 'Time Out' when you finish.
+    *   Your attendance records are automatically saved.
+
+2.  **Managing Records:**
+    *   Go to the 'Overview' tab to see a summary of your attendance.
+    *   You can manually add, edit, or delete records from the log.
+    *   Deleted records go to the 'Recycle Bin', found in the Settings screen, where you can restore or permanently delete them.
+
+3.  **Location-Based Features:**
+    *   Navigate to the 'Location' tab to access all location-related features.
+    *   **Automatic Session Tracking:** Set up a geofence around a location (like your workplace or university). The app will automatically start and stop a session when you enter and leave the area.
+    *   **Location Status:** View your real-time position relative to the defined geofence to ensure you are within the designated area.
+    *   **Location Picker:** Manually select or adjust locations on a map.
+
+4.  **Quick Access:**
+    *   Add the **Quick Settings Tile** to your device's notification shade for instant 'Time In' and 'Time Out' logging without opening the app.
+
+5.  **Data Management:**
+    *   In the 'Settings' screen, you can find options to **Export** your data to a `.doc` file for backup or sharing.
+    *   Use the **Import** feature to restore your data from a previously exported file.
