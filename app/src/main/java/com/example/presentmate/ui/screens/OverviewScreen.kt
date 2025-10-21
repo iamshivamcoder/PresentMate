@@ -25,7 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.presentmate.db.AppDatabase
 import com.example.presentmate.db.AttendanceRecord
-import com.example.presentmate.ui.components.CollapsibleCard
+import com.example.presentmate.ui.components.common.CollapsibleCard
 import com.example.presentmate.ui.components.GraphSection
 import com.example.presentmate.ui.components.GraphStats
 import com.example.presentmate.ui.components.GraphViewType

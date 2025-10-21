@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.presentmate.ui.components.CollapsibleCard
+import com.example.presentmate.ui.components.common.CollapsibleCard
 
 data class FaqItem(val question: String, val answer: String)
 
