@@ -321,8 +321,7 @@ internal fun LocationSearchBar(
     onSearchQueryChanged: (String) -> Unit,
     onPerformSearch: () -> Unit,
     onClearSearch: () -> Unit,
-    onGoToCurrentLocation: () -> Unit,
-    @Suppress("UNUSED_PARAMETER") onFocusChanged: (Boolean) -> Unit,
+    onGoToCurrentLocation: () -> Unit
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val view = LocalView.current
@@ -419,7 +418,7 @@ internal fun LocationSearchBar(
                     .size(44.dp)
                     .clip(CircleShape)
                     .background(
-                        brush = Brush.Companion.radialGradient(
+                        brush = Brush.radialGradient(
                             colors = listOf(
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),

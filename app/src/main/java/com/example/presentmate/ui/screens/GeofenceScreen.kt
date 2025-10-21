@@ -16,7 +16,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -24,8 +23,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialTheme.colorScheme
+import androidx.compose.material3.MaterialTheme.typography
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -46,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
@@ -53,11 +53,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -67,7 +69,8 @@ import org.osmdroid.views.overlay.Polygon
 @Composable
 fun GeofenceScreen(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    savedLocation: GeoPoint? = null
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -78,7 +81,7 @@ fun GeofenceScreen(
     var locationName by remember { mutableStateOf("") }
     var radiusMeters by remember { mutableFloatStateOf(200f) }
     var isTrackingEnabled by remember { mutableStateOf(true) }
-    var centerPoint by remember { mutableStateOf(GeoPoint(37.7749, -122.4194)) } // Default: San Francisco
+    var centerPoint by remember { mutableStateOf(savedLocation ?: GeoPoint(20.5937, 78.9629)) } // Default to India or saved location
 
     val mapView = remember {
         MapView(context).apply {
@@ -101,10 +104,20 @@ fun GeofenceScreen(
         circleOverlay.outlinePaint.color = android.graphics.Color.parseColor("#2196F3") // Blue border
         circleOverlay.outlinePaint.strokeWidth = 4f
 
-        mapView.overlays.clear()
-        mapView.overlays.add(circleOverlay)
+        if (!mapView.overlays.contains(circleOverlay)) {
+            mapView.overlays.add(circleOverlay)
+        }
         mapView.invalidate()
 
+        onDispose { }
+    }
+
+    // Update map center when the savedLocation changes
+    DisposableEffect(savedLocation) {
+        savedLocation?.let {
+            centerPoint = it
+            mapView.controller.animateTo(it)
+        }
         onDispose { }
     }
 
@@ -140,10 +153,21 @@ fun GeofenceScreen(
                     .fillMaxWidth()
                     .height(300.dp) // Maintain a fixed height for the map for preview
             ) {
-                AndroidView(
-                    factory = { mapView },
-                    modifier = Modifier.fillMaxSize()
-                )
+                if (LocalInspectionMode.current) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Gray)
+                            .align(Alignment.Center)
+                    ) {
+                        Text("Map Preview", color = Color.White)
+                    }
+                } else {
+                    AndroidView(
+                        factory = { mapView },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
                 // Current Location FAB
                 FloatingActionButton(
@@ -156,12 +180,12 @@ fun GeofenceScreen(
                         .align(Alignment.TopEnd)
                         .padding(16.dp)
                         .semantics { contentDescription = "Go to current location" },
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = colorScheme.primary
                 ) {
                     Icon(
                         Icons.Default.MyLocation,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        tint = colorScheme.onPrimary
                     )
                 }
             }
@@ -171,14 +195,14 @@ fun GeofenceScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(colorScheme.surface)
                     .padding(20.dp)
             ) {
                 // Subtitle
                 Text(
                     text = "Select a location and set your geofence.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = typography.bodyMedium,
+                    color = colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
@@ -189,14 +213,14 @@ fun GeofenceScreen(
                     placeholder = {
                         Text(
                             "Search for a location",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = colorScheme.onSurfaceVariant
                         )
                     },
                     leadingIcon = {
                         Icon(
                             Icons.Default.Search,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = colorScheme.onSurfaceVariant
                         )
                     },
                     modifier = Modifier
@@ -204,10 +228,10 @@ fun GeofenceScreen(
                         .semantics { contentDescription = "Search location input" },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.outline,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        focusedBorderColor = colorScheme.outline,
+                        unfocusedBorderColor = colorScheme.outline,
+                        focusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        unfocusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.4f)
                     ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(
@@ -224,9 +248,9 @@ fun GeofenceScreen(
                 // Location Name Field
                 Text(
                     text = "Location Name",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -236,7 +260,7 @@ fun GeofenceScreen(
                     placeholder = {
                         Text(
                             "e.g., Work, University",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = colorScheme.onSurfaceVariant
                         )
                     },
                     modifier = Modifier
@@ -244,10 +268,10 @@ fun GeofenceScreen(
                         .semantics { contentDescription = "Location name input" },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.outline,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        focusedBorderColor = colorScheme.outline,
+                        unfocusedBorderColor = colorScheme.outline,
+                        focusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        unfocusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.4f)
                     ),
                     singleLine = true
                 )
@@ -257,9 +281,9 @@ fun GeofenceScreen(
                 // Radius Slider
                 Text(
                     text = "Radius",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -274,9 +298,9 @@ fun GeofenceScreen(
                         .fillMaxWidth()
                         .semantics { contentDescription = "Geofence radius slider" },
                     colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.primary,
-                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        thumbColor = colorScheme.primary,
+                        activeTrackColor = colorScheme.primary,
+                        inactiveTrackColor = colorScheme.surfaceVariant
                     )
                 )
 
@@ -288,19 +312,19 @@ fun GeofenceScreen(
                 ) {
                     Text(
                         text = "Enable Geofence",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = colorScheme.onSurface,
                         modifier = Modifier.weight(1f)
                     )
                     Switch(
                         checked = isTrackingEnabled,
                         onCheckedChange = { isTrackingEnabled = it },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.primary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
-                            uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                            uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            checkedThumbColor = colorScheme.primary,
+                            checkedTrackColor = colorScheme.primaryContainer,
+                            uncheckedThumbColor = colorScheme.outline,
+                            uncheckedTrackColor = colorScheme.surfaceVariant
                         )
                     )
                 }
@@ -320,14 +344,14 @@ fun GeofenceScreen(
                         .semantics { contentDescription = "Save geofence" },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = colorScheme.primary
                     )
                 ) {
                     Text(
                         text = "Save Geofence",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = colorScheme.onPrimary
                     )
                 }
 
@@ -341,19 +365,34 @@ fun GeofenceScreen(
                 ) {
                     Text(
                         text = "Saved Geofences",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     // Placeholder for a list of saved geofences
                     Text(
                         text = "List of saved geofences will go here.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant
                     )
                     // TODO: Implement actual list of saved geofences
                 }
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun GeofenceScreenPreview() {
+    GeofenceScreen(navController = rememberNavController())
+}
+
+@Preview(showBackground = true)
+@Composable
+fun GeofenceScreenWithLocationPreview() {
+    GeofenceScreen(
+        navController = rememberNavController(),
+        savedLocation = GeoPoint(40.7128, -74.0060) // New York City
+    )
 }

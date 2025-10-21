@@ -31,7 +31,6 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Overview : Screen("overview", "Overview", Icons.Filled.BarChart)
     object Location : Screen("location", "Location", Icons.Filled.LocationOn)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
-    object LocationStatus : Screen("locationStatus", "Location Status", Icons.Filled.LocationOn)
     object AboutDeveloper : Screen("aboutDeveloper", "About Developer", Icons.Filled.Info)
 }
 
@@ -136,7 +135,6 @@ fun AppNavigation() {
                     LocationPickerScreen(
                         searchHistoryRepository = searchHistoryRepository,
                         savedPlacesRepository = savedPlacesRepository,
-                        initialLocation = null, // Or fetch a default location
                         onLocationConfirmed = { _ ->
                             // Handle location confirmation, e.g., navigate back or show a confirmation message
                             navController.popBackStack()
@@ -147,7 +145,6 @@ fun AppNavigation() {
                     LocationPickerScreen(
                         searchHistoryRepository = searchHistoryRepository,
                         savedPlacesRepository = savedPlacesRepository,
-                        initialLocation = null, // Or fetch a default location
                         onLocationConfirmed = { _ ->
                             // Handle location confirmation, e.g., navigate back or show a confirmation message
                             navController.popBackStack()
@@ -156,7 +153,6 @@ fun AppNavigation() {
                 }
                 composable("geofenceScreen") { GeofenceScreen(navController = navController) }
                 composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
-                composable(Screen.LocationStatus.route) { LocationStatusScreen() }
                 composable(Screen.AboutDeveloper.route) { AboutDeveloperScreen() }
                 composable("recycleBin") { RecycleBinScreen() }
                 composable("helpScreen") { HelpScreen(_navController = navController) }

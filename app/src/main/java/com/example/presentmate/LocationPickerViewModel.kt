@@ -1,5 +1,6 @@
 package com.example.presentmate
 
+import android.annotation.SuppressLint
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
@@ -9,6 +10,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.presentmate.data.SavedPlace
 import com.example.presentmate.data.SavedPlacesRepository
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +30,7 @@ import kotlin.coroutines.resume
  */
 data class LocationPickerUiState(
     val selectedLocation: GeoPoint? = null,
-    val addressText: String = "Move the map to select a location",
+    val addressText: String = "",
     val searchQuery: String = "",
     val suggestions: List<Address> = emptyList(),
     val history: List<String> = emptyList(),
@@ -34,6 +38,7 @@ data class LocationPickerUiState(
     val isSearching: Boolean = false,
     val isSearchFocused: Boolean = false,
     val isMapMoving: Boolean = false,
+    val isFetchingLocation: Boolean = false,
     val isInitializing: Boolean = true,
     val error: String? = null
 )
@@ -44,13 +49,13 @@ data class LocationPickerUiState(
  * @param geocoder The geocoder to use for reverse geocoding.
  * @param searchHistoryRepository The repository for search history.
  * @param savedPlacesRepository The repository for saved places.
- * @param initialLocation The initial location to display on the map.
+ * @param fusedLocationProviderClient The client for getting the current location.
  */
 class LocationPickerViewModel(
     private val geocoder: Geocoder,
     private val searchHistoryRepository: SearchHistoryRepository,
     private val savedPlacesRepository: SavedPlacesRepository,
-    val initialLocation: GeoPoint?
+    private val fusedLocationProviderClient: FusedLocationProviderClient
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LocationPickerUiState())
@@ -73,10 +78,36 @@ class LocationPickerViewModel(
         }
 
         viewModelScope.launch {
-            val startingLocation = initialLocation ?: GeoPoint(20.5937, 78.9629) // Default to India
-            onMapMove(startingLocation)
+            val startingLocation = GeoPoint(19.0760, 72.8777) // Always default to Mumbai
+            _uiState.update { it.copy(isMapMoving = true, selectedLocation = startingLocation) }
             val address = getAddressText(startingLocation)
             _uiState.update { it.copy(addressText = address, isInitializing = false, isMapMoving = false) }
+        }
+    }
+
+    /**
+     * Gets the current location of the device.
+     */
+    @SuppressLint("MissingPermission")
+    fun getCurrentLocation() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isFetchingLocation = true) }
+            fusedLocationProviderClient.getCurrentLocation(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                CancellationTokenSource().token
+            ).addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    task.result?.let {
+                        val currentLocation = GeoPoint(it.latitude, it.longitude)
+                        onMapMove(currentLocation)
+                        onMapMoveFinished(currentLocation)
+                    }
+                } else {
+                    Log.e("LocationPickerVM", "Failed to get current location", task.exception)
+                    _uiState.update { it.copy(error = "Failed to get current location. Please ensure GPS is enabled.") }
+                }
+                _uiState.update { it.copy(isFetchingLocation = false) }
+            }
         }
     }
 
@@ -86,7 +117,7 @@ class LocationPickerViewModel(
      * @param query The new search query.
      */
     fun onSearchQueryChanged(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
+        _uiState.update { it.copy(searchQuery = query, isSearchFocused = true) }
         searchJob?.cancel()
         if (query.isEmpty()) {
             _uiState.update {
@@ -175,16 +206,18 @@ class LocationPickerViewModel(
      * @param geoPoint The new center of the map.
      */
     fun onMapMove(geoPoint: GeoPoint) {
-        _uiState.update { it.copy(selectedLocation = geoPoint, isMapMoving = true) }
+        _uiState.update { it.copy(selectedLocation = geoPoint, isMapMoving = true, addressText = "") }
     }
 
     /**
      * Called when the map movement is finished.
+     *
+     * @param geoPoint The GeoPoint to get the address for. Defaults to the current selected location.
      */
-    fun onMapMoveFinished() {
+    fun onMapMoveFinished(geoPoint: GeoPoint? = _uiState.value.selectedLocation) {
         viewModelScope.launch {
-            _uiState.value.selectedLocation?.let { geoPoint ->
-                val address = getAddressText(geoPoint)
+            geoPoint?.let { point ->
+                val address = getAddressText(point)
                 _uiState.update { it.copy(addressText = address, isMapMoving = false) }
             }
         }
@@ -203,11 +236,13 @@ class LocationPickerViewModel(
                 selectedLocation = newLocation,
                 searchQuery = addressText,
                 isSearchFocused = false,
-                suggestions = emptyList()
+                suggestions = emptyList(),
+                addressText = addressText
             )
         }
         addSearchToHistory(addressText)
-        onMapMoveFinished() // Update address text
+        onMapMove(newLocation)
+        onMapMoveFinished(newLocation)
     }
 
     /**
@@ -231,10 +266,10 @@ class LocationPickerViewModel(
             it.copy(
                 selectedLocation = newLocation,
                 searchQuery = place.address,
+                addressText = place.address,
                 isSearchFocused = false
             )
         }
-        onMapMoveFinished() // Update address text
     }
 
     /**
@@ -244,7 +279,8 @@ class LocationPickerViewModel(
         _uiState.update {
             it.copy(
                 searchQuery = "",
-                suggestions = emptyList()
+                suggestions = emptyList(),
+                isSearchFocused = false
             )
         }
     }
@@ -280,6 +316,25 @@ class LocationPickerViewModel(
     }
 
     /**
+     * Saves the currently selected location.
+     *
+     * @param name The name to save the location as.
+     */
+    fun saveSelectedLocation(name: String) {
+        viewModelScope.launch {
+            _uiState.value.selectedLocation?.let { location ->
+                val savedPlace = SavedPlace(
+                    name = name,
+                    address = _uiState.value.addressText,
+                    latitude = location.latitude,
+                    longitude = location.longitude
+                )
+                savedPlacesRepository.insert(savedPlace)
+            }
+        }
+    }
+
+    /**
      * Gets the address text for a given GeoPoint.
      *
      * @param geoPoint The GeoPoint to get the address for.
@@ -297,12 +352,7 @@ class LocationPickerViewModel(
                 if (Build.VERSION.SDK_INT >= 33) {
                     geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1) { addresses ->
                         val address = addresses.firstOrNull()?.getAddressLine(0)
-                            ?: String.format(
-                                Locale.US,
-                                "Lat: %.6f, Lng: %.6f",
-                                geoPoint.latitude,
-                                geoPoint.longitude
-                            )
+                            ?: "Unknown location"
                         continuation.resume(address)
                     }
                 } else {
@@ -310,24 +360,14 @@ class LocationPickerViewModel(
                     val addresses =
                         geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1)
                     val address = addresses?.firstOrNull()?.getAddressLine(0)
-                        ?: String.format(
-                            Locale.US,
-                            "Lat: %.6f, Lng: %.6f",
-                            geoPoint.latitude,
-                            geoPoint.longitude
-                        )
+                        ?: "Unknown location"
                     continuation.resume(address)
                 }
             }
         } catch (e: Exception) {
             Log.e("LocationPickerVM", "Get address failed", e)
             _uiState.update { it.copy(error = "Failed to get address: ${e.message}") }
-            return String.format(
-                Locale.US,
-                "Lat: %.6f, Lng: %.6f",
-                geoPoint.latitude,
-                geoPoint.longitude
-            )
+            return "Unknown location"
         }
 
         addressCache[cacheKey] = newAddress
@@ -338,16 +378,16 @@ class LocationPickerViewModel(
         fun provideFactory(
             geocoder: Geocoder,
             searchHistoryRepository: SearchHistoryRepository,
-            savedPlacesRepository: SavedPlacesRepository, // Add this
-            initialLocation: GeoPoint?
+            savedPlacesRepository: SavedPlacesRepository,
+            fusedLocationProviderClient: FusedLocationProviderClient
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return LocationPickerViewModel(
                     geocoder,
                     searchHistoryRepository,
-                    savedPlacesRepository, // Pass this
-                    initialLocation
+                    savedPlacesRepository,
+                    fusedLocationProviderClient
                 ) as T
             }
         }

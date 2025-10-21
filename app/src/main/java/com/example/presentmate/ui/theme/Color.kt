@@ -2,20 +2,32 @@ package com.example.presentmate.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Modern dark blue/teal theme colors
-val DarkBlue80 = Color(0xFF1E3A8A) // Deep blue for primary
-val DarkBlueGrey80 = Color(0xFF334155) // Slate grey for secondary
-val Teal80 = Color(0xFF14B8A6) // Teal accent
-val DarkSurface80 = Color(0xFF0F172A) // Dark surface
-val DarkBackground80 = Color(0xFF020617) // Darker background
+// Primary and accent colors for the modern theme
+val Primary = Color(0xFF3B82F6)       // A modern, friendly blue
+val PrimaryVariant = Color(0xFF1E40AF)   // A deeper blue for primary actions
+val Secondary = Color(0xFF14B8A6)     // Teal for secondary actions and highlights
+val Tertiary = Color(0xFF6366F1)      // An indigo for tertiary elements
 
-val DarkBlue40 = Color(0xFF3B82F6) // Lighter blue for light theme
-val DarkBlueGrey40 = Color(0xFF64748B) // Medium slate
-val Teal40 = Color(0xFF06B6D4) // Cyan for light theme
-val DarkSurface40 = Color(0xFFF8FAFC) // Light surface
-val DarkBackground40 = Color(0xFFffffff) // White background
+// Neutral colors for backgrounds, surfaces, and text
+val Background = Color(0xFFF8FAFC)     // A very light grey for backgrounds
+val Surface = Color(0xFFFFFFFF)       // White for surfaces like cards and sheets
+val OnPrimary = Color(0xFFFFFFFF)     // White text on primary backgrounds
+val OnSecondary = Color(0xFFFFFFFF)   // White text on secondary backgrounds
+val OnBackground = Color(0xFF1E293B)   // Dark slate for text on light backgrounds
+val OnSurface = Color(0xFF334155)     // A softer slate for less prominent text
+val SurfaceVariant = Color(0xFFE2E8F0) // A light grey for dividers and disabled states
 
-// Gradient colors for enhanced visuals
-val GradientStart = Color(0xFF1E40AF) // Gradient start
-val GradientCenter = Color(0xFF3B82F6) // Gradient middle
-val GradientEnd = Color(0xFF06B6D4) // Gradient end
+// Dark theme color palette
+val DarkPrimary = Color(0xFF60A5FA)      // A lighter blue for dark mode
+val DarkPrimaryVariant = Color(0xFF3B82F6)  // The friendly blue from the light theme
+val DarkSecondary = Color(0xFF2DD4BF)    // A brighter teal for dark mode
+val DarkTertiary = Color(0xFF818CF8)     // A lighter indigo for dark mode
+
+// Dark theme neutral colors
+val DarkBackground = Color(0xFF0F172A)    // A deep, dark blue for backgrounds
+val DarkSurface = Color(0xFF1E293B)      // A lighter slate for dark surfaces
+val DarkOnPrimary = Color(0xFF0F172A)    // Dark text for contrast on primary buttons
+val DarkOnSecondary = Color(0xFF0F172A)  // Dark text for contrast on secondary buttons
+val DarkOnBackground = Color(0xFFE2E8F0) // Light grey text on dark backgrounds
+val DarkOnSurface = Color(0xFFCBD5E1)    // A softer grey for less prominent text
+val DarkSurfaceVariant = Color(0xFF334155) // Slate for dividers and disabled states

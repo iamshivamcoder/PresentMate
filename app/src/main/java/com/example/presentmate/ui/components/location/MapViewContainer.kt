@@ -1,4 +1,4 @@
-package com.example.presentmate.ui.components
+package com.example.presentmate.ui.components.location
 
 import android.content.Context
 import androidx.compose.foundation.layout.size
@@ -37,38 +37,27 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 
-private const val MAP_DEBOUNCE_DELAY = 500L
-
-/**
- * Creates and configures a MapView.
- *
- * @param context The context.
- * @return The configured MapView.
- */
-private fun createMapView(context: Context): MapView {
-    return MapView(context).apply {
-        setMultiTouchControls(true)
-        setTileSource(TileSourceFactory.MAPNIK)
-        isTilesScaledToDpi = true
-        minZoomLevel = 3.0
-        maxZoomLevel = 19.0
-    }
-}
+private const val MAP_DEBOUNCE_DELAY = 300L
+private const val MAP_ANIMATION_DELAY = 100L // New constant for animation delay
 
 /**
  * A container for the osmdroid MapView.
  *
  * @param modifier The modifier to be applied to the MapView.
- * @param initialLocation The initial location to display on the map.
+ * @param selectedLocation The currently selected location.
  * @param onMapMove Called when the map is moved.
  * @param onMapMoveFinished Called when the map movement is finished.
+ * @param zoomLevel The zoom level to apply to the map.
+ * @param mapMoveDebounce The debounce delay for map movements.
  */
 @Composable
 internal fun MapViewContainer(
     modifier: Modifier = Modifier,
-    initialLocation: GeoPoint?,
+    selectedLocation: GeoPoint?,
     onMapMove: (GeoPoint) -> Unit,
     onMapMoveFinished: () -> Unit,
+    zoomLevel: Double = 15.0,
+    mapMoveDebounce: Long = MAP_DEBOUNCE_DELAY
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -77,37 +66,48 @@ internal fun MapViewContainer(
     val currentOnMapMoveFinished by rememberUpdatedState(onMapMoveFinished)
 
     val mapView = remember {
-        createMapView(context).apply {
-            controller.setZoom(15.0)
-            initialLocation?.let { controller.setCenter(it) }
+        MapView(context).apply {
+            setMultiTouchControls(true)
+            setTileSource(TileSourceFactory.MAPNIK)
+            isTilesScaledToDpi = true
+            minZoomLevel = 3.0
+            maxZoomLevel = 19.0
+            controller.setZoom(zoomLevel)
+            selectedLocation?.let { controller.setCenter(it) }
         }
     }
 
-    var isMapMoving by remember { mutableStateOf(false) }
+    LaunchedEffect(selectedLocation) {
+        selectedLocation?.let {
+            delay(MAP_ANIMATION_DELAY) // Added delay
+            mapView.controller.animateTo(it)
+        }
+    }
 
-    LaunchedEffect(isMapMoving) {
-        if (isMapMoving) {
-            delay(MAP_DEBOUNCE_DELAY)
-            isMapMoving = false
+    LaunchedEffect(zoomLevel) {
+        mapView.controller.setZoom(zoomLevel)
+    }
+
+    var mapMoveCounter by remember { mutableStateOf(0) }
+    LaunchedEffect(mapMoveCounter) {
+        if (mapMoveCounter > 0) {
+            delay(mapMoveDebounce)
             currentOnMapMoveFinished()
         }
     }
 
     val mapListener = remember {
         object : MapListener {
-            override fun onScroll(event: ScrollEvent?): Boolean {
+            private fun onMapMoved(): Boolean {
                 val center = mapView.mapCenter as? GeoPoint ?: return false
                 currentOnMapMove(center)
-                isMapMoving = true
+                mapMoveCounter++
                 return true
             }
 
-            override fun onZoom(event: ZoomEvent?): Boolean {
-                val center = mapView.mapCenter as? GeoPoint ?: return false
-                currentOnMapMove(center)
-                isMapMoving = true
-                return true
-            }
+            override fun onScroll(event: ScrollEvent?): Boolean = onMapMoved()
+
+            override fun onZoom(event: ZoomEvent?): Boolean = onMapMoved()
         }
     }
 
@@ -151,14 +151,14 @@ internal fun LocationPermissionRationaleDialog(
                 imageVector = Icons.Default.MyLocation,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.Companion.size(32.dp)
+                modifier = Modifier.size(32.dp)
             )
         },
         title = {
             Text(
                 text = "Location Access Needed",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Companion.Bold
+                fontWeight = FontWeight.Bold
             )
         },
         text = {
