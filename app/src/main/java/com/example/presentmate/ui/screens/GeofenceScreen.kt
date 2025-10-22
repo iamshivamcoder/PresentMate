@@ -1,8 +1,11 @@
 package com.example.presentmate.ui.screens
 
-import android.app.PendingIntent
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.location.LocationManager
+import android.net.Uri
+import android.provider.Settings
 import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,7 +46,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,12 +73,19 @@ import com.example.presentmate.data.SavedPlace
 import com.example.presentmate.data.SavedPlacesRepository
 import com.example.presentmate.geofence.GeofenceBroadcastReceiver
 import com.example.presentmate.geofence.GeofenceManager
+import com.example.presentmate.geofence.GeofenceUtils
+import com.example.presentmate.ui.components.PermissionDeniedContent
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Polygon
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun GeofenceScreen(
     navController: NavController,
@@ -94,7 +106,33 @@ fun GeofenceScreen(
     var radiusMeters by remember { mutableFloatStateOf(prefs.getFloat("geofence_radius", 200f)) }
     var isTrackingEnabled by remember { mutableStateOf(prefs.getBoolean("geofence_enabled", false)) }
 
-    // Initialize selectedSavedPlace with the first item once savedPlaces is loaded
+    val permissionsState = rememberMultiplePermissionsState(
+        permissions = buildList {
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            add(Manifest.permission.ACCESS_COARSE_LOCATION)
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    )
+
+    var showPermissionRationale by rememberSaveable { mutableStateOf(false) }
+    var hasRequestedPermission by rememberSaveable { mutableStateOf(false) }
+    var showLocationServicesDialog by rememberSaveable { mutableStateOf(false) }
+
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+    val geofencePendingIntent = remember {
+        GeofenceUtils.createGeofencePendingIntent(context)
+    }
+
     LaunchedEffect(savedPlaces) {
         if (selectedSavedPlace == null && savedPlaces.isNotEmpty()) {
             val savedLat = prefs.getFloat("geofence_latitude", 0f)
@@ -104,7 +142,10 @@ fun GeofenceScreen(
         }
     }
 
-    val centerPoint = selectedSavedPlace?.let { GeoPoint(it.latitude, it.longitude) } ?: GeoPoint(20.5937, 78.9629) // Default to India or selected location
+    val centerPoint = selectedSavedPlace?.let { GeoPoint(it.latitude, it.longitude) } ?: GeoPoint(
+        20.5937,
+        78.9629
+    )
 
     val mapView = remember {
         MapView(context).apply {
@@ -119,7 +160,6 @@ fun GeofenceScreen(
 
     val circleOverlay = remember { Polygon() }
 
-    // Update map center when selectedSavedPlace changes
     LaunchedEffect(selectedSavedPlace) {
         selectedSavedPlace?.let {
             val newGeoPoint = GeoPoint(it.latitude, it.longitude)
@@ -128,32 +168,89 @@ fun GeofenceScreen(
         }
     }
 
-    // Update geofence when enabled and params change
-    LaunchedEffect(selectedSavedPlace, radiusMeters, isTrackingEnabled) {
-        if (isTrackingEnabled) {
-            selectedSavedPlace?.let {
-                val pendingIntent = PendingIntent.getBroadcast(
-                    context,
-                    0,
-                    Intent(context, GeofenceBroadcastReceiver::class.java),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                )
-                geofenceManager.addGeofence(
-                    it.id.toString(),
-                    it.latitude,
-                    it.longitude,
-                    radiusMeters,
-                    pendingIntent
-                )
+    LaunchedEffect(Unit) {
+        snapshotFlow {
+            Triple(
+                selectedSavedPlace?.id,
+                radiusMeters,
+                isTrackingEnabled
+            )
+        }
+            .drop(1) // Skip the initial emission
+            .distinctUntilChanged() // Only emit when values actually change
+            .collectLatest { (placeId, radius, enabled) ->
+                if (permissionsState.allPermissionsGranted && isLocationEnabled && enabled && selectedSavedPlace != null) {
+                    selectedSavedPlace?.let {
+                        geofenceManager.addGeofence(
+                            it.id.toString(),
+                            it.latitude,
+                            it.longitude,
+                            radius,
+                            geofencePendingIntent
+                        )
+                    }
+                } else if (enabled && !isLocationEnabled) {
+                    showLocationServicesDialog = true
             }
         }
     }
 
-    // Update circle overlay when radius or center changes
+    LaunchedEffect(Unit) {
+        if (!permissionsState.allPermissionsGranted && !hasRequestedPermission) {
+            if (permissionsState.shouldShowRationale) {
+                showPermissionRationale = true
+            } else {
+                permissionsState.launchMultiplePermissionRequest()
+                hasRequestedPermission = true
+            }
+        }
+    }
+
+    if (showPermissionRationale) {
+        val rationaleDialog = @Composable {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = {
+                    showPermissionRationale = false
+                    navController.popBackStack()
+                },
+                title = { Text("Permissions Required") },
+                text = { Text("Location and notification permissions are required for geofence tracking to work properly.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showPermissionRationale = false
+                            permissionsState.launchMultiplePermissionRequest()
+                            hasRequestedPermission = true
+                        }
+                    ) {
+                        Text("Grant Permissions")
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = { navController.popBackStack() }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+        rationaleDialog()
+    }
+
+    if (showLocationServicesDialog) {
+        LocationServicesDisabledDialog(
+            onDismiss = { showLocationServicesDialog = false },
+            onConfirm = {
+                showLocationServicesDialog = false
+                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                context.startActivity(intent)
+            }
+        )
+    }
+
     DisposableEffect(radiusMeters, centerPoint) {
         circleOverlay.points = Polygon.pointsAsCircle(centerPoint, radiusMeters.toDouble())
-        circleOverlay.fillPaint.color = android.graphics.Color.parseColor("#4D2196F3") // Semi-transparent blue
-        circleOverlay.outlinePaint.color = android.graphics.Color.parseColor("#2196F3") // Blue border
+        circleOverlay.fillPaint.color = android.graphics.Color.parseColor("#4D2196F3")
+        circleOverlay.outlinePaint.color = android.graphics.Color.parseColor("#2196F3")
         circleOverlay.outlinePaint.strokeWidth = 4f
 
         if (!mapView.overlays.contains(circleOverlay)) {
@@ -164,7 +261,6 @@ fun GeofenceScreen(
         onDispose { }
     }
 
-    // Map lifecycle management
     DisposableEffect(lifecycleOwner, mapView) {
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             when (event) {
@@ -184,248 +280,301 @@ fun GeofenceScreen(
     Scaffold(
         modifier = modifier
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState()) // Make the entire column scrollable
         ) {
-            // Map View Section
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp) // Maintain a fixed height for the map for preview
-            ) {
-                if (LocalInspectionMode.current) {
-                    Box(
+            when {
+                !permissionsState.allPermissionsGranted && hasRequestedPermission -> {
+                    PermissionDeniedContent(
+                        onOpenSettings = {
+                            val intent =
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.fromParts("package", context.packageName, null)
+                                }
+                            context.startActivity(intent)
+                        },
+                        onDismiss = { navController.popBackStack() }
+                    )
+                }
+
+                else -> {
+                    Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(colorScheme.surfaceVariant)
-                            .align(Alignment.Center)
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        Text("Map Preview", color = colorScheme.onSurfaceVariant)
-                    }
-                } else {
-                    AndroidView(
-                        factory = { mapView },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            }
-
-            // Controls Section
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                    .background(colorScheme.surface)
-                    .padding(20.dp)
-            ) {
-                // Subtitle
-                Text(
-                    text = "Select a saved location and set your geofence.",
-                    style = typography.bodyMedium,
-                    color = colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                // Saved Locations List
-                Text(
-                    text = "Choose a Saved Location",
-                    style = typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                if (savedPlaces.isEmpty()) {
-                    Text(
-                        text = "No saved locations yet. Save some from the Location picker!",
-                        style = typography.bodyMedium,
-                        color = colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                } else {
-                    Column {
-                        savedPlaces.forEach { place ->
-                            ListItem(
-                                headlineContent = { Text(place.name) },
-                                supportingContent = { Text(place.address, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                leadingContent = { Icon(Icons.Default.LocationOn, contentDescription = null) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        selectedSavedPlace = place
-                                        with(prefs.edit()) {
-                                            putFloat("geofence_latitude", place.latitude.toFloat())
-                                            putFloat("geofence_longitude", place.longitude.toFloat())
-                                            apply()
-                                        }
-                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                    },
-                                trailingContent = {
-                                    if (selectedSavedPlace == place) {
-                                        Icon(Icons.Default.Save, contentDescription = "Selected")
-                                    }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(300.dp)
+                        ) {
+                            if (LocalInspectionMode.current) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(colorScheme.surfaceVariant)
+                                        .align(Alignment.Center)
+                                ) {
+                                    Text("Map Preview", color = colorScheme.onSurfaceVariant)
                                 }
-                            )
+                            } else {
+                                AndroidView(
+                                    factory = { mapView },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Location Preview Section
-                selectedSavedPlace?.let { place ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        )
-                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp)
+                                .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                                .background(colorScheme.surface)
+                                .padding(20.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                            Text(
+                                text = "Select a saved location and set your geofence.",
+                                style = typography.bodyMedium,
+                                color = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+
+                            Text(
+                                text = "Choose a Saved Location",
+                                style = typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colorScheme.onSurface,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            if (savedPlaces.isEmpty()) {
+                                Text(
+                                    text = "No saved locations yet. Save some from the Location picker!",
+                                    style = typography.bodyMedium,
+                                    color = colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 8.dp)
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = place.name,
-                                        style = typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = place.address,
-                                        style = typography.bodySmall,
-                                        color = colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                            } else {
+                                Column {
+                                    savedPlaces.forEach { place ->
+                                        ListItem(
+                                            headlineContent = { Text(place.name) },
+                                            supportingContent = {
+                                                Text(
+                                                    place.address,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            },
+                                            leadingContent = {
+                                                Icon(
+                                                    Icons.Default.LocationOn,
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedSavedPlace = place
+                                                    with(prefs.edit()) {
+                                                        putFloat(
+                                                            "geofence_latitude",
+                                                            place.latitude.toFloat()
+                                                        )
+                                                        putFloat(
+                                                            "geofence_longitude",
+                                                            place.longitude.toFloat()
+                                                        )
+                                                        apply()
+                                                    }
+                                                    view.performHapticFeedback(
+                                                        HapticFeedbackConstants.CLOCK_TICK
+                                                    )
+                                                },
+                                            trailingContent = {
+                                                if (selectedSavedPlace?.id == place.id) {
+                                                    Icon(
+                                                        Icons.Default.Save,
+                                                        contentDescription = "Selected"
+                                                    )
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            selectedSavedPlace?.let { place ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(
+                                                Icons.Default.LocationOn,
+                                                contentDescription = null,
+                                                tint = colorScheme.primary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = place.name,
+                                                    style = typography.titleMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = place.address,
+                                                    style = typography.bodySmall,
+                                                    color = colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } ?: run {
+                                Text(
+                                    text = "No location selected. Please select a location from the list above.",
+                                    style = typography.bodyMedium,
+                                    color = colorScheme.error,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Text(
+                                text = "Radius: ${radiusMeters.toInt()} meters",
+                                style = typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colorScheme.onSurface,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            Slider(
+                                value = radiusMeters,
+                                onValueChange = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                    radiusMeters = it
+                                    with(prefs.edit()) {
+                                        putFloat("geofence_radius", radiusMeters)
+                                        apply()
+                                    }
+                                },
+                                valueRange = 50f..1000f,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .semantics { contentDescription = "Geofence radius slider" },
+                                colors = SliderDefaults.colors(
+                                    thumbColor = colorScheme.primary,
+                                    activeTrackColor = colorScheme.primary,
+                                    inactiveTrackColor = colorScheme.surfaceVariant
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Enable Geofence",
+                                    style = typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Switch(
+                                    checked = isTrackingEnabled,
+                                    onCheckedChange = { checked ->
+                                        isTrackingEnabled = checked
+                                        if (checked) {
+                                            with(prefs.edit()) {
+                                                putBoolean("geofence_enabled", true)
+                                                apply()
+                                            }
+                                            if (permissionsState.allPermissionsGranted && isLocationEnabled) {
+                                                selectedSavedPlace?.let {
+                                                    geofenceManager.addGeofence(
+                                                        it.id.toString(),
+                                                        it.latitude,
+                                                        it.longitude,
+                                                        radiusMeters,
+                                                        geofencePendingIntent
+                                                    )
+                                                }
+                                            } else if (!isLocationEnabled) {
+                                                showLocationServicesDialog = true
+                                            }
+                                        } else {
+                                            with(prefs.edit()) {
+                                                putBoolean("geofence_enabled", false)
+                                                apply()
+                                            }
+                                            geofenceManager.removeGeofence(geofencePendingIntent)
+                                        }
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = colorScheme.primary,
+                                        checkedTrackColor = colorScheme.primaryContainer,
+                                        uncheckedThumbColor = colorScheme.outline,
+                                        uncheckedTrackColor = colorScheme.surfaceVariant
+                                    )
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(32.dp))
+
+                            Button(
+                                onClick = { navController.navigate("locationPickerScreen") },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Add New Location")
                             }
                         }
                     }
-                } ?: run {
-                    Text(
-                        text = "No location selected. Please select a location from the list above.",
-                        style = typography.bodyMedium,
-                        color = colorScheme.error,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Radius Slider
-                Text(
-                    text = "Radius: ${radiusMeters.toInt()} meters",
-                    style = typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                Slider(
-                    value = radiusMeters,
-                    onValueChange = {
-                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                        radiusMeters = it
-                        with(prefs.edit()) {
-                            putFloat("geofence_radius", radiusMeters)
-                            apply()
-                        }
-                    },
-                    valueRange = 50f..1000f,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { contentDescription = "Geofence radius slider" },
-                    colors = SliderDefaults.colors(
-                        thumbColor = colorScheme.primary,
-                        activeTrackColor = colorScheme.primary,
-                        inactiveTrackColor = colorScheme.surfaceVariant
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Enable/Disable Switch
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Enable Geofence",
-                        style = typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Switch(
-                        checked = isTrackingEnabled,
-                        onCheckedChange = { checked ->
-                            isTrackingEnabled = checked
-                            val pendingIntent = PendingIntent.getBroadcast(
-                                context,
-                                0,
-                                Intent(context, GeofenceBroadcastReceiver::class.java),
-                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                            )
-                            if (checked) {
-                                with(prefs.edit()) {
-                                    putBoolean("geofence_enabled", true)
-                                    apply()
-                                }
-                                selectedSavedPlace?.let {
-                                    geofenceManager.addGeofence(
-                                        it.id.toString(),
-                                        it.latitude,
-                                        it.longitude,
-                                        radiusMeters,
-                                        pendingIntent
-                                    )
-                                }
-                            } else {
-                                with(prefs.edit()) {
-                                    putBoolean("geofence_enabled", false)
-                                    apply()
-                                }
-                                geofenceManager.removeGeofence(pendingIntent)
-                            }
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = colorScheme.primary,
-                            checkedTrackColor = colorScheme.primaryContainer,
-                            uncheckedThumbColor = colorScheme.outline,
-                            uncheckedTrackColor = colorScheme.surfaceVariant
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Button(
-                    onClick = { navController.navigate("locationPickerScreen") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Add New Location")
-                }
-
             }
         }
     }
+}
+
+@Composable
+fun LocationServicesDisabledDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Location Services Disabled") },
+        text = { Text("Please enable location services for automatic session tracking.") },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Enable")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Preview(showBackground = true)

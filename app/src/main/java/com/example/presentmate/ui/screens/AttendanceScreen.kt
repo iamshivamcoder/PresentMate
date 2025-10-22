@@ -1,6 +1,7 @@
 package com.example.presentmate.ui.screens
 
-// import androidx.navigation.NavHostController // Unused
+import android.content.Context
+import android.location.LocationManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,11 +11,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.LocationDisabled
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -28,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.presentmate.db.AttendanceLogList
@@ -42,7 +49,6 @@ import java.util.Locale
 @Composable
 fun AttendanceScreen(
     modifier: Modifier = Modifier
-    // navController: NavHostController? = null // Unused
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var dialogMessage by remember { mutableStateOf("") }
@@ -53,6 +59,15 @@ fun AttendanceScreen(
     val attendanceRecords by db.attendanceDao().getAllRecords().collectAsState(initial = emptyList())
     val ongoingSession = attendanceRecords.lastOrNull { it.timeOut == null }
     val sessionInProgress = ongoingSession != null
+
+    // Check if location services are enabled
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+    // Check if geofence tracking is enabled
+    val prefs = context.getSharedPreferences("geofence_prefs", Context.MODE_PRIVATE)
+    val isGeofenceTrackingEnabled = prefs.getBoolean("geofence_enabled", false)
 
     Column(
         modifier = modifier
@@ -80,6 +95,50 @@ fun AttendanceScreen(
                     MotivationalAnimation()
                 }
             }
+
+            // Geofence status indicator
+            if (isGeofenceTrackingEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isLocationEnabled) {
+                            Color(0xFF4CAF50).copy(alpha = 0.3f) // Green for active geofence
+                        } else {
+                            Color(0xFFFF9800).copy(alpha = 0.3f) // Orange for disabled location
+                        }
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isLocationEnabled) Icons.Default.LocationOn else Icons.Default.LocationDisabled,
+                            contentDescription = null,
+                            tint = if (isLocationEnabled) Color(0xFF4CAF50) else Color(0xFFFF9800),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column {
+                            Text(
+                                text = if (isLocationEnabled) "Geofence Active" else "Location Disabled",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (isLocationEnabled) Color(0xFF4CAF50) else Color(
+                                    0xFFFF9800
+                                )
+                            )
+                            Text(
+                                text = if (isLocationEnabled) "Automatic session tracking is enabled" else "Enable location services for geofence tracking",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
         } else {
             Spacer(modifier = Modifier.weight(0.1f))

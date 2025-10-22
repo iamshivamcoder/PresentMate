@@ -1,7 +1,6 @@
 package com.example.presentmate.ui.screens
 
 import android.Manifest
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.location.Geocoder
@@ -17,7 +16,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,8 +52,8 @@ import com.example.presentmate.LocationPickerViewModel
 import com.example.presentmate.SearchHistoryRepository
 import com.example.presentmate.data.AppDatabase
 import com.example.presentmate.data.SavedPlacesRepository
-import com.example.presentmate.geofence.GeofenceBroadcastReceiver
 import com.example.presentmate.geofence.GeofenceManager
+import com.example.presentmate.geofence.GeofenceUtils
 import com.example.presentmate.ui.components.PermissionDeniedContent
 import com.example.presentmate.ui.components.common.InitialLoadingContent
 import com.example.presentmate.ui.components.location.LocationPermissionRationaleDialog
@@ -65,10 +79,20 @@ fun LocationPickerScreen(
     val fusedLocationProviderClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
     val locationPermissionsState = rememberMultiplePermissionsState(
-        permissions = listOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
+        permissions = buildList {
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            add(Manifest.permission.ACCESS_COARSE_LOCATION)
+
+            // Add background location permission for Android 10+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+
+            // Add notification permission for Android 13+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     )
 
     val viewModel: LocationPickerViewModel = viewModel(
@@ -214,19 +238,12 @@ fun LocationPickerScreen(
                                 apply()
                             }
 
-                            // Set up geofence if enabled
                             val geofenceManager = GeofenceManager(context)
-                            val intent = Intent(context, GeofenceBroadcastReceiver::class.java)
-                            val pendingIntent = PendingIntent.getBroadcast(
-                                context,
-                                0,
-                                intent,
-                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                            )
+                            val pendingIntent = GeofenceUtils.createGeofencePendingIntent(context)
 
                             if (enableGeofencing) {
                                 geofenceManager.addGeofence(
-                                    locationName, // Use location name as ID
+                                    locationName,
                                     selectedLocation.latitude,
                                     selectedLocation.longitude,
                                     geofenceRadius,
@@ -280,7 +297,7 @@ fun LocationPickerScreen(
                     LocationPickerContent(
                         viewModel = viewModel,
                         uiState = uiState,
-                        onLocationConfirmed = { showSaveDialog = true }, // Show the save dialog on confirm
+                        onLocationConfirmed = { showSaveDialog = true },
                         onGoToCurrentLocation = {
                             if (locationPermissionsState.allPermissionsGranted) {
                                 viewModel.getCurrentLocation()
