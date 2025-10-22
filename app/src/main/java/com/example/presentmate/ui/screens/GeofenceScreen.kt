@@ -52,6 +52,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -63,6 +64,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.edit
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,7 +74,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.presentmate.data.AppDatabase
 import com.example.presentmate.data.SavedPlace
 import com.example.presentmate.data.SavedPlacesRepository
-import com.example.presentmate.geofence.GeofenceBroadcastReceiver
 import com.example.presentmate.geofence.GeofenceManager
 import com.example.presentmate.geofence.GeofenceUtils
 import com.example.presentmate.ui.components.PermissionDeniedContent
@@ -178,7 +180,7 @@ fun GeofenceScreen(
         }
             .drop(1) // Skip the initial emission
             .distinctUntilChanged() // Only emit when values actually change
-            .collectLatest { (placeId, radius, enabled) ->
+            .collectLatest { (_, radius, enabled) ->
                 if (permissionsState.allPermissionsGranted && isLocationEnabled && enabled && selectedSavedPlace != null) {
                     selectedSavedPlace?.let {
                         geofenceManager.addGeofence(
@@ -249,8 +251,8 @@ fun GeofenceScreen(
 
     DisposableEffect(radiusMeters, centerPoint) {
         circleOverlay.points = Polygon.pointsAsCircle(centerPoint, radiusMeters.toDouble())
-        circleOverlay.fillPaint.color = android.graphics.Color.parseColor("#4D2196F3")
-        circleOverlay.outlinePaint.color = android.graphics.Color.parseColor("#2196F3")
+        circleOverlay.fillPaint.color = "#4D2196F3".toColorInt()
+        circleOverlay.outlinePaint.color = "#2196F3".toColorInt()
         circleOverlay.outlinePaint.strokeWidth = 4f
 
         if (!mapView.overlays.contains(circleOverlay)) {
@@ -377,7 +379,7 @@ fun GeofenceScreen(
                                                 .fillMaxWidth()
                                                 .clickable {
                                                     selectedSavedPlace = place
-                                                    with(prefs.edit()) {
+                                                    prefs.edit {
                                                         putFloat(
                                                             "geofence_latitude",
                                                             place.latitude.toFloat()
@@ -386,7 +388,6 @@ fun GeofenceScreen(
                                                             "geofence_longitude",
                                                             place.longitude.toFloat()
                                                         )
-                                                        apply()
                                                     }
                                                     view.performHapticFeedback(
                                                         HapticFeedbackConstants.CLOCK_TICK
@@ -472,9 +473,8 @@ fun GeofenceScreen(
                                 onValueChange = {
                                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                                     radiusMeters = it
-                                    with(prefs.edit()) {
+                                    prefs.edit {
                                         putFloat("geofence_radius", radiusMeters)
-                                        apply()
                                     }
                                 },
                                 valueRange = 50f..1000f,
@@ -505,9 +505,8 @@ fun GeofenceScreen(
                                     onCheckedChange = { checked ->
                                         isTrackingEnabled = checked
                                         if (checked) {
-                                            with(prefs.edit()) {
+                                            prefs.edit {
                                                 putBoolean("geofence_enabled", true)
-                                                apply()
                                             }
                                             if (permissionsState.allPermissionsGranted && isLocationEnabled) {
                                                 selectedSavedPlace?.let {
@@ -523,9 +522,8 @@ fun GeofenceScreen(
                                                 showLocationServicesDialog = true
                                             }
                                         } else {
-                                            with(prefs.edit()) {
+                                            prefs.edit {
                                                 putBoolean("geofence_enabled", false)
-                                                apply()
                                             }
                                             geofenceManager.removeGeofence(geofencePendingIntent)
                                         }

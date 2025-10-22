@@ -1,4 +1,4 @@
-package com.example.presentmate
+package com.example.presentmate.viewmodel
 
 import android.annotation.SuppressLint
 import android.location.Address
@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.presentmate.SearchHistoryRepository
 import com.example.presentmate.data.SavedPlace
 import com.example.presentmate.data.SavedPlacesRepository
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -17,7 +18,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine

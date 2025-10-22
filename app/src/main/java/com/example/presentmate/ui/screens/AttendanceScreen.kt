@@ -30,34 +30,32 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.presentmate.db.AttendanceLogList
 import com.example.presentmate.ui.components.MotivationalAnimation
-import com.example.presentmate.db.AppDatabase
-import com.example.presentmate.db.AttendanceRecord
-import kotlinx.coroutines.launch
+import com.example.presentmate.viewmodel.AttendanceViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
 fun AttendanceScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: AttendanceViewModel = hiltViewModel()
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var dialogMessage by remember { mutableStateOf("") }
     var recordedTimeAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val context = LocalContext.current
-    val db = AppDatabase.getDatabase(context)
-    val scope = rememberCoroutineScope()
-    val attendanceRecords by db.attendanceDao().getAllRecords().collectAsState(initial = emptyList())
-    val ongoingSession = attendanceRecords.lastOrNull { it.timeOut == null }
+
+    val ongoingSession by viewModel.ongoingSession.collectAsState()
+    val attendanceRecords by viewModel.allRecords.collectAsState()
     val sessionInProgress = ongoingSession != null
 
     // Check if location services are enabled
@@ -171,13 +169,7 @@ fun AttendanceScreen(
                         val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
                         dialogMessage = "End session at $currentTime?"
                         recordedTimeAction = {
-                            scope.launch {
-                                ongoingSession?.let {
-                                    db.attendanceDao().updateRecord(
-                                        it.copy(timeOut = System.currentTimeMillis())
-                                    )
-                                }
-                            }
+                            viewModel.endSession()
                         }
                         showDialog = true
                     },
@@ -194,12 +186,7 @@ fun AttendanceScreen(
                         val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
                         dialogMessage = "Start session at $currentTime?"
                         recordedTimeAction = {
-                            scope.launch {
-                                val now = System.currentTimeMillis()
-                                db.attendanceDao().insertRecord(
-                                    AttendanceRecord(date = now, timeIn = now, timeOut = null)
-                                )
-                            }
+                            viewModel.startSession()
                         }
                         showDialog = true
                     },

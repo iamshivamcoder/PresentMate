@@ -1,10 +1,12 @@
 package com.example.presentmate
 
 import android.app.Application
-import android.content.Context
+import dagger.hilt.android.HiltAndroidApp
 import org.osmdroid.config.Configuration
 
+@HiltAndroidApp
 class PresentMateApplication : Application() {
+
     override fun onCreate() {
         super.onCreate()
         // Use a named SharedPreferences to initialize osmdroid configuration

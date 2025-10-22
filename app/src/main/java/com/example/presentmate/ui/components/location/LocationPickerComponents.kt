@@ -52,8 +52,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.presentmate.LocationPickerUiState
-import com.example.presentmate.LocationPickerViewModel
+import com.example.presentmate.viewmodel.LocationPickerUiState
+import com.example.presentmate.viewmodel.LocationPickerViewModel
 import com.example.presentmate.ui.components.LocationSearchBar
 import com.example.presentmate.ui.components.SearchOverlay
 import com.example.presentmate.ui.components.common.ConfirmLocationButton

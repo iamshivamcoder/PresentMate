@@ -16,24 +16,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.presentmate.db.AppDatabase
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.presentmate.db.AttendanceRecord
 import com.example.presentmate.ui.components.common.CollapsibleCard
 import com.example.presentmate.ui.components.GraphSection
-import com.example.presentmate.ui.components.GraphStats
-import com.example.presentmate.ui.components.GraphViewType
-import com.example.presentmate.ui.components.calculateGraphData
+import com.example.presentmate.viewmodel.OverviewViewModel
 import java.text.SimpleDateFormat
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
@@ -58,36 +51,8 @@ data class DailySummary(
 }
 
 @Composable
-fun OverviewScreen() {
-    val context = LocalContext.current
-    val db = AppDatabase.getDatabase(context)
-    val attendanceRecords by db.attendanceDao().getAllRecords().collectAsState(initial = emptyList())
-
-    var selectedGraphViewType by remember { mutableStateOf(GraphViewType.WEEKLY) }
-    var currentDisplayDate by remember { mutableStateOf(LocalDate.now()) }
-
-    val dailySummaries = remember(attendanceRecords) {
-        attendanceRecords
-            .filter { it.timeIn != null && it.timeOut != null && it.timeOut > it.timeIn }
-            .groupBy { Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate() }
-            .map { (date, recordsOnDate) ->
-                val totalDuration = recordsOnDate.sumOf { it.timeOut!! - it.timeIn!! }
-                DailySummary(date, totalDuration, recordsOnDate)
-            }
-            .sortedByDescending { it.date }
-    }
-
-    val graphData = remember(attendanceRecords, selectedGraphViewType, currentDisplayDate) {
-        calculateGraphData(attendanceRecords, selectedGraphViewType, currentDisplayDate)
-    }
-
-    val stats = remember(attendanceRecords, graphData) {
-        val totalHours = graphData.map { it.value }.sum()
-        val averageHours = if (graphData.isNotEmpty()) totalHours / graphData.size else 0f
-        val bestDay = graphData.maxByOrNull { it.value }?.label ?: "-"
-        val goalProgress = totalHours // You can adjust this if you have a goal value
-        GraphStats(totalHours, averageHours, bestDay, goalProgress)
-    }
+fun OverviewScreen(viewModel: OverviewViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -96,23 +61,23 @@ fun OverviewScreen() {
             .padding(16.dp)
     ) {
         GraphSection(
-            viewType = selectedGraphViewType,
-            displayDate = currentDisplayDate,
-            data = graphData,
-            stats = stats,
-            onViewTypeChange = { selectedGraphViewType = it },
-            onDateChange = { currentDisplayDate = it }
+            viewType = uiState.selectedGraphViewType,
+            displayDate = uiState.currentDisplayDate,
+            data = uiState.graphData,
+            stats = uiState.stats,
+            onViewTypeChange = { viewModel.onViewTypeChange(it) },
+            onDateChange = { viewModel.onDateChange(it) }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (dailySummaries.isEmpty()) {
+        if (uiState.dailySummaries.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("No attendance data to display.", style = MaterialTheme.typography.bodyLarge)
             }
         } else {
             Text("Daily Breakdown", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 10.dp))
-            dailySummaries.forEach { summary ->
+            uiState.dailySummaries.forEach { summary ->
                 DailySummaryItem(summary = summary, modifier = Modifier.padding(bottom = 8.dp))
             }
         }

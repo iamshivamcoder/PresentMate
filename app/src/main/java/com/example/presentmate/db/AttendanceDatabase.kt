@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import kotlinx.coroutines.flow.Flow
 
 // --- DAO --- //
 @androidx.room.Dao
@@ -12,7 +13,7 @@ interface AttendanceDao {
     suspend fun insertRecord(record: AttendanceRecord)
 
     @androidx.room.Query("SELECT * FROM attendance_records ORDER BY date DESC")
-    fun getAllRecords(): kotlinx.coroutines.flow.Flow<List<AttendanceRecord>>
+    fun getAllRecords(): Flow<List<AttendanceRecord>>
 
     @androidx.room.Query("SELECT * FROM attendance_records ORDER BY date DESC") // Added for synchronous export
     fun getAllRecordsNonFlow(): List<AttendanceRecord> // Added for synchronous export
@@ -30,13 +31,16 @@ interface AttendanceDao {
     suspend fun insertDeletedRecord(record: DeletedRecord)
 
     @androidx.room.Query("SELECT * FROM deleted_records ORDER BY deletedAt DESC")
-    fun getAllDeletedRecords(): kotlinx.coroutines.flow.Flow<List<DeletedRecord>>
+    fun getAllDeletedRecords(): Flow<List<DeletedRecord>>
 
     @androidx.room.Query("DELETE FROM deleted_records WHERE id = :id")
     suspend fun permanentlyDeleteRecord(id: Int)
 
     @androidx.room.Query("SELECT * FROM attendance_records WHERE timeOut IS NULL ORDER BY timeIn DESC LIMIT 1")
     fun getOngoingSession(): AttendanceRecord?
+
+    @androidx.room.Query("SELECT * FROM attendance_records WHERE timeOut IS NULL ORDER BY timeIn DESC LIMIT 1")
+    fun getOngoingSessionFlow(): Flow<AttendanceRecord?>
 }
 
 // --- Database --- //

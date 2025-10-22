@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.presentmate.LocationPickerViewModel
+import com.example.presentmate.viewmodel.LocationPickerViewModel
 import com.example.presentmate.SearchHistoryRepository
 import com.example.presentmate.data.AppDatabase
 import com.example.presentmate.data.SavedPlacesRepository
