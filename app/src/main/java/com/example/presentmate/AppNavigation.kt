@@ -61,14 +61,13 @@ fun AppNavigation() {
             "helpScreen" -> "Help"
             "whyPresentMateScreen" -> "Why Present Mate?"
             "aboutDeveloper" -> "About the Developer"
-            "locationPickerMap" -> "Select Location"
             "locationPickerScreen" -> "Select Location"
             "geofenceScreen" -> "Geofences"
             else -> "Present Mate"
         }
     }
 
-    val routesWithoutBottomBar = listOf("locationPickerMap", "locationPickerScreen")
+    val routesWithoutBottomBar = listOf("locationPickerScreen")
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -131,26 +130,14 @@ fun AppNavigation() {
                 composable(Screen.Home.route) { AttendanceScreen() }
                 composable(Screen.Overview.route) { OverviewScreen() }
                 composable(Screen.Location.route) { LocationScreen(navController = navController) }
-                composable("locationPickerMap") {
-                    LocationPickerScreen(
-                        searchHistoryRepository = searchHistoryRepository,
-                        savedPlacesRepository = savedPlacesRepository,
-                        onLocationConfirmed = { _ ->
-                            // Handle location confirmation, e.g., navigate back or show a confirmation message
-                            navController.popBackStack()
-                        },
-                        onNavigateBack = { navController.popBackStack() } // Add this line
-                    )
-                }
                 composable("locationPickerScreen") {
                     LocationPickerScreen(
                         searchHistoryRepository = searchHistoryRepository,
                         savedPlacesRepository = savedPlacesRepository,
                         onLocationConfirmed = { _ ->
-                            // Handle location confirmation, e.g., navigate back or show a confirmation message
                             navController.popBackStack()
                         },
-                        onNavigateBack = { navController.popBackStack() } // Add this line
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
                 composable("geofenceScreen") { GeofenceScreen(navController = navController) }

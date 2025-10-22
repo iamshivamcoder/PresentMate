@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.presentmate.data.AppDatabase
@@ -87,7 +88,7 @@ fun GeofenceScreen(
     val geofenceManager = remember { GeofenceManager(context) }
     val prefs = remember { context.getSharedPreferences("geofence_prefs", Context.MODE_PRIVATE) }
 
-    val savedPlaces by savedPlacesRepository.getAll().collectAsState(initial = emptyList())
+    val savedPlaces by savedPlacesRepository.getAll().collectAsStateWithLifecycle(initialValue = emptyList())
 
     var selectedSavedPlace by remember { mutableStateOf<SavedPlace?>(null) }
     var radiusMeters by remember { mutableFloatStateOf(prefs.getFloat("geofence_radius", 200f)) }
@@ -411,6 +412,17 @@ fun GeofenceScreen(
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
+
+                Button(
+                    onClick = { navController.navigate("locationPickerScreen") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Add New Location")
+                }
+
             }
         }
     }

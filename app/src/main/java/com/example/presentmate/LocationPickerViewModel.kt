@@ -329,6 +329,7 @@ class LocationPickerViewModel(
                     latitude = location.latitude,
                     longitude = location.longitude
                 )
+                Log.d("LocationPickerVM", "Saving location: $savedPlace")
                 savedPlacesRepository.insert(savedPlace)
             }
         }

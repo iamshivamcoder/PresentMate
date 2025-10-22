@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp) // Add padding to the outer Box
             .scale(scale)
             .semantics { contentDescription = "Confirm selected location" },
         contentAlignment = Alignment.Center
@@ -57,7 +58,7 @@ import androidx.compose.ui.unit.sp
                 onClick()
             },
             modifier = Modifier
-                .fillMaxWidth(0.9f)
+                .fillMaxWidth() // Make button fill the width of the Box
                 .height(56.dp)
                 .clip(RoundedCornerShape(28.dp)),
             enabled = enabled,

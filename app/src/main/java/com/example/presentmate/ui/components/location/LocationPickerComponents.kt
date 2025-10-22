@@ -14,6 +14,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -136,78 +138,87 @@ internal fun LocationPickerContent(
         }
 
         // Top Search Bar and Overlay
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                            Color.Transparent
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 24.dp)
+        ) {
+            val isWideScreen = maxWidth > 600.dp
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .widthIn(max = if (isWideScreen) 500.dp else Dp.Unspecified)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                                Color.Transparent
+                            )
                         )
                     )
-                )
-                .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 60.dp)
-                .fillMaxWidth()
-        ) {
-            LocationSearchBar(
-                modifier = Modifier.fillMaxWidth(),
-                searchQuery = searchQuery,
-                onSearchQueryChanged = {
-                    searchQuery = it
-                    viewModel.onSearchQueryChanged(it)
-                },
-                onPerformSearch = {
-                    viewModel.onPerformSearch(searchQuery)
-                },
-                onClearSearch = {
-                    searchQuery = ""
-                    viewModel.onClearSearch()
-                },
-                onGoToCurrentLocation = onGoToCurrentLocation
-            )
-
-            AnimatedVisibility(
-                visible = uiState.isSearchFocused,
-                enter = slideInVertically(
-                    initialOffsetY = { -it },
-                    animationSpec = tween(300, easing = Easing { it * it })
-                ) + fadeIn() + scaleIn(initialScale = 0.95f),
-                exit = slideOutVertically(
-                    targetOffsetY = { -it },
-                    animationSpec = tween(250)
-                ) + fadeOut() + scaleOut(targetScale = 0.95f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .padding(bottom = 60.dp)
             ) {
-                SearchOverlay(
+                LocationSearchBar(
                     modifier = Modifier.fillMaxWidth(),
-                    suggestions = uiState.suggestions,
-                    history = uiState.history,
-                    savedPlaces = uiState.savedPlaces,
-                    onSuggestionClicked = {
-                        searchQuery = it.getAddressLine(0) ?: ""
-                        viewModel.onSuggestionClicked(it)
-                    },
-                    onHistoryItemClicked = {
+                    searchQuery = searchQuery,
+                    onSearchQueryChanged = {
                         searchQuery = it
-                        viewModel.onHistoryItemClicked(it)
+                        viewModel.onSearchQueryChanged(it)
                     },
-                    onRemoveFromHistory = viewModel::onRemoveFromHistory,
-                    onSavedPlaceClicked = {
-                        searchQuery = it.address
-                        viewModel.onSavedPlaceClicked(it)
-                    }
+                    onPerformSearch = {
+                        viewModel.onPerformSearch(searchQuery)
+                    },
+                    onClearSearch = {
+                        searchQuery = ""
+                        viewModel.onClearSearch()
+                    },
+                    onGoToCurrentLocation = onGoToCurrentLocation
                 )
+
+                AnimatedVisibility(
+                    visible = uiState.isSearchFocused,
+                    enter = slideInVertically(
+                        initialOffsetY = { -it },
+                        animationSpec = tween(300, easing = Easing { it * it })
+                    ) + fadeIn() + scaleIn(initialScale = 0.95f),
+                    exit = slideOutVertically(
+                        targetOffsetY = { -it },
+                        animationSpec = tween(250)
+                    ) + fadeOut() + scaleOut(targetScale = 0.95f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                ) {
+                    SearchOverlay(
+                        modifier = Modifier.fillMaxWidth(),
+                        suggestions = uiState.suggestions,
+                        history = uiState.history,
+                        savedPlaces = uiState.savedPlaces,
+                        onSuggestionClicked = {
+                            searchQuery = it.getAddressLine(0) ?: ""
+                            viewModel.onSuggestionClicked(it)
+                        },
+                        onHistoryItemClicked = {
+                            searchQuery = it
+                            viewModel.onHistoryItemClicked(it)
+                        },
+                        onRemoveFromHistory = viewModel::onRemoveFromHistory,
+                        onSavedPlaceClicked = {
+                            searchQuery = it.address
+                            viewModel.onSavedPlaceClicked(it)
+                        }
+                    )
+                }
             }
         }
 
         // Bottom Confirmation Area
-        Column(
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
@@ -217,23 +228,28 @@ internal fun LocationPickerContent(
                         )
                     )
                 )
-                .padding(start = 20.dp, end = 20.dp, bottom = 20.dp, top = 60.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(top = 60.dp) // Add padding to avoid overlapping with content
         ) {
-            SelectedAddressCard(
-                addressText = uiState.addressText,
-                isVisible = uiState.addressText.isNotEmpty()
-            )
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                SelectedAddressCard(
+                    addressText = uiState.addressText,
+                    isVisible = uiState.addressText.isNotEmpty(),
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            ConfirmLocationButton(
-                onClick = {
-                    uiState.selectedLocation?.let(onLocationConfirmed)
-                },
-                enabled = uiState.selectedLocation != null && !uiState.isMapMoving && uiState.addressText.isNotEmpty()
-            )
+                ConfirmLocationButton(
+                    onClick = {
+                        uiState.selectedLocation?.let(onLocationConfirmed)
+                    },
+                    enabled = uiState.selectedLocation != null && !uiState.isMapMoving && uiState.addressText.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth() // Make button fill width
+                )
+            }
         }
     }
 }

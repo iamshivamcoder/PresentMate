@@ -1,35 +1,27 @@
 package com.example.presentmate.ui.screens
 
 import android.Manifest
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.location.Geocoder
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,6 +38,8 @@ import com.example.presentmate.LocationPickerViewModel
 import com.example.presentmate.SearchHistoryRepository
 import com.example.presentmate.data.AppDatabase
 import com.example.presentmate.data.SavedPlacesRepository
+import com.example.presentmate.geofence.GeofenceBroadcastReceiver
+import com.example.presentmate.geofence.GeofenceManager
 import com.example.presentmate.ui.components.PermissionDeniedContent
 import com.example.presentmate.ui.components.common.InitialLoadingContent
 import com.example.presentmate.ui.components.location.LocationPermissionRationaleDialog
@@ -140,33 +134,114 @@ fun LocationPickerScreen(
 
     if (showSaveDialog) {
         var locationName by remember { mutableStateOf("") }
+        var geofenceRadius by remember { mutableFloatStateOf(200f) }
+        var enableGeofencing by remember { mutableStateOf(true) }
+
         AlertDialog(
             onDismissRequest = { showSaveDialog = false },
-            title = { Text("Save Location") },
+            title = { Text("Save Location & Geofence") },
             text = {
-                Column {
-                    Text("Enter a name for this location.")
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text("Enter a name for this location and configure geofencing.")
                     Spacer(modifier = Modifier.height(16.dp))
+
                     OutlinedTextField(
                         value = locationName,
                         onValueChange = { locationName = it },
-                        label = { Text("Name")},
+                        label = { Text("Location Name") },
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Geofence Radius: ${geofenceRadius.toInt()} meters",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Slider(
+                        value = geofenceRadius,
+                        onValueChange = { geofenceRadius = it },
+                        valueRange = 50f..1000f,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Enable Geofencing",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = enableGeofencing,
+                            onCheckedChange = { enableGeofencing = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (locationName.isNotBlank()) {
+                        val selectedLocation = uiState.selectedLocation
+                        if (locationName.isNotBlank() && selectedLocation != null) {
+                            // Save the location
                             viewModel.saveSelectedLocation(locationName)
                             showSaveDialog = false
-                            navController?.popBackStack() ?: onNavigateBack()
+
+                            // Save geofencing preferences
+                            val prefs = context.getSharedPreferences("geofence_prefs", Context.MODE_PRIVATE)
+                            with(prefs.edit()) {
+                                putFloat("geofence_latitude", selectedLocation.latitude.toFloat())
+                                putFloat("geofence_longitude", selectedLocation.longitude.toFloat())
+                                putFloat("geofence_radius", geofenceRadius)
+                                putBoolean("geofence_enabled", enableGeofencing)
+                                apply()
+                            }
+
+                            // Set up geofence if enabled
+                            val geofenceManager = GeofenceManager(context)
+                            val intent = Intent(context, GeofenceBroadcastReceiver::class.java)
+                            val pendingIntent = PendingIntent.getBroadcast(
+                                context,
+                                0,
+                                intent,
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                            )
+
+                            if (enableGeofencing) {
+                                geofenceManager.addGeofence(
+                                    locationName, // Use location name as ID
+                                    selectedLocation.latitude,
+                                    selectedLocation.longitude,
+                                    geofenceRadius,
+                                    pendingIntent
+                                )
+                            } else {
+                                geofenceManager.removeGeofence(pendingIntent)
+                            }
+
+                            onLocationConfirmed(selectedLocation)
                         }
                     },
-                    enabled = locationName.isNotBlank()
+                    enabled = locationName.isNotBlank() && uiState.selectedLocation != null
                 ) {
-                    Text("Save")
+                    Text("Save & Activate Geofence")
                 }
             },
             dismissButton = {
@@ -178,9 +253,6 @@ fun LocationPickerScreen(
     }
 
     Scaffold(
-        topBar = {
-            // Top app bar with a save button
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Box(
@@ -208,7 +280,7 @@ fun LocationPickerScreen(
                     LocationPickerContent(
                         viewModel = viewModel,
                         uiState = uiState,
-                        onLocationConfirmed = onLocationConfirmed,
+                        onLocationConfirmed = { showSaveDialog = true }, // Show the save dialog on confirm
                         onGoToCurrentLocation = {
                             if (locationPermissionsState.allPermissionsGranted) {
                                 viewModel.getCurrentLocation()
@@ -223,17 +295,6 @@ fun LocationPickerScreen(
                         }
                     )
                 }
-            }
-
-            // Save button
-            IconButton(
-                onClick = { showSaveDialog = true },
-                enabled = uiState.selectedLocation != null && !uiState.isMapMoving,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(Icons.Default.Save, contentDescription = "Save location")
             }
         }
     }
