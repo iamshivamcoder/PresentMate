@@ -1,4 +1,11 @@
 <resources>
     <string name="app_name">PresentMate</string>
     <string name="map_content_description">Interactive map for location selection</string>
+    <string name="save_location_dialog_title">Save Location &amp; Geofence</string>
+    <string name="save_location_dialog_prompt">Enter a name for this location and configure geofencing.</string>
+    <string name="location_name_label">Location Name</string>
+    <string name="geofence_radius_label">Geofence Radius: %1$d meters</string>
+    <string name="enable_geofencing_label">Enable Geofencing</string>
+    <string name="save_and_activate_geofence_button">Save &amp; Activate Geofence</string>
+    <string name="cancel_button">Cancel</string>
 </resources>

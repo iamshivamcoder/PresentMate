@@ -1,6 +1,7 @@
 package com.example.presentmate.viewmodel
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
@@ -11,6 +12,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.presentmate.SearchHistoryRepository
 import com.example.presentmate.data.SavedPlace
 import com.example.presentmate.data.SavedPlacesRepository
+import com.example.presentmate.geofence.GeofenceManager
+import com.example.presentmate.geofence.GeofenceUtils
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -40,7 +43,10 @@ data class LocationPickerUiState(
     val isMapMoving: Boolean = false,
     val isFetchingLocation: Boolean = false,
     val isInitializing: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val locationName: String = "",
+    val geofenceRadius: Float = 200f,
+    val enableGeofencing: Boolean = true,
 )
 
 /**
@@ -316,21 +322,54 @@ class LocationPickerViewModel(
     }
 
     /**
-     * Saves the currently selected location.
+     * Saves the currently selected location and geofence settings.
      *
-     * @param name The name to save the location as.
+     * @param context The application context.
+     * @param locationName The name of the location.
+     * @param geofenceRadius The radius of the geofence.
+     * @param enableGeofencing Whether to enable geofencing.
      */
-    fun saveSelectedLocation(name: String) {
+    fun saveLocationAndGeofence(
+        context: Context,
+        locationName: String,
+        geofenceRadius: Float,
+        enableGeofencing: Boolean
+    ) {
         viewModelScope.launch {
             _uiState.value.selectedLocation?.let { location ->
                 val savedPlace = SavedPlace(
-                    name = name,
+                    name = locationName,
                     address = _uiState.value.addressText,
                     latitude = location.latitude,
                     longitude = location.longitude
                 )
                 Log.d("LocationPickerVM", "Saving location: $savedPlace")
                 savedPlacesRepository.insert(savedPlace)
+
+                // Save geofencing preferences
+                val prefs = context.getSharedPreferences("geofence_prefs", Context.MODE_PRIVATE)
+                with(prefs.edit()) {
+                    putFloat("geofence_latitude", location.latitude.toFloat())
+                    putFloat("geofence_longitude", location.longitude.toFloat())
+                    putFloat("geofence_radius", geofenceRadius)
+                    putBoolean("geofence_enabled", enableGeofencing)
+                    apply()
+                }
+
+                val geofenceManager = GeofenceManager(context)
+                val pendingIntent = GeofenceUtils.createGeofencePendingIntent(context)
+
+                if (enableGeofencing) {
+                    geofenceManager.addGeofence(
+                        locationName,
+                        location.latitude,
+                        location.longitude,
+                        geofenceRadius,
+                        pendingIntent
+                    )
+                } else {
+                    geofenceManager.removeGeofence(pendingIntent)
+                }
             }
         }
     }
