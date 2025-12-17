@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Card
@@ -60,7 +61,7 @@ import com.example.presentmate.ui.components.common.ConfirmLocationButton
 import org.osmdroid.util.GeoPoint
 
 @Composable
-internal fun SelectedAddressCard(
+ fun SelectedAddressCard(
     modifier: Modifier = Modifier,
     addressText: String,
     isVisible: Boolean,
@@ -113,12 +114,11 @@ internal fun LocationPickerContent(
     viewModel: LocationPickerViewModel,
     uiState: LocationPickerUiState,
     onLocationConfirmed: (GeoPoint) -> Unit,
-    onGoToCurrentLocation: () -> Unit
+    onGoToCurrentLocation: () -> Unit,
+    onNavigateBack: () -> Unit = {}
 ) {
-    var searchQuery by remember { mutableStateOf(uiState.searchQuery) }
-
     Box(modifier = Modifier.fillMaxSize()) {
-        // Map View
+        // Map View - Full screen
         MapViewContainer(
             modifier = Modifier.fillMaxSize(),
             selectedLocation = uiState.selectedLocation,
@@ -126,7 +126,7 @@ internal fun LocationPickerContent(
             onMapMoveFinished = viewModel::onMapMoveFinished
         )
 
-        // Center Icon
+        // Center Icon (location marker)
         Box(
             modifier = Modifier.align(Alignment.Center),
             contentAlignment = Alignment.Center
@@ -137,78 +137,34 @@ internal fun LocationPickerContent(
             )
         }
 
-        // Top Search Bar and Overlay
-        BoxWithConstraints(
+        // Floating Action Button for current location - bottom right
+        Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 24.dp)
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 200.dp) // Position above the address card
+                .size(48.dp)
+                .shadow(6.dp, CircleShape)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface)
+                .semantics { contentDescription = "Go to current location" },
+            contentAlignment = Alignment.Center
         ) {
-            val isWideScreen = maxWidth > 600.dp
-            Column(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .widthIn(max = if (isWideScreen) 500.dp else Dp.Unspecified)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-                    .padding(bottom = 60.dp)
+            androidx.compose.material3.IconButton(
+                onClick = onGoToCurrentLocation,
+                modifier = Modifier.size(48.dp)
             ) {
-                LocationSearchBar(
-                    modifier = Modifier.fillMaxWidth(),
-                    searchQuery = searchQuery,
-                    onSearchQueryChanged = {
-                        searchQuery = it
-                        viewModel.onSearchQueryChanged(it)
-                    },
-                    onPerformSearch = {
-                        viewModel.onPerformSearch(searchQuery)
-                    },
-                    onClearSearch = {
-                        searchQuery = ""
-                        viewModel.onClearSearch()
-                    },
-                    onGoToCurrentLocation = onGoToCurrentLocation
-                )
-
-                AnimatedVisibility(
-                    visible = uiState.isSearchFocused,
-                    enter = slideInVertically(
-                        initialOffsetY = { -it },
-                        animationSpec = tween(300, easing = Easing { it * it })
-                    ) + fadeIn() + scaleIn(initialScale = 0.95f),
-                    exit = slideOutVertically(
-                        targetOffsetY = { -it },
-                        animationSpec = tween(250)
-                    ) + fadeOut() + scaleOut(targetScale = 0.95f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                ) {
-                    SearchOverlay(
-                        modifier = Modifier.fillMaxWidth(),
-                        suggestions = uiState.suggestions,
-                        history = uiState.history,
-                        savedPlaces = uiState.savedPlaces,
-                        onSuggestionClicked = {
-                            searchQuery = it.getAddressLine(0) ?: ""
-                            viewModel.onSuggestionClicked(it)
-                        },
-                        onHistoryItemClicked = {
-                            searchQuery = it
-                            viewModel.onHistoryItemClicked(it)
-                        },
-                        onRemoveFromHistory = viewModel::onRemoveFromHistory,
-                        onSavedPlaceClicked = {
-                            searchQuery = it.address
-                            viewModel.onSavedPlaceClicked(it)
-                        }
+                if (uiState.isFetchingLocation) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.MyLocation,
+                        contentDescription = "Current location",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -223,31 +179,33 @@ internal fun LocationPickerContent(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 1f)
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                            MaterialTheme.colorScheme.surface
                         )
                     )
                 )
-                .padding(top = 60.dp) // Add padding to avoid overlapping with content
+                .padding(top = 32.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 SelectedAddressCard(
                     addressText = uiState.addressText,
                     isVisible = uiState.addressText.isNotEmpty(),
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 ConfirmLocationButton(
                     onClick = {
                         uiState.selectedLocation?.let(onLocationConfirmed)
                     },
                     enabled = uiState.selectedLocation != null && !uiState.isMapMoving && uiState.addressText.isNotEmpty(),
-                    modifier = Modifier.fillMaxWidth() // Make button fill width
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }

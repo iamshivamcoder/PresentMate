@@ -14,6 +14,7 @@ import com.example.presentmate.db.AttendanceRecord
 import com.example.presentmate.di.getEntryPoint
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
@@ -21,7 +22,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val entryPoint = getEntryPoint(context)
         val applicationScope = entryPoint.applicationScope()
-        val db = entryPoint.appDatabase()
+        val attendanceDao = entryPoint.attendanceDao()
 
         val geofencingEvent = GeofencingEvent.fromIntent(intent)
         if (geofencingEvent?.hasError() == true) {
@@ -35,61 +36,53 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         }
 
         val geofenceTransition = geofencingEvent?.geofenceTransition
-        val triggeringGeofences = geofencingEvent?.triggeringGeofences
 
         if (geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER) {
             Log.d("GeofenceReceiver", "Geofence Entered")
-            // Handle enter event for each triggering geofence
-            triggeringGeofences?.forEach { geofence ->
-                applicationScope.launch {
-                    try {
-                        val now = System.currentTimeMillis()
-                        // Check if there's already an ongoing session
-                        val ongoingSession = db.attendanceDao().getOngoingSession()
-                        if (ongoingSession == null) {
-                            db.attendanceDao().insertRecord(
-                                AttendanceRecord(date = now, timeIn = now, timeOut = null)
-                            )
-                            Log.d("GeofenceReceiver", "Session started for geofence: ${geofence.requestId}")
-                            GeofenceNotificationUtils.showGeofenceEnterNotification(
-                                context,
-                                "Work Location"
-                            )
-                        } else {
-                            Log.d("GeofenceReceiver", "Session already active")
-                        }
-                    } catch (e: Exception) {
-                        Log.e("GeofenceReceiver", "Error starting session", e)
-                        GeofenceNotificationUtils.showGeofenceErrorNotification(
-                            context,
-                            "Error starting session: ${e.message}"
+            applicationScope.launch {
+                try {
+                    val now = System.currentTimeMillis()
+                    val ongoingSession = attendanceDao.getOngoingSessionFlow().first()
+                    if (ongoingSession == null) {
+                        attendanceDao.insertRecord(
+                            AttendanceRecord(date = now, timeIn = now, timeOut = null)
                         )
+                        Log.d("GeofenceReceiver", "Session started via geofence")
+                        GeofenceNotificationUtils.showGeofenceEnterNotification(
+                            context,
+                            "Work Location"
+                        )
+                    } else {
+                        Log.d("GeofenceReceiver", "Session already active")
                     }
+                } catch (e: Exception) {
+                    Log.e("GeofenceReceiver", "Error starting session via geofence", e)
+                    GeofenceNotificationUtils.showGeofenceErrorNotification(
+                        context,
+                        "Error starting session: ${e.message}"
+                    )
                 }
             }
         } else if (geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT) {
             Log.d("GeofenceReceiver", "Geofence Exited")
-            // Handle exit event for each triggering geofence
-            triggeringGeofences?.forEach { geofence ->
-                applicationScope.launch {
-                    try {
-                        val ongoingSession = db.attendanceDao().getOngoingSession()
-                        if (ongoingSession != null) {
-                            db.attendanceDao().updateRecord(
-                                ongoingSession.copy(timeOut = System.currentTimeMillis())
-                            )
-                            Log.d("GeofenceReceiver", "Session ended")
-                            GeofenceNotificationUtils.showGeofenceExitNotification(context, "Work Location")
-                        } else {
-                            Log.d("GeofenceReceiver", "No ongoing session to end")
-                        }
-                    } catch (e: Exception) {
-                        Log.e("GeofenceReceiver", "Error ending session", e)
-                        GeofenceNotificationUtils.showGeofenceErrorNotification(
-                            context,
-                            "Error ending session: ${e.message}"
+            applicationScope.launch {
+                try {
+                    val ongoingSession = attendanceDao.getOngoingSessionFlow().first()
+                    if (ongoingSession != null) {
+                        attendanceDao.updateRecord(
+                            ongoingSession.copy(timeOut = System.currentTimeMillis())
                         )
+                        Log.d("GeofenceReceiver", "Session ended via geofence")
+                        GeofenceNotificationUtils.showGeofenceExitNotification(context, "Work Location")
+                    } else {
+                        Log.d("GeofenceReceiver", "No ongoing session to end")
                     }
+                } catch (e: Exception) {
+                    Log.e("GeofenceReceiver", "Error ending session via geofence", e)
+                    GeofenceNotificationUtils.showGeofenceErrorNotification(
+                        context,
+                        "Error ending session: ${e.message}"
+                    )
                 }
             }
         } else {

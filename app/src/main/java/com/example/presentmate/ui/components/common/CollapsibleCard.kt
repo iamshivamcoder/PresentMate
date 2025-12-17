@@ -120,7 +120,7 @@ fun CollapsibleCard(
 }
 
 @Composable
-internal fun SelectedAddressCard(
+ fun SelectedAddressCard(
     modifier: Modifier = Modifier,
     addressText: String,
     isVisible: Boolean,

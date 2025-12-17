@@ -24,7 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -52,7 +52,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -61,7 +60,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.edit
@@ -70,7 +68,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.example.presentmate.data.AppDatabase
 import com.example.presentmate.data.SavedPlace
 import com.example.presentmate.data.SavedPlacesRepository
@@ -137,10 +134,19 @@ fun GeofenceScreen(
 
     LaunchedEffect(savedPlaces) {
         if (selectedSavedPlace == null && savedPlaces.isNotEmpty()) {
-            val savedLat = prefs.getFloat("geofence_latitude", 0f)
-            val savedLon = prefs.getFloat("geofence_longitude", 0f)
-            val foundPlace = savedPlaces.find { it.latitude.toFloat() == savedLat && it.longitude.toFloat() == savedLon }
-            selectedSavedPlace = foundPlace ?: savedPlaces.first()
+            val savedPlaceId = prefs.getInt("geofence_place_id", -1)
+            val foundPlace = if (savedPlaceId != -1) {
+                savedPlaces.find { it.id == savedPlaceId }
+            } else {
+                // Fallback: try to find by coordinates with epsilon comparison
+                val savedLat = prefs.getFloat("geofence_latitude", 0f).toDouble()
+                val savedLon = prefs.getFloat("geofence_longitude", 0f).toDouble()
+                savedPlaces.find { 
+                    kotlin.math.abs(it.latitude - savedLat) < 0.0001 && 
+                    kotlin.math.abs(it.longitude - savedLon) < 0.0001 
+                }
+            }
+            selectedSavedPlace = foundPlace ?: savedPlaces.firstOrNull()
         }
     }
 
@@ -380,6 +386,7 @@ fun GeofenceScreen(
                                                 .clickable {
                                                     selectedSavedPlace = place
                                                     prefs.edit {
+                                                        putInt("geofence_place_id", place.id)
                                                         putFloat(
                                                             "geofence_latitude",
                                                             place.latitude.toFloat()
@@ -396,8 +403,9 @@ fun GeofenceScreen(
                                             trailingContent = {
                                                 if (selectedSavedPlace?.id == place.id) {
                                                     Icon(
-                                                        Icons.Default.Save,
-                                                        contentDescription = "Selected"
+                                                        Icons.Default.Check,
+                                                        contentDescription = "Selected",
+                                                        tint = colorScheme.primary
                                                     )
                                                 }
                                             }
@@ -575,8 +583,3 @@ fun LocationServicesDisabledDialog(onDismiss: () -> Unit, onConfirm: () -> Unit)
     )
 }
 
-@Preview(showBackground = true)
-@Composable
-fun GeofenceScreenPreview() {
-    GeofenceScreen(navController = rememberNavController())
-}

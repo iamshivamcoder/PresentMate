@@ -44,10 +44,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.presentmate.data.AppDatabase
 import com.example.presentmate.data.SavedPlacesRepository
 import com.example.presentmate.ui.components.common.AddGeofenceCard
@@ -135,15 +137,6 @@ fun LocationScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Current Status Card
-            CurrentStatusCard(
-                isTracking = isTrackingEnabled,
-                location = selectedLocationName ?: "No location selected",
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             // Automatic Session Tracking Card
             AutomaticTrackingCard(
                 isEnabled = isTrackingEnabled,
@@ -151,6 +144,15 @@ fun LocationScreen(
                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                     viewModel.setTrackingEnabled(it)
                 },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Current Status Card
+            CurrentStatusCard(
+                isTracking = isTrackingEnabled,
+                location = selectedLocationName ?: "No location selected",
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -241,4 +243,14 @@ fun LocationScreen(
             Spacer(modifier = Modifier.height(80.dp))
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun LocationScreenPreview() {
+    val navController = rememberNavController()
+    LocationScreen(
+        navController = navController,
+        modifier = Modifier
+    )
 }
