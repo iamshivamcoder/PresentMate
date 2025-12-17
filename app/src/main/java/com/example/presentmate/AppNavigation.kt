@@ -68,6 +68,7 @@ fun AppNavigation() {
     }
 
     val routesWithoutBottomBar = listOf("locationPickerScreen")
+    val routesWithCustomTopBar = listOf("locationPickerScreen") // These screens provide their own top bar
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -100,15 +101,17 @@ fun AppNavigation() {
     ) {
         Scaffold(
             topBar = {
-                AppTopBar(title = currentScreenTitle,
-                    isHomeScreen = isHomeScreen,
-                    onMenuClick = {
-                        scope.launch {
-                            drawerState.open()
-                        }
-                    },
-                    onBackClick = { navController.popBackStack() }
-                )
+                if (currentRoute !in routesWithCustomTopBar) {
+                    AppTopBar(title = currentScreenTitle,
+                        isHomeScreen = isHomeScreen,
+                        onMenuClick = {
+                            scope.launch {
+                                drawerState.open()
+                            }
+                        },
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
             },
             bottomBar = {
                 if (currentRoute !in routesWithoutBottomBar) {

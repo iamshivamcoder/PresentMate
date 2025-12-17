@@ -22,8 +22,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -102,39 +104,54 @@ fun LocationScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFFEB3B).copy(alpha = 0.3f) // Yellow warning color
-                    )
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
                     ) {
-                        Text(
-                            text = "Location Services Disabled",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFF5722) // Red error color
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOff,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                text = "Location Services Disabled",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Location services are required for automatic session tracking. Please enable location services in your device settings.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colorScheme.onSurface
+                            text = "Location services are required for automatic session tracking. Please enable in your device settings.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = {
                                 val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                                 context.startActivity(intent)
-                            }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            ),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                         ) {
-                            Text("Enable Location Services")
+                            Text("Enable Location")
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // Automatic Session Tracking Card

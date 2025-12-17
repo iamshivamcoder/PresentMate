@@ -72,13 +72,28 @@ fun OverviewScreen(viewModel: OverviewViewModel = hiltViewModel()) {
         Spacer(modifier = Modifier.height(24.dp))
 
         if (uiState.dailySummaries.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No attendance data to display.", style = MaterialTheme.typography.bodyLarge)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No attendance data yet",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         } else {
-            Text("Daily Breakdown", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 10.dp))
+            Text(
+                text = "Daily Breakdown", 
+                style = MaterialTheme.typography.titleLarge, 
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
             uiState.dailySummaries.forEach { summary ->
-                DailySummaryItem(summary = summary, modifier = Modifier.padding(bottom = 8.dp))
+                DailySummaryItem(summary = summary, modifier = Modifier.padding(bottom = 10.dp))
             }
         }
     }
