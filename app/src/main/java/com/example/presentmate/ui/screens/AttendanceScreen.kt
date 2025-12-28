@@ -40,9 +40,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.presentmate.db.AttendanceLogList
 import com.example.presentmate.ui.components.MotivationalAnimation
 import com.example.presentmate.viewmodel.AttendanceViewModel
-import java.text.SimpleDateFormat
+import com.example.presentmate.data.GeofencePreferencesRepository
+import com.example.presentmate.utils.DateTimeFormatters
+import com.example.presentmate.utils.LocationUtils
 import java.util.Date
-import java.util.Locale
 
 @Composable
 fun AttendanceScreen(
@@ -59,13 +60,10 @@ fun AttendanceScreen(
     val sessionInProgress = ongoingSession != null
 
     // Check if location services are enabled
-    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    val isLocationEnabled = LocationUtils.isLocationEnabled(context)
 
     // Check if geofence tracking is enabled
-    val prefs = context.getSharedPreferences("geofence_prefs", Context.MODE_PRIVATE)
-    val isGeofenceTrackingEnabled = prefs.getBoolean("geofence_enabled", false)
+    val isGeofenceTrackingEnabled = GeofencePreferencesRepository.isGeofenceEnabled(context)
 
     Column(
         modifier = modifier
@@ -166,7 +164,7 @@ fun AttendanceScreen(
                 }
                 Button(
                     onClick = {
-                        val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+                        val currentTime = DateTimeFormatters.formatTime(System.currentTimeMillis())
                         dialogMessage = "End session at $currentTime?"
                         recordedTimeAction = {
                             viewModel.endSession()
@@ -183,7 +181,7 @@ fun AttendanceScreen(
                 // No session in progress: Time In is Filled and Enabled, Time Out is Outlined and Disabled
                 Button(
                     onClick = {
-                        val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+                        val currentTime = DateTimeFormatters.formatTime(System.currentTimeMillis())
                         dialogMessage = "Start session at $currentTime?"
                         recordedTimeAction = {
                             viewModel.startSession()

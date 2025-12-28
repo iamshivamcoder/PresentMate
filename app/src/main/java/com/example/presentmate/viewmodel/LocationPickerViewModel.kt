@@ -13,6 +13,7 @@ import com.example.presentmate.SearchHistoryRepository
 import com.example.presentmate.data.SavedPlace
 import com.example.presentmate.data.SavedPlacesRepository
 import com.example.presentmate.geofence.GeofenceManager
+import com.example.presentmate.data.GeofencePreferencesRepository
 import com.example.presentmate.geofence.GeofenceUtils
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
@@ -346,15 +347,14 @@ class LocationPickerViewModel(
                 Log.d("LocationPickerVM", "Saving location: $savedPlace")
                 savedPlacesRepository.insert(savedPlace)
 
-                // Save geofencing preferences
-                val prefs = context.getSharedPreferences("geofence_prefs", Context.MODE_PRIVATE)
-                with(prefs.edit()) {
-                    putFloat("geofence_latitude", location.latitude.toFloat())
-                    putFloat("geofence_longitude", location.longitude.toFloat())
-                    putFloat("geofence_radius", geofenceRadius)
-                    putBoolean("geofence_enabled", enableGeofencing)
-                    apply()
-                }
+                // Save geofencing preferences using centralized repository
+                GeofencePreferencesRepository.saveGeofenceSettings(
+                    context,
+                    location.latitude.toFloat(),
+                    location.longitude.toFloat(),
+                    geofenceRadius,
+                    enableGeofencing
+                )
 
                 val geofenceManager = GeofenceManager(context)
                 val pendingIntent = GeofenceUtils.createGeofencePendingIntent(context)

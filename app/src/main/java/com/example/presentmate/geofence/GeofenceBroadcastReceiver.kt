@@ -6,9 +6,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.Geofence
+import com.google.android.gms.location.GeofenceStatusCodes
 import com.google.android.gms.location.GeofencingEvent
 import com.example.presentmate.db.AttendanceRecord
 import com.example.presentmate.di.getEntryPoint
@@ -16,6 +18,25 @@ import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+/**
+ * Maps geofence error codes to user-friendly messages
+ */
+object GeofenceErrorMessages {
+    fun getErrorMessage(errorCode: Int): String {
+        return when (errorCode) {
+            GeofenceStatusCodes.GEOFENCE_NOT_AVAILABLE -> 
+                "Geofence service not available. Please enable Location Services in Settings."
+            GeofenceStatusCodes.GEOFENCE_TOO_MANY_GEOFENCES -> 
+                "Too many geofences registered. Please remove some."
+            GeofenceStatusCodes.GEOFENCE_TOO_MANY_PENDING_INTENTS -> 
+                "Too many pending intents. Please restart the app."
+            GeofenceStatusCodes.GEOFENCE_INSUFFICIENT_LOCATION_PERMISSION ->
+                "Location permission required. Please grant background location access."
+            else -> "Geofence error (code: $errorCode)"
+        }
+    }
+}
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
@@ -26,12 +47,9 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
         val geofencingEvent = GeofencingEvent.fromIntent(intent)
         if (geofencingEvent?.hasError() == true) {
-            Log.e("GeofenceReceiver", "Geofencing event has error: ${geofencingEvent.errorCode}")
-            // Show user-facing error notification
-            GeofenceNotificationUtils.showGeofenceErrorNotification(
-                context,
-                "Geofencing error occurred: ${geofencingEvent.errorCode}"
-            )
+            val errorMessage = GeofenceErrorMessages.getErrorMessage(geofencingEvent.errorCode)
+            Log.e("GeofenceReceiver", "Geofencing event error: $errorMessage")
+            GeofenceNotificationUtils.showGeofenceErrorNotification(context, errorMessage)
             return
         }
 
@@ -96,6 +114,15 @@ class GeofenceManager(private val context: Context) {
     private val geofencingClient = LocationServices.getGeofencingClient(context)
     private val TAG = "GeofenceManager"
 
+    /**
+     * Checks if location services are enabled
+     */
+    private fun isLocationEnabled(): Boolean {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+               locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+
     fun addGeofence(
         id: String,
         latitude: Double,
@@ -103,6 +130,16 @@ class GeofenceManager(private val context: Context) {
         radius: Float,
         pendingIntent: PendingIntent
     ) {
+        // Pre-check: Location services must be enabled
+        if (!isLocationEnabled()) {
+            Log.w(TAG, "Location services are disabled")
+            GeofenceNotificationUtils.showGeofenceErrorNotification(
+                context,
+                "Please enable Location Services in Settings to use geofencing."
+            )
+            return
+        }
+
         // Check fine location permission
         if (ActivityCompat.checkSelfPermission(
                 context,
@@ -127,7 +164,7 @@ class GeofenceManager(private val context: Context) {
                 Log.w(TAG, "Background location permission not granted for Android 10+.")
                 GeofenceNotificationUtils.showGeofenceErrorNotification(
                     context,
-                    "Background location permission required for geofencing"
+                    "Background location permission required. Go to Settings > Apps > PresentMate > Permissions > Location > Allow all the time"
                 )
                 return
             }
@@ -147,7 +184,7 @@ class GeofenceManager(private val context: Context) {
             .build()
 
         // Remove existing geofence before adding new one to prevent conflicts
-        removeGeofence(pendingIntent) { success ->
+        removeGeofence(pendingIntent) { _ ->
             geofencingClient.addGeofences(geofencingRequest, pendingIntent)
                 .addOnSuccessListener {
                     Log.d(TAG, "Geofence added successfully for ID: $id")
@@ -157,11 +194,10 @@ class GeofenceManager(private val context: Context) {
                     )
                 }
                 .addOnFailureListener { exception ->
-                    Log.e(TAG, "Failed to add geofence for ID: $id", exception)
-                    GeofenceNotificationUtils.showGeofenceErrorNotification(
-                        context,
-                        "Failed to activate geofence: ${exception.message}"
-                    )
+                    val errorCode = (exception as? com.google.android.gms.common.api.ApiException)?.statusCode ?: -1
+                    val errorMessage = GeofenceErrorMessages.getErrorMessage(errorCode)
+                    Log.e(TAG, "Failed to add geofence: $errorMessage", exception)
+                    GeofenceNotificationUtils.showGeofenceErrorNotification(context, errorMessage)
                 }
         }
     }

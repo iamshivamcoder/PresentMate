@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import com.example.presentmate.utils.DateTimeFormatters
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -30,13 +31,13 @@ import java.util.*
 @Composable
 fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val db = AppDatabase.getDatabase(context)
+    val db = PresentMateDatabase.getDatabase(context)
     val scope = rememberCoroutineScope()
     var showEditDialog by remember { mutableStateOf(false) }
     var recordToEdit by remember { mutableStateOf<AttendanceRecord?>(null) }
     var editedTimeInText by remember { mutableStateOf("") }
     var editedTimeOutText by remember { mutableStateOf("") }
-    val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
+    val timeFormat = remember { DateTimeFormatters.timeFormat }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var recordToDelete by remember { mutableStateOf<AttendanceRecord?>(null) }
 
@@ -177,7 +178,7 @@ fun AttendanceRecordItem(
     onEdit: (AttendanceRecord) -> Unit = {},
     onDelete: (AttendanceRecord) -> Unit = {}
 ) {
-    val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
+    val timeFormat = remember { DateTimeFormatters.timeFormat }
     val timelineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
     val dotRadius = 4.dp
     val lineWidth = 2.dp

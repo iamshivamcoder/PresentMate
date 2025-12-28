@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.presentmate.data.SavedPlace
+import com.example.presentmate.data.SavedPlaceDao
 import kotlinx.coroutines.flow.Flow
 
-// --- DAO --- //
+// --- AttendanceDao --- //
 @androidx.room.Dao
 interface AttendanceDao {
     @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
@@ -15,8 +17,8 @@ interface AttendanceDao {
     @androidx.room.Query("SELECT * FROM attendance_records ORDER BY date DESC")
     fun getAllRecords(): Flow<List<AttendanceRecord>>
 
-    @androidx.room.Query("SELECT * FROM attendance_records ORDER BY date DESC") // Added for synchronous export
-    fun getAllRecordsNonFlow(): List<AttendanceRecord> // Added for synchronous export
+    @androidx.room.Query("SELECT * FROM attendance_records ORDER BY date DESC")
+    fun getAllRecordsNonFlow(): List<AttendanceRecord>
 
     @androidx.room.Query("SELECT * FROM attendance_records WHERE date = :date LIMIT 1")
     suspend fun getRecordByDate(date: Long): AttendanceRecord?
@@ -43,25 +45,26 @@ interface AttendanceDao {
     fun getOngoingSessionFlow(): Flow<AttendanceRecord?>
 }
 
-// --- Database --- //
+// --- Unified Database --- //
 @Database(
-    entities = [AttendanceRecord::class, DeletedRecord::class],
-    version = 2, // Consider incrementing version if schema changed and no migration provided for new table/column, though just adding a query method is fine.
+    entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class],
+    version = 3,
     exportSchema = false
 )
-abstract class AppDatabase : RoomDatabase() {
+abstract class PresentMateDatabase : RoomDatabase() {
     abstract fun attendanceDao(): AttendanceDao
+    abstract fun savedPlaceDao(): SavedPlaceDao
 
     companion object {
         @Volatile
-        private var INSTANCE: AppDatabase? = null
+        private var INSTANCE: PresentMateDatabase? = null
 
-        fun getDatabase(context: Context): AppDatabase {
+        fun getDatabase(context: Context): PresentMateDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
-                    AppDatabase::class.java,
-                    "attendance_database"
+                    PresentMateDatabase::class.java,
+                    "presentmate_database"
                 ).fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

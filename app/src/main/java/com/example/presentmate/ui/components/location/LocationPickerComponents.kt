@@ -123,39 +123,6 @@ internal fun LocationPickerContent(
             )
         }
 
-        // Floating Action Button for current location - bottom right
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 90.dp) // Position above the bottom navbar
-                .size(48.dp)
-                .shadow(6.dp, CircleShape)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .semantics { contentDescription = "Go to current location" },
-            contentAlignment = Alignment.Center
-        ) {
-            androidx.compose.material3.IconButton(
-                onClick = onGoToCurrentLocation,
-                modifier = Modifier.size(48.dp)
-            ) {
-                if (uiState.isFetchingLocation) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.MyLocation,
-                        contentDescription = "Current location",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
-
         // Bottom Navigation Bar Style - Address + Confirm Button
         androidx.compose.material3.Surface(
             modifier = Modifier

@@ -52,13 +52,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.presentmate.data.AppDatabase
+import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.data.SavedPlacesRepository
 import com.example.presentmate.ui.components.common.AddGeofenceCard
 import com.example.presentmate.ui.components.common.AutomaticTrackingCard
 import com.example.presentmate.ui.components.common.CurrentStatusCard
 import com.example.presentmate.ui.components.common.ManageGeofencesCard
 import com.example.presentmate.viewmodel.LocationViewModel
+import com.example.presentmate.utils.LocationUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,14 +77,12 @@ fun LocationScreen(
     val isTrackingEnabled by viewModel.isTrackingEnabled.collectAsStateWithLifecycle()
 
     // Location state management
-    val db = remember { AppDatabase.getDatabase(context) }
+    val db = remember { PresentMateDatabase.getDatabase(context) }
     val savedPlacesRepository = remember { SavedPlacesRepository(db.savedPlaceDao()) }
     val savedPlaces by savedPlacesRepository.getAll().collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Check if location services are enabled
-    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    val isLocationEnabled = LocationUtils.isLocationEnabled(context)
 
     // Get the latest selected location (most recently added)
     val selectedLocation = savedPlaces.lastOrNull()?.let { org.osmdroid.util.GeoPoint(it.latitude, it.longitude) }

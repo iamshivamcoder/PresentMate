@@ -14,18 +14,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 // import androidx.navigation.NavHostController // Unused import
-import com.example.presentmate.db.AppDatabase
+import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.db.AttendanceRecord
 import com.example.presentmate.db.DeletedRecord
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
+import com.example.presentmate.utils.DateTimeFormatters
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class) // Retained for Card, etc.
 @Composable
 fun RecycleBinScreen(/*navController: NavHostController*/) { // Removed unused navController
     val context = LocalContext.current
-    val db = AppDatabase.getDatabase(context)
+    val db = PresentMateDatabase.getDatabase(context)
     val scope = rememberCoroutineScope()
     val deletedRecords by db.attendanceDao().getAllDeletedRecords().collectAsState(initial = emptyList())
 
@@ -82,8 +82,8 @@ fun DeletedRecordItem(
     onRestore: (DeletedRecord) -> Unit,
     onPermanentDelete: (DeletedRecord) -> Unit
 ) {
-    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
-    val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
+    val dateFormat = remember { DateTimeFormatters.dateFormat }
+    val timeFormat = remember { DateTimeFormatters.timeFormat }
 
     Card(
         modifier = modifier.fillMaxWidth(),

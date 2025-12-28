@@ -5,7 +5,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
 import com.example.presentmate.R
-import com.example.presentmate.db.AppDatabase
+import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.db.AttendanceRecord
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,11 +16,11 @@ import kotlinx.coroutines.launch
 class SessionTileService : TileService() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private lateinit var db: AppDatabase
+    private lateinit var db: PresentMateDatabase
 
     override fun onCreate() {
         super.onCreate()
-        db = AppDatabase.getDatabase(applicationContext)
+        db = PresentMateDatabase.getDatabase(applicationContext)
     }
 
     override fun onTileAdded() {
@@ -36,7 +36,7 @@ class SessionTileService : TileService() {
         serviceScope.launch {
             try {
                 val attendanceDao = db.attendanceDao()
-                val ongoingSession = attendanceDao.getAllRecords().firstOrNull()?.lastOrNull { it.timeOut == null }
+                val ongoingSession = attendanceDao.getAllRecords().firstOrNull()?.lastOrNull { record -> record.timeOut == null }
 
                 if (ongoingSession != null) {
                     // End current session
@@ -62,7 +62,7 @@ class SessionTileService : TileService() {
         val tile = qsTile ?: return
         serviceScope.launch {
             try {
-                val ongoingSession = db.attendanceDao().getAllRecords().firstOrNull()?.lastOrNull { it.timeOut == null }
+                val ongoingSession = db.attendanceDao().getAllRecords().firstOrNull()?.lastOrNull { record -> record.timeOut == null }
                 val isSessionActive = ongoingSession != null
 
                 if (isSessionActive) {
@@ -88,3 +88,4 @@ class SessionTileService : TileService() {
         super.onDestroy()
     }
 }
+

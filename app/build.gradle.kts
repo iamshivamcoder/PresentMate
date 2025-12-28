@@ -124,6 +124,9 @@ dependencies {
     implementation("org.apache.poi:poi:5.4.1")
     implementation("org.apache.poi:poi-scratchpad:5.4.1") // Added for HWPF support
 
+    // Gemini AI SDK
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+
     // Debug dependencies
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

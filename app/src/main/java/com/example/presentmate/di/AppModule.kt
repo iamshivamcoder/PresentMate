@@ -1,7 +1,7 @@
 package com.example.presentmate.di
 
 import android.content.Context
-import com.example.presentmate.db.AppDatabase
+import com.example.presentmate.db.PresentMateDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,13 +18,14 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context) = AppDatabase.getDatabase(context)
+    fun provideDatabase(@ApplicationContext context: Context) = PresentMateDatabase.getDatabase(context)
 
     @Provides
     @Singleton
-    fun provideAttendanceDao(db: AppDatabase) = db.attendanceDao()
+    fun provideAttendanceDao(db: PresentMateDatabase) = db.attendanceDao()
 
     @Provides
     @Singleton
     fun provideApplicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 }
+

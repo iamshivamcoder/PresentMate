@@ -1,7 +1,7 @@
 package com.example.presentmate.di
 
 import android.content.Context
-import com.example.presentmate.db.AppDatabase
+import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.db.AttendanceDao
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -14,7 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 interface GeofenceBroadcastReceiverEntryPoint {
 
     fun applicationScope(): CoroutineScope
-    fun appDatabase(): AppDatabase
+    fun appDatabase(): PresentMateDatabase
     fun attendanceDao(): AttendanceDao
 }
 
@@ -24,3 +24,4 @@ fun getEntryPoint(context: Context): GeofenceBroadcastReceiverEntryPoint {
         GeofenceBroadcastReceiverEntryPoint::class.java
     )
 }
+

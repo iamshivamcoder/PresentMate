@@ -4,20 +4,21 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.presentmate.data.GeofencePreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class LocationViewModel(context: Context) : ViewModel() {
+class LocationViewModel(private val context: Context) : ViewModel() {
 
-    private val prefs = context.getSharedPreferences("geofence_prefs", Context.MODE_PRIVATE)
+    private val prefs = GeofencePreferencesRepository.getPreferences(context)
 
-    private val _isTrackingEnabled = MutableStateFlow(prefs.getBoolean("geofence_enabled", false))
+    private val _isTrackingEnabled = MutableStateFlow(GeofencePreferencesRepository.isGeofenceEnabled(context))
     val isTrackingEnabled: StateFlow<Boolean> = _isTrackingEnabled
 
     // Listener to sync state when preferences change from other screens
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "geofence_enabled") {
-            _isTrackingEnabled.value = prefs.getBoolean("geofence_enabled", false)
+            _isTrackingEnabled.value = GeofencePreferencesRepository.isGeofenceEnabled(context)
         }
     }
 
@@ -32,7 +33,7 @@ class LocationViewModel(context: Context) : ViewModel() {
 
     fun setTrackingEnabled(isEnabled: Boolean) {
         _isTrackingEnabled.value = isEnabled
-        prefs.edit().putBoolean("geofence_enabled", isEnabled).apply()
+        GeofencePreferencesRepository.setGeofenceEnabled(context, isEnabled)
     }
 
     companion object {
@@ -46,3 +47,4 @@ class LocationViewModel(context: Context) : ViewModel() {
         }
     }
 }
+

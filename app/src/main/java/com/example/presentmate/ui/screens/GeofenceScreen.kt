@@ -68,12 +68,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.example.presentmate.data.AppDatabase
+import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.data.SavedPlace
 import com.example.presentmate.data.SavedPlacesRepository
 import com.example.presentmate.geofence.GeofenceManager
 import com.example.presentmate.geofence.GeofenceUtils
 import com.example.presentmate.ui.components.PermissionDeniedContent
+import com.example.presentmate.data.GeofencePreferencesRepository
+import com.example.presentmate.utils.LocationUtils
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import kotlinx.coroutines.flow.collectLatest
@@ -94,16 +96,16 @@ fun GeofenceScreen(
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val db = remember { AppDatabase.getDatabase(context) }
+    val db = remember { PresentMateDatabase.getDatabase(context) }
     val savedPlacesRepository = remember { SavedPlacesRepository(db.savedPlaceDao()) }
     val geofenceManager = remember { GeofenceManager(context) }
-    val prefs = remember { context.getSharedPreferences("geofence_prefs", Context.MODE_PRIVATE) }
+    val prefs = remember { GeofencePreferencesRepository.getPreferences(context) }
 
     val savedPlaces by savedPlacesRepository.getAll().collectAsStateWithLifecycle(initialValue = emptyList())
 
     var selectedSavedPlace by remember { mutableStateOf<SavedPlace?>(null) }
-    var radiusMeters by remember { mutableFloatStateOf(prefs.getFloat("geofence_radius", 200f)) }
-    var isTrackingEnabled by remember { mutableStateOf(prefs.getBoolean("geofence_enabled", false)) }
+    var radiusMeters by remember { mutableFloatStateOf(GeofencePreferencesRepository.getGeofenceRadius(context)) }
+    var isTrackingEnabled by remember { mutableStateOf(GeofencePreferencesRepository.isGeofenceEnabled(context)) }
 
     val permissionsState = rememberMultiplePermissionsState(
         permissions = buildList {
@@ -124,9 +126,7 @@ fun GeofenceScreen(
     var hasRequestedPermission by rememberSaveable { mutableStateOf(false) }
     var showLocationServicesDialog by rememberSaveable { mutableStateOf(false) }
 
-    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    val isLocationEnabled = LocationUtils.isLocationEnabled(context)
 
     val geofencePendingIntent = remember {
         GeofenceUtils.createGeofencePendingIntent(context)

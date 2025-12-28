@@ -122,7 +122,7 @@ fun AppNavigation() {
         ) { innerPadding ->
             val context = LocalContext.current
             val searchHistoryRepository = remember { SearchHistoryRepository(context) }
-            val database = remember { com.example.presentmate.data.AppDatabase.getDatabase(context) }
+            val database = remember { com.example.presentmate.db.PresentMateDatabase.getDatabase(context) }
             val savedPlacesRepository = remember { com.example.presentmate.data.SavedPlacesRepository(database.savedPlaceDao()) }
 
             NavHost(
@@ -149,6 +149,7 @@ fun AppNavigation() {
                 composable("recycleBin") { RecycleBinScreen() }
                 composable("helpScreen") { HelpScreen(_navController = navController) }
                 composable("whyPresentMateScreen") { WhyPresentMateScreen(_navController = navController) }
+                composable("aiAssistant") { AIAssistantScreen() }
             }
         }
     }

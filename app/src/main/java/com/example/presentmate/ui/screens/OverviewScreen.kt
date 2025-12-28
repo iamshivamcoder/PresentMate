@@ -25,6 +25,7 @@ import com.example.presentmate.db.AttendanceRecord
 import com.example.presentmate.ui.components.common.CollapsibleCard
 import com.example.presentmate.ui.components.GraphSection
 import com.example.presentmate.viewmodel.OverviewViewModel
+import com.example.presentmate.utils.DateTimeFormatters
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -38,16 +39,7 @@ data class DailySummary(
     val records: List<AttendanceRecord>
 ) {
     val durationString: String
-        get() {
-            if (totalDurationMillis <= 0) return "0m"
-            val hours = TimeUnit.MILLISECONDS.toHours(totalDurationMillis)
-            val minutes = TimeUnit.MILLISECONDS.toMinutes(totalDurationMillis) % 60
-            return when {
-                hours > 0 -> "${hours}h ${minutes}m"
-                minutes > 0 -> "${minutes}m"
-                else -> "<1m"
-            }
-        }
+        get() = DateTimeFormatters.formatDuration(totalDurationMillis)
 }
 
 @Composable
@@ -101,7 +93,7 @@ fun OverviewScreen(viewModel: OverviewViewModel = hiltViewModel()) {
 
 @Composable
 fun DailySummaryItem(summary: DailySummary, modifier: Modifier = Modifier) {
-    val timeFormatter = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
+    val timeFormatter = remember { DateTimeFormatters.timeFormat }
 
     CollapsibleCard(
         modifier = modifier,
