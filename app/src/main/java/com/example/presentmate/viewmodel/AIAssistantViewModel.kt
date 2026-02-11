@@ -1,6 +1,5 @@
 package com.example.presentmate.viewmodel
 
-import android.content.Context
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -9,7 +8,6 @@ import com.example.presentmate.ai.AIResponse
 import com.example.presentmate.ai.GeminiService
 import com.example.presentmate.ai.ParsedAttendance
 import com.example.presentmate.db.AttendanceDao
-import com.example.presentmate.db.AttendanceRecord
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,7 +48,7 @@ data class AIAssistantUiState(
 
 class AIAssistantViewModel(
     private val attendanceDao: AttendanceDao,
-    private val apiKey: String?
+    apiKey: String?
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(AIAssistantUiState(

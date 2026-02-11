@@ -1,7 +1,5 @@
 package com.example.presentmate.ui.screens
 
-import android.content.Context
-import android.location.LocationManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,7 +41,6 @@ import com.example.presentmate.viewmodel.AttendanceViewModel
 import com.example.presentmate.data.GeofencePreferencesRepository
 import com.example.presentmate.utils.DateTimeFormatters
 import com.example.presentmate.utils.LocationUtils
-import java.util.Date
 
 @Composable
 fun AttendanceScreen(

@@ -1,9 +1,7 @@
 package com.example.presentmate.ui.screens
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
-import android.location.LocationManager
 import android.net.Uri
 import android.provider.Settings
 import android.view.HapticFeedbackConstants
@@ -395,6 +393,7 @@ fun GeofenceScreen(
                                                             "geofence_longitude",
                                                             place.longitude.toFloat()
                                                         )
+                                                        putString("geofence_place_name", place.name)
                                                     }
                                                     view.performHapticFeedback(
                                                         HapticFeedbackConstants.CLOCK_TICK

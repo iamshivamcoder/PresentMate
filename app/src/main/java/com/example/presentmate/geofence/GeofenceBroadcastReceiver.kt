@@ -14,6 +14,7 @@ import com.google.android.gms.location.GeofenceStatusCodes
 import com.google.android.gms.location.GeofencingEvent
 import com.example.presentmate.db.AttendanceRecord
 import com.example.presentmate.di.getEntryPoint
+import com.example.presentmate.data.GeofencePreferencesRepository
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.flow.first
@@ -66,9 +67,10 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                             AttendanceRecord(date = now, timeIn = now, timeOut = null)
                         )
                         Log.d("GeofenceReceiver", "Session started via geofence")
+                        val placeName = GeofencePreferencesRepository.getGeofencePlaceName(context)
                         GeofenceNotificationUtils.showGeofenceEnterNotification(
                             context,
-                            "Work Location"
+                            placeName
                         )
                     } else {
                         Log.d("GeofenceReceiver", "Session already active")
@@ -91,7 +93,8 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                             ongoingSession.copy(timeOut = System.currentTimeMillis())
                         )
                         Log.d("GeofenceReceiver", "Session ended via geofence")
-                        GeofenceNotificationUtils.showGeofenceExitNotification(context, "Work Location")
+                        val placeName = GeofencePreferencesRepository.getGeofencePlaceName(context)
+                        GeofenceNotificationUtils.showGeofenceExitNotification(context, placeName)
                     } else {
                         Log.d("GeofenceReceiver", "No ongoing session to end")
                     }

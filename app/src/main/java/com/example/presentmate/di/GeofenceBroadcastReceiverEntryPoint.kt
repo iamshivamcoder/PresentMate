@@ -3,6 +3,7 @@ package com.example.presentmate.di
 import android.content.Context
 import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.db.AttendanceDao
+import com.example.presentmate.db.StudySessionLogDao
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -16,6 +17,7 @@ interface GeofenceBroadcastReceiverEntryPoint {
     fun applicationScope(): CoroutineScope
     fun appDatabase(): PresentMateDatabase
     fun attendanceDao(): AttendanceDao
+    fun studySessionLogDao(): StudySessionLogDao
 }
 
 fun getEntryPoint(context: Context): GeofenceBroadcastReceiverEntryPoint {

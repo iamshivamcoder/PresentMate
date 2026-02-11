@@ -63,6 +63,7 @@ fun AppNavigation() {
             "aboutDeveloper" -> "About the Developer"
             "locationPickerScreen" -> "Select Location"
             "geofenceScreen" -> "Geofences"
+            "calendarSyncSettings" -> "Calendar Sync"
             else -> "Present Mate"
         }
     }
@@ -149,6 +150,7 @@ fun AppNavigation() {
                 composable("recycleBin") { RecycleBinScreen() }
                 composable("helpScreen") { HelpScreen(_navController = navController) }
                 composable("whyPresentMateScreen") { WhyPresentMateScreen(_navController = navController) }
+                composable("calendarSyncSettings") { CalendarSyncSettingsScreen() }
                 composable("aiAssistant") { AIAssistantScreen() }
             }
         }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -227,6 +228,15 @@ fun SettingsScreen(navController: NavHostController) {
                 trailingContent = if (isImporting) {
                     { CircularProgressIndicator(modifier = Modifier.width(24.dp)) }
                 } else null
+            )
+        }
+
+        SettingsGroup("Study Calendar Sync") {
+            SettingsItem(
+                title = "Calendar Sync",
+                description = "Automated study checkpoints",
+                icon = Icons.Default.CalendarMonth,
+                onClick = { navController.navigate("calendarSyncSettings") }
             )
         }
 

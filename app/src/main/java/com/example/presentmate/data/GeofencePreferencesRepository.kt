@@ -17,6 +17,7 @@ object GeofencePreferencesRepository {
     private const val KEY_LATITUDE = "geofence_latitude"
     private const val KEY_LONGITUDE = "geofence_longitude"
     private const val KEY_PLACE_ID = "geofence_place_id"
+    private const val KEY_PLACE_NAME = "geofence_place_name"
     
     // Default values
     private const val DEFAULT_RADIUS = 200f
@@ -68,6 +69,15 @@ object GeofencePreferencesRepository {
     
     fun setGeofencePlaceId(context: Context, placeId: Int) {
         getPreferences(context).edit { putInt(KEY_PLACE_ID, placeId) }
+    }
+    
+    // --- Place Name ---
+    fun getGeofencePlaceName(context: Context): String {
+        return getPreferences(context).getString(KEY_PLACE_NAME, "Work Location") ?: "Work Location"
+    }
+    
+    fun setGeofencePlaceName(context: Context, placeName: String) {
+        getPreferences(context).edit { putString(KEY_PLACE_NAME, placeName) }
     }
     
     // --- Bulk save ---

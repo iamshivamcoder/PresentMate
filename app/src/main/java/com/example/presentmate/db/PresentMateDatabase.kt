@@ -47,13 +47,14 @@ interface AttendanceDao {
 
 // --- Unified Database --- //
 @Database(
-    entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class],
-    version = 3,
+    entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class, StudySessionLog::class],
+    version = 4,
     exportSchema = false
 )
 abstract class PresentMateDatabase : RoomDatabase() {
     abstract fun attendanceDao(): AttendanceDao
     abstract fun savedPlaceDao(): SavedPlaceDao
+    abstract fun studySessionLogDao(): StudySessionLogDao
 
     companion object {
         @Volatile

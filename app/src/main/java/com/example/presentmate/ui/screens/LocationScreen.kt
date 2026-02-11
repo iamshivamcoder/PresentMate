@@ -1,8 +1,6 @@
 package com.example.presentmate.ui.screens
 
-import android.content.Context
 import android.content.Intent
-import android.location.LocationManager
 import android.provider.Settings
 import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
@@ -40,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
@@ -52,14 +49,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.data.SavedPlacesRepository
+import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.ui.components.common.AddGeofenceCard
 import com.example.presentmate.ui.components.common.AutomaticTrackingCard
 import com.example.presentmate.ui.components.common.CurrentStatusCard
 import com.example.presentmate.ui.components.common.ManageGeofencesCard
-import com.example.presentmate.viewmodel.LocationViewModel
 import com.example.presentmate.utils.LocationUtils
+import com.example.presentmate.viewmodel.LocationViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +86,7 @@ fun LocationScreen(
     val selectedLocationName = savedPlaces.lastOrNull()?.name
 
     Scaffold(
+        modifier = modifier
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -259,14 +257,4 @@ fun LocationScreen(
             Spacer(modifier = Modifier.height(80.dp))
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LocationScreenPreview() {
-    val navController = rememberNavController()
-    LocationScreen(
-        navController = navController,
-        modifier = Modifier
-    )
 }

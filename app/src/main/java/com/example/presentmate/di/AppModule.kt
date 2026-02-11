@@ -26,6 +26,14 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideStudySessionLogDao(db: PresentMateDatabase) = db.studySessionLogDao()
+
+    @Provides
+    @Singleton
+    fun provideCalendarRepository(@ApplicationContext context: Context) = com.example.presentmate.calendar.CalendarRepository(context)
+
+    @Provides
+    @Singleton
     fun provideApplicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 }
 
