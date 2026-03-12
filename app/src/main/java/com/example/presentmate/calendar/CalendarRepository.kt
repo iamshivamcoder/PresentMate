@@ -3,8 +3,12 @@ package com.example.presentmate.calendar
 import android.content.ContentUris
 import android.content.Context
 import android.database.Cursor
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.provider.CalendarContract
 import android.util.Log
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Calendar
@@ -12,28 +16,41 @@ import java.util.Calendar
 data class CalendarInfo(
     val id: Long,
     val displayName: String,
-    val accountName: String,
-    val ownerAccount: String
+    val accountName: String
 )
 
 data class CalendarEvent(
     val id: Long,
     val title: String,
-    val description: String?,
-    val dtStart: Long,
-    val dtEnd: Long,
+    val startTime: Long,
+    val endTime: Long,
     val calendarId: Long
 )
 
 class CalendarRepository(private val context: Context) {
 
+    /**
+     * Check if READ_CALENDAR permission is granted
+     */
+    private fun hasCalendarPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    @SuppressLint("MissingPermission")
     suspend fun getCalendarList(): List<CalendarInfo> = withContext(Dispatchers.IO) {
+        if (!hasCalendarPermission()) {
+            Log.w("CalendarRepository", "READ_CALENDAR permission not granted. Cannot fetch calendars.")
+            return@withContext emptyList()
+        }
+
         val calendarList = mutableListOf<CalendarInfo>()
         val projection = arrayOf(
             CalendarContract.Calendars._ID,
             CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
-            CalendarContract.Calendars.ACCOUNT_NAME,
-            CalendarContract.Calendars.OWNER_ACCOUNT
+            CalendarContract.Calendars.ACCOUNT_NAME
         )
         
         // Filter for primary calendars or those that are visible/synced if desired
@@ -54,15 +71,13 @@ class CalendarRepository(private val context: Context) {
                 val idCol = it.getColumnIndex(CalendarContract.Calendars._ID)
                 val nameCol = it.getColumnIndex(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
                 val accountCol = it.getColumnIndex(CalendarContract.Calendars.ACCOUNT_NAME)
-                val ownerCol = it.getColumnIndex(CalendarContract.Calendars.OWNER_ACCOUNT)
 
                 while (it.moveToNext()) {
                     val id = it.getLong(idCol)
                     val name = it.getString(nameCol) ?: "Unknown"
                     val account = it.getString(accountCol) ?: ""
-                    val owner = it.getString(ownerCol) ?: ""
                     
-                    calendarList.add(CalendarInfo(id, name, account, owner))
+                    calendarList.add(CalendarInfo(id, name, account))
                 }
             }
         } catch (e: Exception) {
@@ -72,8 +87,14 @@ class CalendarRepository(private val context: Context) {
         return@withContext calendarList
     }
 
-    suspend fun getTodayEvents(calendarId: Long = -1): List<CalendarEvent> = withContext(Dispatchers.IO) {
-        val events = mutableListOf<CalendarEvent>()
+    @SuppressLint("MissingPermission")
+    suspend fun getTodayEvents(calendarId: Long? = null): List<CalendarEvent> = withContext(Dispatchers.IO) {
+        if (!hasCalendarPermission()) {
+            Log.w("CalendarRepository", "READ_CALENDAR permission not granted. Cannot fetch events.")
+            return@withContext emptyList()
+        }
+        
+        val eventList = mutableListOf<CalendarEvent>()
         
         // Define "today" range
         val calendar = Calendar.getInstance()
@@ -100,7 +121,7 @@ class CalendarRepository(private val context: Context) {
         var selection = "${CalendarContract.Instances.END} >= ? AND ${CalendarContract.Instances.BEGIN} <= ?"
         var selectionArgs = arrayOf(startOfDay.toString(), endOfDay.toString())
         
-        if (calendarId != -1L) {
+        if (calendarId != null && calendarId != -1L) {
             selection += " AND ${CalendarContract.Instances.CALENDAR_ID} = ?"
             selectionArgs = arrayOf(startOfDay.toString(), endOfDay.toString(), calendarId.toString())
         }
@@ -122,7 +143,6 @@ class CalendarRepository(private val context: Context) {
             cursor?.use {
                 val idCol = it.getColumnIndex(CalendarContract.Instances.EVENT_ID)
                 val titleCol = it.getColumnIndex(CalendarContract.Instances.TITLE)
-                val descCol = it.getColumnIndex(CalendarContract.Instances.DESCRIPTION)
                 val beginCol = it.getColumnIndex(CalendarContract.Instances.BEGIN)
                 val endCol = it.getColumnIndex(CalendarContract.Instances.END)
                 val calIdCol = it.getColumnIndex(CalendarContract.Instances.CALENDAR_ID)
@@ -130,22 +150,17 @@ class CalendarRepository(private val context: Context) {
                 while (it.moveToNext()) {
                     val id = it.getLong(idCol)
                     val title = it.getString(titleCol) ?: "No Title"
-                    val desc = it.getString(descCol)
                     val begin = it.getLong(beginCol)
                     val end = it.getLong(endCol)
                     val calId = it.getLong(calIdCol)
-
-                    // Filter out all-day events if they span significantly more than 24h? 
-                    // Or just strict time check. For now, strict time check.
-                    // Note: Instances query typically handles recurrence expansion.
                     
-                    events.add(CalendarEvent(id, title, desc, begin, end, calId))
+                    eventList.add(CalendarEvent(id, title, begin, end, calId))
                 }
             }
         } catch (e: Exception) {
             Log.e("CalendarRepository", "Error querying events", e)
         }
 
-        return@withContext events
+        return@withContext eventList
     }
 }

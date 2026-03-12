@@ -57,8 +57,8 @@ class CalendarSyncWorker @AssistedInject constructor(
                         eventTitle = event.title,
                         subject = subject,
                         topic = topic,
-                        scheduledStartTime = event.dtStart,
-                        scheduledEndTime = event.dtEnd,
+                        scheduledStartTime = event.startTime,
+                        scheduledEndTime = event.endTime,
                         status = "PENDING"
                     )
                     
@@ -66,7 +66,7 @@ class CalendarSyncWorker @AssistedInject constructor(
                     
                     // Schedule check worker
                     val now = System.currentTimeMillis()
-                    val triggerTime = event.dtEnd + TimeUnit.MINUTES.toMillis(delayMinutes.toLong())
+                    val triggerTime = event.endTime + TimeUnit.MINUTES.toMillis(delayMinutes.toLong())
                     val delay = (triggerTime - now).coerceAtLeast(0)
                     
                     val workRequest = OneTimeWorkRequestBuilder<StudySessionCheckWorker>()

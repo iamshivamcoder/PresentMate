@@ -59,7 +59,11 @@ class OverviewViewModel @Inject constructor(private val attendanceDao: Attendanc
                 .filter { it.timeIn != null && it.timeOut != null && it.timeOut > it.timeIn }
                 .groupBy { Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate() }
                 .map { (date, recordsOnDate) ->
-                    val totalDuration = recordsOnDate.sumOf { it.timeOut!! - it.timeIn!! }
+                    val totalDuration = recordsOnDate.sumOf { 
+                        if (it.timeOut != null && it.timeIn != null) {
+                            it.timeOut - it.timeIn
+                        } else 0L
+                    }
                     DailySummary(date, totalDuration, recordsOnDate)
                 }
                 .sortedByDescending { it.date }

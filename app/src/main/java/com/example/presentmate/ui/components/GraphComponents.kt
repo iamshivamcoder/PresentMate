@@ -537,7 +537,11 @@ fun calculateGraphData(
                 val currentDay = startOfWeek.plusDays(dayIndex.toLong())
                 val totalMillis = filteredRecords.filter {
                     Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate().isEqual(currentDay)
-                }.sumOf { it.timeOut!! - it.timeIn!! }
+                }.sumOf { 
+                    if (it.timeOut != null && it.timeIn != null) {
+                        it.timeOut - it.timeIn
+                    } else 0L
+                }
                 GraphDataPoint(
                     label = currentDay.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale),
                     value = formatMillisToHours(totalMillis), rawMillis = totalMillis, isToday = currentDay.isEqual(today)
@@ -551,7 +555,11 @@ fun calculateGraphData(
                 val currentDay = startOfMonth.withDayOfMonth(dayOfMonth)
                 val totalMillis = filteredRecords.filter {
                     Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate().isEqual(currentDay)
-                }.sumOf { it.timeOut!! - it.timeIn!! }
+                }.sumOf { 
+                    if (it.timeOut != null && it.timeIn != null) {
+                        it.timeOut - it.timeIn
+                    } else 0L
+                }
                 GraphDataPoint(
                     label = dayOfMonth.toString(),
                     value = formatMillisToHours(totalMillis), rawMillis = totalMillis, isToday = currentDay.isEqual(today)
@@ -566,7 +574,11 @@ fun calculateGraphData(
                 val totalMillis = filteredRecords.filter {
                     val recordDate = Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate()
                     !recordDate.isBefore(startOfMonthCal) && !recordDate.isAfter(endOfMonthCal)
-                }.sumOf { it.timeOut!! - it.timeIn!! }
+                }.sumOf { 
+                    if (it.timeOut != null && it.timeIn != null) {
+                        it.timeOut - it.timeIn
+                    } else 0L
+                }
                 GraphDataPoint(
                     label = currentMonth.month.getDisplayName(java.time.format.TextStyle.SHORT, locale),
                     value = formatMillisToHours(totalMillis), rawMillis = totalMillis,

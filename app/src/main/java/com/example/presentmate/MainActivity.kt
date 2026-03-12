@@ -1,9 +1,11 @@
 package com.example.presentmate
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,15 +16,33 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    
+    companion object {
+        private const val PREFS_NAME = "presentmate_permissions"
+        private const val KEY_PERMISSIONS_REQUESTED = "permissions_requested_v1"
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Request notification permission for Android 13+
-        requestNotificationPermission()
+        // Handle partial_log_id intent from notification
+        val partialLogId = intent.getIntExtra("partial_log_id", -1)
+        if (partialLogId != -1) {
+            Log.d("MainActivity", "Received partial_log_id: $partialLogId")
+            // TODO: Navigate to partial duration input dialog/screen
+            // For now, log it for future implementation
+        }
 
-        // Request location permissions for geofencing
-        requestLocationPermissions()
+        // Request permissions only once
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val hasRequestedPerms = prefs.getBoolean(KEY_PERMISSIONS_REQUESTED, false)
+        
+        if (!hasRequestedPerms) {
+            requestNotificationPermission()
+            requestLocationPermissions()
+            prefs.edit().putBoolean(KEY_PERMISSIONS_REQUESTED, true).apply()
+        }
 
         setContent {
             PresentMateTheme {

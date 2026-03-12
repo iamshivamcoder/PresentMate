@@ -91,10 +91,10 @@ object DataTransferManager {
                     }
                     
                     var lineNumber = 1
-                    var line: String?
-                    while (reader.readLine().also { line = it } != null) {
+                    while (true) {
+                        val line = reader.readLine() ?: break
                         lineNumber++
-                        val parts = line!!.split(",")
+                        val parts = line.split(",")
                         
                         if (parts.size < 4) {
                             continue // Skip malformed lines

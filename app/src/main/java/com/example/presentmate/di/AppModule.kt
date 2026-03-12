@@ -1,7 +1,11 @@
 package com.example.presentmate.di
 
 import android.content.Context
+import com.example.presentmate.calendar.CalendarRepository
+import com.example.presentmate.data.SavedPlaceDao
+import com.example.presentmate.db.AttendanceDao
 import com.example.presentmate.db.PresentMateDatabase
+import com.example.presentmate.db.StudySessionLogDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,22 +22,32 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context) = PresentMateDatabase.getDatabase(context)
+    fun provideDatabase(@ApplicationContext context: Context): PresentMateDatabase {
+        return PresentMateDatabase.getDatabase(context)
+    }
 
     @Provides
-    @Singleton
-    fun provideAttendanceDao(db: PresentMateDatabase) = db.attendanceDao()
+    fun provideAttendanceDao(database: PresentMateDatabase): AttendanceDao {
+        return database.attendanceDao()
+    }
 
     @Provides
-    @Singleton
-    fun provideStudySessionLogDao(db: PresentMateDatabase) = db.studySessionLogDao()
-
+    fun provideSavedPlaceDao(database: PresentMateDatabase): SavedPlaceDao {
+        return database.savedPlaceDao()
+    }
+    
+    @Provides
+    fun provideStudySessionLogDao(database: PresentMateDatabase): StudySessionLogDao {
+        return database.studySessionLogDao()
+    }
+    
     @Provides
     @Singleton
-    fun provideCalendarRepository(@ApplicationContext context: Context) = com.example.presentmate.calendar.CalendarRepository(context)
+    fun provideCalendarRepository(@ApplicationContext context: Context): CalendarRepository {
+        return CalendarRepository(context)
+    }
 
     @Provides
     @Singleton
     fun provideApplicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 }
-

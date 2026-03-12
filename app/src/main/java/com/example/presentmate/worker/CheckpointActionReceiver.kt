@@ -3,6 +3,8 @@ package com.example.presentmate.worker
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import com.example.presentmate.di.GeofenceBroadcastReceiverEntryPoint // Re-using existing entry point or new one? Using existing for now, will rename/refactor later or add to it.
@@ -40,11 +42,15 @@ class CheckpointActionReceiver : BroadcastReceiver() {
                     when (action) {
                         StudyCheckpointNotificationUtils.ACTION_COMPLETED -> {
                             studySessionLogDao.update(log.copy(status = "COMPLETED", loggedAt = now))
-                            Toast.makeText(context, "Session marked as Completed via Checkpoint", Toast.LENGTH_SHORT).show()
+                            Handler(Looper.getMainLooper()).post {
+                                Toast.makeText(context.applicationContext, "Session marked as Completed via Checkpoint", Toast.LENGTH_SHORT).show()
+                            }
                         }
                         StudyCheckpointNotificationUtils.ACTION_SKIPPED -> {
                             studySessionLogDao.update(log.copy(status = "SKIPPED", loggedAt = now))
-                            Toast.makeText(context, "Session marked as Skipped", Toast.LENGTH_SHORT).show()
+                            Handler(Looper.getMainLooper()).post {
+                                Toast.makeText(context.applicationContext, "Session marked as Skipped", Toast.LENGTH_SHORT).show()
+                            }
                         }
                         StudyCheckpointNotificationUtils.ACTION_PARTIAL -> {
                             // Open Activity with dialog
