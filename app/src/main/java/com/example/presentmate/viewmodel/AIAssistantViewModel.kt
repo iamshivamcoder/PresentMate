@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.presentmate.ai.AIResponse
-import com.example.presentmate.ai.GeminiService
+import com.example.presentmate.ai.AIService
 import com.example.presentmate.ai.ParsedAttendance
 import com.example.presentmate.db.AttendanceDao
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,20 +48,16 @@ data class AIAssistantUiState(
 
 class AIAssistantViewModel(
     private val attendanceDao: AttendanceDao,
-    apiKey: String?
+    private val aiService: AIService?
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(AIAssistantUiState(
-        apiKeyMissing = apiKey.isNullOrBlank()
+        apiKeyMissing = aiService == null
     ))
     val uiState: StateFlow<AIAssistantUiState> = _uiState.asStateFlow()
     
-    private var geminiService: GeminiService? = null
-    
     init {
-        if (!apiKey.isNullOrBlank()) {
-            geminiService = GeminiService(apiKey)
-            // Add welcome message
+        if (aiService != null) {
             addMessage(ChatMessage(
                 content = "👋 Hi! I'm your AI assistant. I can help you with:\n\n" +
                         "• Understanding your attendance data\n" +
@@ -74,94 +70,47 @@ class AIAssistantViewModel(
     }
     
     fun sendMessage(text: String) {
-        if (text.isBlank() || geminiService == null) return
+        if (text.isBlank() || aiService == null) return
         
-        // Add user message
         addMessage(ChatMessage(content = text, isFromUser = true))
-        
-        // Show loading
-        val loadingMessage = ChatMessage(
-            content = "Thinking...",
-            isFromUser = false,
-            isLoading = true
-        )
+        val loadingMessage = ChatMessage(content = "Thinking...", isFromUser = false, isLoading = true)
         addMessage(loadingMessage)
         
         viewModelScope.launch {
-            when (val response = geminiService?.sendMessage(text)) {
+            when (val response = aiService.sendMessage(text)) {
                 is AIResponse.Success -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(
-                        content = response.message,
-                        isFromUser = false,
-                        extractedRecords = response.extractedRecords
-                    ))
-                    
-                    // If records were found, prompt for confirmation
+                    addMessage(ChatMessage(content = response.message, isFromUser = false, extractedRecords = response.extractedRecords))
                     if (response.extractedRecords.isNotEmpty()) {
                         promptFirstConfirmation(response.extractedRecords)
                     }
                 }
                 is AIResponse.Error -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(
-                        content = "❌ ${response.message}",
-                        isFromUser = false
-                    ))
-                }
-                null -> {
-                    removeLoadingMessage()
-                    addMessage(ChatMessage(
-                        content = "❌ AI service not available",
-                        isFromUser = false
-                    ))
+                    addMessage(ChatMessage(content = "❌ ${response.message}", isFromUser = false))
                 }
             }
         }
     }
     
     fun sendMessageWithImage(text: String, image: Bitmap) {
-        if (geminiService == null) return
-        
+        if (aiService == null) return
         val messageText = text.ifBlank { "Please analyze this attendance sheet" }
-        
-        // Add user message with image
-        addMessage(ChatMessage(
-            content = messageText,
-            isFromUser = true,
-            image = image
-        ))
-        
-        // Show loading
-        addMessage(ChatMessage(
-            content = "Analyzing image...",
-            isFromUser = false,
-            isLoading = true
-        ))
+        addMessage(ChatMessage(content = messageText, isFromUser = true, image = image))
+        addMessage(ChatMessage(content = "Analyzing image...", isFromUser = false, isLoading = true))
         
         viewModelScope.launch {
-            when (val response = geminiService?.sendMessageWithImage(messageText, image)) {
+            when (val response = aiService.sendMessageWithImage(messageText, image)) {
                 is AIResponse.Success -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(
-                        content = response.message,
-                        isFromUser = false,
-                        extractedRecords = response.extractedRecords
-                    ))
-                    
+                    addMessage(ChatMessage(content = response.message, isFromUser = false, extractedRecords = response.extractedRecords))
                     if (response.extractedRecords.isNotEmpty()) {
                         promptFirstConfirmation(response.extractedRecords)
                     }
                 }
                 is AIResponse.Error -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(
-                        content = "❌ ${response.message}",
-                        isFromUser = false
-                    ))
-                }
-                null -> {
-                    removeLoadingMessage()
+                    addMessage(ChatMessage(content = "❌ ${response.message}", isFromUser = false))
                 }
             }
         }
@@ -169,10 +118,7 @@ class AIAssistantViewModel(
     
     private fun promptFirstConfirmation(records: List<ParsedAttendance>) {
         _uiState.update { it.copy(confirmationState = ConfirmationState.FirstConfirmation(records)) }
-        addMessage(ChatMessage(
-            content = "📋 I found ${records.size} attendance record(s). Would you like to add them to your database?",
-            isFromUser = false
-        ))
+        addMessage(ChatMessage(content = "📋 I found ${records.size} attendance record(s). Would you like to add them to your database?", isFromUser = false))
     }
     
     fun onFirstConfirmation() {
@@ -193,48 +139,42 @@ class AIAssistantViewModel(
         val state = _uiState.value.confirmationState
         if (state is ConfirmationState.SecondConfirmation) {
             viewModelScope.launch {
-                val records = geminiService?.toAttendanceRecords(state.records) ?: emptyList()
-                records.forEach { record ->
-                    attendanceDao.insertRecord(record)
+                // Convert parsed records to AttendanceRecord
+                val records = state.records.map { parsed ->
+                    com.example.presentmate.db.AttendanceRecord(
+                        date = parsed.date,
+                        timeIn = parsed.timeIn,
+                        timeOut = parsed.timeOut
+                    )
                 }
-                
+                records.forEach { attendanceDao.insertRecord(it) }
                 _uiState.update { it.copy(confirmationState = ConfirmationState.None) }
-                addMessage(ChatMessage(
-                    content = "✅ Successfully added ${records.size} record(s) to your database!",
-                    isFromUser = false
-                ))
+                addMessage(ChatMessage(content = "✅ Successfully added ${records.size} record(s) to your database!", isFromUser = false))
             }
         }
     }
     
     fun onCancelConfirmation() {
         _uiState.update { it.copy(confirmationState = ConfirmationState.None) }
-        addMessage(ChatMessage(
-            content = "❌ Operation cancelled. No records were added.",
-            isFromUser = false
-        ))
+        addMessage(ChatMessage(content = "❌ Operation cancelled. No records were added.", isFromUser = false))
     }
     
     private fun addMessage(message: ChatMessage) {
-        _uiState.update { state ->
-            state.copy(messages = state.messages + message)
-        }
+        _uiState.update { state -> state.copy(messages = state.messages + message) }
     }
     
     private fun removeLoadingMessage() {
-        _uiState.update { state ->
-            state.copy(messages = state.messages.filterNot { it.isLoading })
-        }
+        _uiState.update { state -> state.copy(messages = state.messages.filterNot { it.isLoading }) }
     }
     
     companion object {
         fun provideFactory(
             attendanceDao: AttendanceDao,
-            apiKey: String?
+            aiService: AIService?
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return AIAssistantViewModel(attendanceDao, apiKey) as T
+                return AIAssistantViewModel(attendanceDao, aiService) as T
             }
         }
     }

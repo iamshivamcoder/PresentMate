@@ -64,6 +64,10 @@ fun AppNavigation() {
             "locationPickerScreen" -> "Select Location"
             "geofenceScreen" -> "Geofences"
             "calendarSyncSettings" -> "Calendar Sync"
+            "preferences" -> "Preferences"
+            "notificationPreferences" -> "Notification Preferences"
+            "aiPreferences" -> "AI Settings"
+            "changelog" -> "Changelog"
             else -> "Present Mate"
         }
     }
@@ -131,7 +135,7 @@ fun AppNavigation() {
                 startDestination = Screen.Home.route,
                 modifier = Modifier.padding(innerPadding)
             ) {
-                composable(Screen.Home.route) { AttendanceScreen() }
+                composable(Screen.Home.route) { AttendanceScreen(navController = navController) }
                 composable(Screen.Overview.route) { OverviewScreen() }
                 composable(Screen.Location.route) { LocationScreen(navController = navController) }
                 composable("locationPickerScreen") {
@@ -152,6 +156,10 @@ fun AppNavigation() {
                 composable("whyPresentMateScreen") { WhyPresentMateScreen(_navController = navController) }
                 composable("calendarSyncSettings") { CalendarSyncSettingsScreen() }
                 composable("aiAssistant") { AIAssistantScreen() }
+                composable("preferences") { PreferencesScreen(navController = navController) }
+                composable("notificationPreferences") { NotificationPreferencesScreen() }
+                composable("aiPreferences") { AIPreferencesScreen() }
+                composable("changelog") { ChangelogScreen() }
             }
         }
     }

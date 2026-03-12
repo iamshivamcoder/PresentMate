@@ -65,24 +65,31 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.presentmate.ai.AIPreferences
+import com.example.presentmate.ai.AIServiceFactory
 import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.viewmodel.AIAssistantViewModel
 import com.example.presentmate.viewmodel.ChatMessage
 import com.example.presentmate.viewmodel.ConfirmationState
 
-// Store your API key securely - this is just for demo
-// In production, use BuildConfig or encrypted preferences
-private const val GEMINI_API_KEY = "" // User needs to add their key
-
 @Composable
 fun AIAssistantScreen() {
     val context = LocalContext.current
     val db = remember { PresentMateDatabase.getDatabase(context) }
+
+    // Load API key and platform from preferences
+    val apiKey = remember { AIPreferences.getApiKey(context) }
+    val platform = remember { AIPreferences.getPlatform(context) }
+    val temperature = remember { AIPreferences.getTemperature(context) }
+    val maxTokens = remember { AIPreferences.getMaxTokens(context) }
+    val aiService = remember {
+        AIServiceFactory.create(platform, apiKey, temperature, maxTokens)
+    }
     
     val viewModel: AIAssistantViewModel = viewModel(
         factory = AIAssistantViewModel.Companion.provideFactory(
             attendanceDao = db.attendanceDao(),
-            apiKey = GEMINI_API_KEY.ifBlank { null }
+            aiService = aiService
         )
     )
     
@@ -314,7 +321,7 @@ private fun ApiKeyMissingBanner() {
                 color = MaterialTheme.colorScheme.error
             )
             Text(
-                text = "Add your Gemini API key in AIAssistantScreen.kt to enable the AI assistant.",
+                text = "Go to Settings → Preferences → AI Settings to add your API key and choose a platform (Gemini, OpenRouter, Groq, or Cohere).",
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onErrorContainer
@@ -322,6 +329,7 @@ private fun ApiKeyMissingBanner() {
         }
     }
 }
+
 
 @Composable
 private fun ChatMessageBubble(message: ChatMessage) {

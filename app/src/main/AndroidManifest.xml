@@ -15,6 +15,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
 
+    <!-- Alarm and boot permissions for session reminders -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
     <!-- For accessing all files on Android 11+ (optional, for advanced use cases) -->
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
@@ -69,6 +74,25 @@
             android:name=".worker.CheckpointActionReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <receiver
+            android:name=".worker.SessionReminderReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.presentmate.ACTION_SESSION_REMINDER" />
+                <action android:name="com.example.presentmate.ACTION_YESS_SESSION" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".worker.BootCompletedReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

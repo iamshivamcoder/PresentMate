@@ -33,6 +33,9 @@ import androidx.work.WorkManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import com.example.presentmate.worker.CalendarSyncWorker
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -279,6 +282,121 @@ fun CalendarSyncSettingsScreen() {
                         },
                         valueRange = 1f..15f,
                         steps = 14
+                    )
+                }
+            }
+
+            // --- Today's Schedule ---
+            var todayEvents by remember { mutableStateOf<List<com.example.presentmate.calendar.CalendarEvent>>(emptyList()) }
+            LaunchedEffect(selectedCalendarId) {
+                scope.launch {
+                    try {
+                        todayEvents = CalendarRepository(context).getTodayEvents(
+                            if (selectedCalendarId == -1L) null else selectedCalendarId
+                        )
+                    } catch (e: Exception) {}
+                }
+            }
+
+            SettingsGroup("Today's Schedule") {
+                if (todayEvents.isEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                    ) {
+                        Text(
+                            "No events scheduled for today from the selected calendar.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        todayEvents.forEach { event ->
+                            CalendarEventCard(event)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarEventCard(event: com.example.presentmate.calendar.CalendarEvent) {
+    val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
+    val startStr = timeFormat.format(java.util.Date(event.startTime))
+    val endStr = timeFormat.format(java.util.Date(event.endTime))
+    val now = System.currentTimeMillis()
+    val isOngoing = event.startTime <= now && event.endTime >= now
+    val isPast = event.endTime < now
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                isOngoing -> MaterialTheme.colorScheme.primaryContainer
+                isPast -> MaterialTheme.colorScheme.surfaceContainer
+                else -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Time indicator
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    startStr,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    "↓",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    endStr,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    event.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
+                if (isOngoing) {
+                    Text(
+                        "● IN PROGRESS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else if (isPast) {
+                    Text(
+                        "Completed",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        "Upcoming",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
             }

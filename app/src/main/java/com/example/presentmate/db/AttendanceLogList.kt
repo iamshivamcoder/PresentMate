@@ -1,11 +1,8 @@
 package com.example.presentmate.db
 
 import androidx.compose.foundation.Canvas // Added import for Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -26,7 +23,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.*
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -132,27 +128,23 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
         )
     }
 
-    LazyColumn(
-        modifier = modifier
-    ) {
+    Column(modifier = modifier) {
         recordsByDate.forEach { (date, recordsForDate) ->
-            stickyHeader {
-                Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
-                    HorizontalDivider()
-                    Text(
-                        text = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp, horizontal = 16.dp),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            // Section header (replaces stickyHeader)
+            Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
+                HorizontalDivider()
+                Text(
+                    text = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp, horizontal = 16.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            items(recordsForDate, key = { it.id }) { record ->
+            recordsForDate.forEach { record ->
                 AttendanceRecordItem(
-                    // modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), // Modifier moved to Row
                     record = record,
                     onEdit = { recordToEditParam ->
                         recordToEdit = recordToEditParam

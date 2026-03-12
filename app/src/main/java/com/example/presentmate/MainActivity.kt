@@ -44,6 +44,9 @@ class MainActivity : ComponentActivity() {
             prefs.edit().putBoolean(KEY_PERMISSIONS_REQUESTED, true).apply()
         }
 
+        // Ensure daily session reminder alarm is always scheduled
+        com.example.presentmate.worker.SessionReminderScheduler.ensureScheduled(this)
+
         setContent {
             PresentMateTheme {
                 AppNavigation()

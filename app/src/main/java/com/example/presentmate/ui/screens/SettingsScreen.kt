@@ -25,7 +25,9 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
@@ -196,6 +198,15 @@ fun SettingsScreen(navController: NavHostController) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        SettingsGroup("Preferences") {
+            SettingsItem(
+                title = "Preferences",
+                description = "Notifications, AI settings & more",
+                icon = Icons.Default.Tune,
+                onClick = { navController.navigate("preferences") }
+            )
+        }
+
         SettingsGroup("Data Management") {
             SettingsItem(
                 title = "Recycle Bin",
@@ -252,9 +263,9 @@ fun SettingsScreen(navController: NavHostController) {
         SettingsGroup("General") {
             SettingsItem(
                 title = "App Version",
-                description = appVersion,
+                description = "v$appVersion — Tap to see what's new",
                 icon = Icons.Filled.Verified,
-                onClick = { Toast.makeText(context, "App Version: $appVersion", Toast.LENGTH_SHORT).show() }
+                onClick = { navController.navigate("changelog") }
             )
         }
 
