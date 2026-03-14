@@ -41,12 +41,14 @@ private val changelog = listOf(
         date = "March 2026",
         isLatest = true,
         changes = listOf(
-            "🛠️ Fixed AI text bar floating issue mid-screen",
-            "🛠️ Fixed app crashes when interacting with AI Assistant",
-            "🛠️ Fixed app crash when changing filters in Overview Screen",
+            "🛠️ Finalized AI Chat: Fixed floaty text bar & model logic (v1.5-flash-latest)",
+            "🛠️ Graph Optimization: Clutter-free Monthly/Yearly views",
+            "✨ Activity Verification: Step-tracker based study grounding (UI)",
+            "✨ Weekly Goal: Added confirmation dialog for goal changes",
+            "✨ Notifications: Scheduled custom reminders now listed as cards",
             "✨ Added 'Progress Report' reminder notification preference",
             "✨ Modernized Help Screen with visual cards",
-            "✨ Automatic Geofence Tracking toggle now fully syncs with background location service",
+            "✨ Automatic Geofence Tracking toggle fully synced",
             "📋 Removed Whitelist Keywords from Calendar Sync"
         )
     ),

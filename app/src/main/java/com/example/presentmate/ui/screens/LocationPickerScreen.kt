@@ -57,7 +57,6 @@ import java.util.Locale
 fun LocationPickerScreen(
     searchHistoryRepository: SearchHistoryRepository,
     savedPlacesRepository: SavedPlacesRepository,
-    navController: NavController? = null,
     onLocationConfirmed: (GeoPoint) -> Unit,
     onNavigateBack: () -> Unit = {}
 ) {
@@ -245,20 +244,7 @@ fun LocationPickerScreen(
                     LocationPickerContent(
                         viewModel = viewModel,
                         uiState = uiState,
-                        onLocationConfirmed = { showSaveDialog = true },
-                        onGoToCurrentLocation = {
-                            if (locationPermissionsState.allPermissionsGranted) {
-                                viewModel.getCurrentLocation()
-                            } else {
-                                if (locationPermissionsState.shouldShowRationale) {
-                                    showPermissionRationale = true
-                                } else {
-                                    locationPermissionsState.launchMultiplePermissionRequest()
-                                    hasRequestedPermission = true
-                                }
-                            }
-                        },
-                        onNavigateBack = onNavigateBack
+                        onLocationConfirmed = { showSaveDialog = true }
                     )
                 }
             }

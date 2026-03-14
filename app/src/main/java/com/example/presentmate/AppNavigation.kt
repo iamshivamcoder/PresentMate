@@ -32,11 +32,13 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Location : Screen("location", "Location", Icons.Filled.LocationOn)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
     object AboutDeveloper : Screen("aboutDeveloper", "About Developer", Icons.Filled.Info)
+    object ActivityVerification : Screen("activityVerification", "Activity", Icons.Filled.Checklist)
 }
 
 val navItems = listOf(
     Screen.Home,
     Screen.Overview,
+    Screen.ActivityVerification,
     Screen.Location,
     Screen.Settings
 )
@@ -160,8 +162,9 @@ fun AppNavigation() {
                 composable("notificationPreferences") { NotificationPreferencesScreen() }
                 composable("aiPreferences") { AIPreferencesScreen() }
                 composable("overviewPreferences") {
-                    com.example.presentmate.ui.screens.OverviewPreferencesScreen(navController = navController)
+                    com.example.presentmate.ui.screens.OverviewPreferencesScreen()
                 }
+                composable(Screen.ActivityVerification.route) { ActivityVerificationScreen() }
                 composable("changelog") { ChangelogScreen() }
             }
         }

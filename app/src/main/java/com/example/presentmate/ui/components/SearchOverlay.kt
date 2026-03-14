@@ -49,6 +49,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -209,15 +210,14 @@ private fun HistoryList(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(history, key = { it }) { query ->
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = { dismissValue ->
-                        if (dismissValue != SwipeToDismissBoxValue.Settled) {
-                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            onRemoveFromHistory(query)
-                        }
-                        dismissValue != SwipeToDismissBoxValue.Settled
+                val dismissState = rememberSwipeToDismissBoxState()
+                
+                LaunchedEffect(dismissState.currentValue) {
+                    if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        onRemoveFromHistory(query)
                     }
-                )
+                }
 
                 SwipeToDismissBox(
                     state = dismissState,

@@ -35,7 +35,6 @@ class CalendarSyncWorker @AssistedInject constructor(
         }
 
         val calendarId = CalendarSyncPreferences.getSelectedCalendarId(context)
-        val keywords = CalendarSyncPreferences.getWhitelistKeywords(context)
         val delayMinutes = CalendarSyncPreferences.getDelayMinutes(context)
 
         return try {

@@ -99,9 +99,7 @@ import org.osmdroid.util.GeoPoint
 internal fun LocationPickerContent(
     viewModel: LocationPickerViewModel,
     uiState: LocationPickerUiState,
-    onLocationConfirmed: (GeoPoint) -> Unit,
-    onGoToCurrentLocation: () -> Unit,
-    onNavigateBack: () -> Unit = {}
+    onLocationConfirmed: (GeoPoint) -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         // Map View - Full screen

@@ -17,7 +17,7 @@ import java.util.Locale
 class GeminiService(apiKey: String) : AIService {
 
     private val model = GenerativeModel(
-        modelName = "gemini-1.5-flash",
+        modelName = "gemini-1.5-flash-latest",
         apiKey = apiKey,
         generationConfig = generationConfig {
             temperature = 0.7f

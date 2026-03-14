@@ -2,6 +2,7 @@ package com.example.presentmate.ui.screens
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
@@ -23,19 +24,27 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -48,22 +57,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.TextField
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.CalendarMonth
-import android.app.DatePickerDialog
+import androidx.core.content.ContextCompat
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.example.presentmate.worker.CustomReminderWorker
+import com.example.presentmate.worker.SessionReminderScheduler
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
-import androidx.core.content.ContextCompat
-import com.example.presentmate.worker.SessionReminderScheduler
-import com.example.presentmate.worker.CustomReminderWorker
 
 @Composable
 fun NotificationPreferencesScreen() {
@@ -72,6 +75,11 @@ fun NotificationPreferencesScreen() {
 
     var savedHour by remember { mutableIntStateOf(prefs.getInt("reminder_hour", 9)) }
     var savedMinute by remember { mutableIntStateOf(prefs.getInt("reminder_minute", 30)) }
+    
+    val reminderPrefs = remember { context.getSharedPreferences("custom_reminders", Context.MODE_PRIVATE) }
+    var scheduledReminders by remember { 
+        mutableStateOf(loadReminders(reminderPrefs))
+    }
     var reminderEnabled by remember {
         mutableStateOf(prefs.getBoolean("reminder_enabled", true))
     }
@@ -196,6 +204,44 @@ fun NotificationPreferencesScreen() {
                                 SessionReminderScheduler.cancel(context)
                                 Toast.makeText(context, "Reminder disabled", Toast.LENGTH_SHORT).show()
                             }
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(end = 12.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Progress Reports", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Notify on event completions",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = progressReportEnabled,
+                        onCheckedChange = { enabled ->
+                            progressReportEnabled = enabled
+                            prefs.edit().putBoolean("progress_report_enabled", enabled).apply()
+                            Toast.makeText(context, if (enabled) "Progress reports enabled" else "Progress reports disabled", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -334,11 +380,19 @@ fun NotificationPreferencesScreen() {
                                 if (message.isNotBlank() && dateText.isNotEmpty() && timeText.isNotEmpty()) {
                                     val delay = selectedDate.timeInMillis - System.currentTimeMillis()
                                     if (delay > 0) {
+                                        val workId = java.util.UUID.randomUUID()
                                         val workRequest = OneTimeWorkRequestBuilder<CustomReminderWorker>()
                                             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                                             .setInputData(workDataOf("reminder_message" to message))
+                                            .setId(workId)
                                             .build()
                                         WorkManager.getInstance(context).enqueue(workRequest)
+                                        
+                                        // Save to prefs
+                                        val newReminder = ScheduledReminder(workId.toString(), message, dateText, timeText)
+                                        scheduledReminders = scheduledReminders + newReminder
+                                        saveReminders(reminderPrefs, scheduledReminders)
+                                        
                                         Toast.makeText(context, "Reminder scheduled", Toast.LENGTH_SHORT).show()
                                         showCustomReminderDialog = false
                                     } else {
@@ -358,6 +412,32 @@ fun NotificationPreferencesScreen() {
                         }
                     }
                 )
+            }
+
+            // List scheduled reminders
+            scheduledReminders.forEach { reminder ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(reminder.message, fontWeight = FontWeight.Bold)
+                            Text("${reminder.date} at ${reminder.time}", style = MaterialTheme.typography.bodySmall)
+                        }
+                        IconButton(onClick = {
+                            WorkManager.getInstance(context).cancelWorkById(java.util.UUID.fromString(reminder.id))
+                            scheduledReminders = scheduledReminders.filter { it.id != reminder.id }
+                            saveReminders(reminderPrefs, scheduledReminders)
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
             }
 
             Card(
@@ -433,3 +513,17 @@ fun NotificationPreferencesScreen() {
         }
     }
 }
+
+data class ScheduledReminder(val id: String, val message: String, val date: String, val time: String)
+
+private fun saveReminders(prefs: android.content.SharedPreferences, reminders: List<ScheduledReminder>) {
+    val json = Gson().toJson(reminders)
+    prefs.edit().putString("reminders", json).apply()
+}
+
+private fun loadReminders(prefs: android.content.SharedPreferences): List<ScheduledReminder> {
+    val json = prefs.getString("reminders", null) ?: return emptyList()
+    val type = object : TypeToken<List<ScheduledReminder>>() {}.type
+    return Gson().fromJson(json, type)
+}
+

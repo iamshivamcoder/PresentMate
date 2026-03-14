@@ -178,7 +178,7 @@ fun CalendarSyncSettingsScreen() {
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true),
                         label = { Text("Calendar") }
                     )
                     ExposedDropdownMenu(

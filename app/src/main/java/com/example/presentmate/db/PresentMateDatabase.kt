@@ -63,9 +63,9 @@ abstract class PresentMateDatabase : RoomDatabase() {
         private var INSTANCE: PresentMateDatabase? = null
         
         private val MIGRATION_3_4 = object : Migration(3, 4) {
-            override fun migrate(database: SupportSQLiteDatabase) {
+            override fun migrate(db: SupportSQLiteDatabase) {
                 // Create the new study_session_logs table (additive change, no data loss)
-                database.execSQL("""
+                db.execSQL("""
                     CREATE TABLE IF NOT EXISTS study_session_logs (
                         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                         calendarEventId INTEGER NOT NULL,

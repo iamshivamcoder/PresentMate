@@ -467,15 +467,26 @@ fun EnhancedBarChart(
                         label = "valueColor$index"
                     )
                     Text(
-                        text = if (isSelected) "${dataPoint.value.format(2)}h" else "${dataPoint.value.format(1)}h",
+                        text = if (isSelected) {
+                            "${dataPoint.value.format(1)}h"
+                        } else if (data.size <= 7) {
+                            "${dataPoint.value.format(1)}h"
+                        } else "",
                         style = if (isSelected) selectedTextStyle else defaultTextStyle, // Use hoisted styles
                         color = valueColor, textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = dataPoint.label, style = defaultTextStyle, // Use hoisted style
+                        text = if (data.size > 14) {
+                            // Logic to skip labels for dense data (Monthly)
+                            if (index % 5 == 0 || index == data.size - 1) dataPoint.label else ""
+                        } else {
+                            dataPoint.label
+                        },
+                        style = defaultTextStyle, // Use hoisted style
                         color = themeOnSurfaceVariantColor,
-                        textAlign = TextAlign.Center, maxLines = 1
+                        textAlign = TextAlign.Center, 
+                        maxLines = 1
                     )
                     if (dataPoint.isToday) {
                         Box(modifier = Modifier.padding(top = 2.dp).size(4.dp).background(themeSecondaryColor, RoundedCornerShape(2.dp)))

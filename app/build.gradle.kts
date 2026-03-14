@@ -66,6 +66,7 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
         }
     }
 
@@ -81,6 +82,8 @@ dependencies {
 
     implementation(libs.androidx.appcompat)
      implementation(libs.androidx.compose.material3)
+    implementation(libs.firebase.crashlytics.buildtools)
+    implementation(libs.gson)
     val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
     implementation(composeBom)
 
