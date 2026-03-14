@@ -162,7 +162,7 @@ fun AIAssistantScreen() {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(uiState.messages, key = { it.id }) { message ->
+            items(uiState.messages) { message ->
                 ChatMessageBubble(message = message)
             }
         }

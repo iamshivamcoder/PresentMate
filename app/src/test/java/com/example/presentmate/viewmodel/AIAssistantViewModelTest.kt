@@ -70,8 +70,8 @@ class AIAssistantViewModelTest {
 
     @Test
     fun sendMessage_addsUserMessageAndGetsResponse() = runTest {
-        val mockResponse = AIResponse("This is AI response", emptyList())
-        coEvery { aiService.sendMessage("Hello", null) } returns mockResponse
+        val mockResponse = AIResponse.Success("This is AI response", emptyList())
+        coEvery { aiService.sendMessage("Hello") } returns mockResponse
         
         val viewModel = AIAssistantViewModel(attendanceDao, aiService)
         advanceUntilIdle() // Process init message
@@ -90,8 +90,8 @@ class AIAssistantViewModelTest {
     @Test
     fun handleConfirmation_goesThroughFlowAndCommits() = runTest {
         val parsedRecords = listOf(ParsedAttendance("2023-10-27", "09:00", "17:00", 0L, 0L, 0L))
-        val mockResponse = AIResponse("Found", parsedRecords)
-        coEvery { aiService.sendMessage(any(), any()) } returns mockResponse
+        val mockResponse = AIResponse.Success("Found", parsedRecords)
+        coEvery { aiService.sendMessage(any()) } returns mockResponse
 
         val viewModel = AIAssistantViewModel(attendanceDao, aiService)
         advanceUntilIdle()
@@ -124,8 +124,8 @@ class AIAssistantViewModelTest {
     @Test
     fun cancelConfirmation_resetsState() = runTest {
         val parsedRecords = listOf(ParsedAttendance("2023-10-27", "09:00", "17:00", 0L, 0L, 0L))
-        val mockResponse = AIResponse("Found", parsedRecords)
-        coEvery { aiService.sendMessage(any(), any()) } returns mockResponse
+        val mockResponse = AIResponse.Success("Found", parsedRecords)
+        coEvery { aiService.sendMessage(any()) } returns mockResponse
 
         val viewModel = AIAssistantViewModel(attendanceDao, aiService)
         advanceUntilIdle()

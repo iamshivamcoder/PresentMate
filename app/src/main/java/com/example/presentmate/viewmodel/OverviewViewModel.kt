@@ -20,6 +20,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
 
 data class OverviewUiState(
     val dailySummaries: List<DailySummary> = emptyList(),
@@ -30,13 +31,16 @@ data class OverviewUiState(
 )
 
 @HiltViewModel
-class OverviewViewModel @Inject constructor(private val attendanceDao: AttendanceDao) : ViewModel() {
+class OverviewViewModel @Inject constructor(
+    private val attendanceDao: AttendanceDao,
+    private val backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OverviewUiState())
     val uiState: StateFlow<OverviewUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(backgroundDispatcher) {
             attendanceDao.getAllRecords().collect { records ->
                 processRecords(records)
             }
@@ -54,7 +58,7 @@ class OverviewViewModel @Inject constructor(private val attendanceDao: Attendanc
     }
 
     private fun processRecords(records: List<AttendanceRecord>) {
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(backgroundDispatcher) {
             val dailySummaries = records
                 .filter { it.timeIn != null && it.timeOut != null && it.timeOut > it.timeIn }
                 .groupBy { Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate() }

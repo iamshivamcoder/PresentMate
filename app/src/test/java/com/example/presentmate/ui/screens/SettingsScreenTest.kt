@@ -91,7 +91,7 @@ class SettingsScreenTest {
 
         // Then
         assertNotNull(filename)
-        assertTrue(filename.contains("presentmate_export_"))
+        assertTrue(filename.contains("presentmate_backup_"))
         assertTrue(filename.endsWith(".csv"))
     }
 

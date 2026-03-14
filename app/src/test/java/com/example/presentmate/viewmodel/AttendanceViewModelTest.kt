@@ -11,6 +11,7 @@ import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -38,7 +39,8 @@ class AttendanceViewModelTest {
         Dispatchers.setMain(testDispatcher)
 
         // Default mock responses
-        every { attendanceDao.getOngoingSession() } returns flowOf(null)
+        every { attendanceDao.getOngoingSession() } returns null
+        every { attendanceDao.getOngoingSessionFlow() } returns flowOf(null)
         every { attendanceDao.getAllRecords() } returns flowOf(emptyList())
         coEvery { attendanceDao.insertRecord(any()) } returns Unit
         coEvery { attendanceDao.updateRecord(any()) } returns Unit
@@ -68,10 +70,14 @@ class AttendanceViewModelTest {
     @Test
     fun endSession_updatesOngoingSession() = runTest {
         val ongoingRecord = AttendanceRecord(id = 1, date = System.currentTimeMillis(), timeIn = System.currentTimeMillis(), timeOut = null)
-        every { attendanceDao.getOngoingSession() } returns flowOf(ongoingRecord)
+        every { attendanceDao.getOngoingSession() } returns ongoingRecord
+        every { attendanceDao.getOngoingSessionFlow() } returns flowOf(ongoingRecord)
         
         // Recreate viewModel so it picks up the flow
         viewModel = AttendanceViewModel(attendanceDao)
+        val collectJob = backgroundScope.launch { 
+            viewModel.ongoingSession.collect {} 
+        }
         advanceUntilIdle()
 
         viewModel.endSession()
@@ -93,9 +99,12 @@ class AttendanceViewModelTest {
         val ongoingRecord = AttendanceRecord(id = 2, date = 4000L, timeIn = 5000L, timeOut = null)
 
         every { attendanceDao.getAllRecords() } returns flowOf(testRecords)
-        every { attendanceDao.getOngoingSession() } returns flowOf(ongoingRecord)
+        every { attendanceDao.getOngoingSession() } returns ongoingRecord
+        every { attendanceDao.getOngoingSessionFlow() } returns flowOf(ongoingRecord)
 
         viewModel = AttendanceViewModel(attendanceDao)
+        val collectJob1 = backgroundScope.launch { viewModel.ongoingSession.collect {} }
+        val collectJob2 = backgroundScope.launch { viewModel.allRecords.collect {} }
         advanceUntilIdle()
 
         assertEquals(testRecords, viewModel.allRecords.value)
