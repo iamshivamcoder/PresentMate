@@ -37,9 +37,22 @@ data class ChangelogEntry(
 
 private val changelog = listOf(
     ChangelogEntry(
-        version = "1.4",
+        version = "1.6",
         date = "March 2026",
         isLatest = true,
+        changes = listOf(
+            "🛠️ Fixed AI text bar floating issue mid-screen",
+            "🛠️ Fixed app crashes when interacting with AI Assistant",
+            "🛠️ Fixed app crash when changing filters in Overview Screen",
+            "✨ Added 'Progress Report' reminder notification preference",
+            "✨ Modernized Help Screen with visual cards",
+            "✨ Automatic Geofence Tracking toggle now fully syncs with background location service",
+            "📋 Removed Whitelist Keywords from Calendar Sync"
+        )
+    ),
+    ChangelogEntry(
+        version = "1.4",
+        date = "March 2026",
         changes = listOf(
             "✅ Daily 'Started the session?' notification at 9:30 AM (Mon–Sat)",
             "📱 Home screen is now fully scrollable",

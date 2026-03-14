@@ -2,18 +2,36 @@ package com.example.presentmate.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.presentmate.ui.components.common.CollapsibleCard
@@ -94,44 +112,120 @@ fun HelpScreen(_navController: NavHostController) {
 @Composable
 fun PlannedFeaturesSection() {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        FeatureExplanation(
-            title = "Location-Based Session (Automatic)",
-            explanation = "This feature will use your phone's GPS to automatically start and stop your focus sessions. For example, when you arrive at your library, the timer begins, and it automatically pauses when you leave, removing the need for manual tracking."
+        FeatureExplanationCard(
+            title = "Location-Based Session",
+            explanation = "Uses your phone's GPS to automatically start and stop your focus sessions when you arrive at or leave your study spot.",
+            icon = Icons.Default.LocationOn,
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         )
-        FeatureExplanation(
-            title = "Import/Export Data (for Security)",
-            explanation = "You will have full control over your data. This function allows you to create a local backup (export) of your progress and restore it (import) anytime. This ensures your hard-earned data is safe, secure, and portable."
+        FeatureExplanationCard(
+            title = "Cloud Sync & Backup",
+            explanation = "Create a secure cloud backup of your progress and restore it anytime, ensuring your hard-earned data is safe and portable.",
+            icon = Icons.Default.CloudSync,
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         )
-        FeatureExplanation(
-            title = "AI Agent (Automatic Session Logging / Chatbot)",
-            explanation = "An intelligent AI assistant is planned. It will help automatically log your activities and provide analysis through a conversational chatbot. You can ask it questions about your productivity patterns to get deeper insights into your study habits."
+        FeatureExplanationCard(
+            title = "AI Chatbot Assistant",
+            explanation = "An intelligent AI assistant to help log your activities and answer questions about your productivity patterns.",
+            icon = Icons.Default.SmartToy,
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
         )
-        FeatureExplanation(
-            title = "Interactive & Visual Graphs",
-            explanation = "This feature will introduce dynamic, visually appealing graphs. You'll be able to tap, zoom, and interact with your data to explore your progress and identify trends in a much more engaging and insightful way than static charts allow."
+        FeatureExplanationCard(
+            title = "Interactive Graphs",
+            explanation = "Dynamic, visually appealing graphs. Tap, zoom, and interact with your data to explore your progress and identify trends.",
+            icon = Icons.Outlined.BarChart,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
-fun FeatureExplanation(title: String, explanation: String) {
-    Column {
-        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(text = explanation, style = MaterialTheme.typography.bodyLarge)
+fun FeatureExplanationCard(
+    title: String,
+    explanation: String,
+    icon: ImageVector,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(40.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = explanation,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = contentColor.copy(alpha = 0.9f)
+                )
+            }
+        }
     }
 }
 
 @Composable
 fun DeveloperNoteSection() {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Hello everyone,", style = MaterialTheme.typography.bodyLarge)
-        Text("I wanted to take a moment to add a personal note and be completely transparent with you. When you look at the app and its future roadmap, you might picture a large team working in a busy office.", style = MaterialTheme.typography.bodyLarge)
-        Text("The truth is, there is no large team. There's no corporation, no external funding, and no marketing department.", style = MaterialTheme.typography.bodyLarge)
-        Text("There’s just me.", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-        Text("I am a single, independent developer building this app from the ground up in my own time. This is a passion project, and I am the designer, the coder, the tester, and the support team, all rolled into one. I pour my spare hours into this, fueled by the belief that I can create something genuinely helpful for this community.", style = MaterialTheme.typography.bodyLarge)
-        Text("Because it's a one-person journey, updates might not be as frequent as those from a big company. A few bugs might occasionally slip through, despite my best efforts to catch them all. I know this can be frustrating when you're trying to be productive.", style = MaterialTheme.typography.bodyLarge)
-        Text("All I ask is for a little patience and understanding. This app is a work in progress, and I am learning as I go. So, if you find a bug or feel a feature is missing, please don't hold a grudge. Instead, please send me your constructive feedback. Every bug report and every suggestion doesn't go to a faceless ticketing system; it comes directly to me.", style = MaterialTheme.typography.bodyLarge)
-        Text("Your support and feedback aren't just data; they are what fuel this entire project. Thank you for being a part of this journey.", style = MaterialTheme.typography.bodyLarge)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.FormatQuote,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp).align(Alignment.CenterHorizontally)
+            )
+            
+            Text(
+                "Hello everyone,\n\nI am a single, independent developer building this app from the ground up in my own time. This is a passion project, and I am the designer, coder, tester, and support team all rolled into one.",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+            
+            Text(
+                "Because it's a one-person journey, updates might not be as frequent as those from a big company, and a few bugs might occasionally slip through. Your patience and feedback are what fuel this entire project.",
+                style = MaterialTheme.typography.bodyMedium,
+                fontStyle = FontStyle.Italic,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Text(
+                "Thank you for being a part of this journey.",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            )
+        }
     }
 }

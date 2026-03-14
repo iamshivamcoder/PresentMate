@@ -92,7 +92,7 @@ fun GraphSection(
     stats: GraphStats,
     onViewTypeChange: (GraphViewType) -> Unit,
     onDateChange: (LocalDate) -> Unit,
-    studyGoalHours: Float = 6f // Default study goal
+    weeklyGoalHours: Float = 10f // Default weekly study goal
 ) {
     var animationPlayed by remember { mutableStateOf(false) }
 
@@ -214,7 +214,7 @@ fun GraphSection(
                 EnhancedBarChart(
                     data = data,
                     animationPlayed = animationPlayed,
-                    studyGoal = studyGoalHours
+                    studyGoal = weeklyGoalHours / 7f // pass daily goal equivalent
                 )
             }
 
@@ -223,9 +223,9 @@ fun GraphSection(
             GoalProgressIndicator(
                 currentProgress = stats.totalHours,
                 goal = when (viewType) {
-                    GraphViewType.WEEKLY -> studyGoalHours * 7
-                    GraphViewType.MONTHLY -> studyGoalHours * displayDate.lengthOfMonth() // More accurate for months
-                    GraphViewType.YEARLY -> studyGoalHours * displayDate.lengthOfYear() // More accurate for years
+                    GraphViewType.WEEKLY -> weeklyGoalHours
+                    GraphViewType.MONTHLY -> weeklyGoalHours * (displayDate.lengthOfMonth() / 7f)
+                    GraphViewType.YEARLY -> weeklyGoalHours * 52f
                 },
                 viewType = viewType
             )

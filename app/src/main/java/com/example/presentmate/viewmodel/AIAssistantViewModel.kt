@@ -14,11 +14,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import java.util.UUID
+
 /**
  * Chat message data class
  */
 data class ChatMessage(
-    val id: Long = System.currentTimeMillis(),
+    val id: String = UUID.randomUUID().toString(),
     val content: String,
     val isFromUser: Boolean,
     val image: Bitmap? = null,
@@ -77,7 +79,10 @@ class AIAssistantViewModel(
         addMessage(loadingMessage)
         
         viewModelScope.launch {
-            when (val response = aiService.sendMessage(text)) {
+            val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                aiService.sendMessage(text)
+            }
+            when (response) {
                 is AIResponse.Success -> {
                     removeLoadingMessage()
                     addMessage(ChatMessage(content = response.message, isFromUser = false, extractedRecords = response.extractedRecords))
@@ -100,7 +105,10 @@ class AIAssistantViewModel(
         addMessage(ChatMessage(content = "Analyzing image...", isFromUser = false, isLoading = true))
         
         viewModelScope.launch {
-            when (val response = aiService.sendMessageWithImage(messageText, image)) {
+            val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                aiService.sendMessageWithImage(messageText, image)
+            }
+            when (response) {
                 is AIResponse.Success -> {
                     removeLoadingMessage()
                     addMessage(ChatMessage(content = response.message, isFromUser = false, extractedRecords = response.extractedRecords))

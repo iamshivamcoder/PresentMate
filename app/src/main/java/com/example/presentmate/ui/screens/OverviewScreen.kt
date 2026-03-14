@@ -19,8 +19,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.content.Context
 import com.example.presentmate.db.AttendanceRecord
 import com.example.presentmate.ui.components.common.CollapsibleCard
 import com.example.presentmate.ui.components.GraphSection
@@ -45,6 +47,9 @@ data class DailySummary(
 @Composable
 fun OverviewScreen(viewModel: OverviewViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("overview_prefs", Context.MODE_PRIVATE) }
+    val weeklyGoalHours by remember { androidx.compose.runtime.mutableFloatStateOf(prefs.getFloat("weekly_goal_hours", 10f)) }
 
     Column(
         modifier = Modifier
@@ -58,7 +63,8 @@ fun OverviewScreen(viewModel: OverviewViewModel = hiltViewModel()) {
             data = uiState.graphData,
             stats = uiState.stats,
             onViewTypeChange = { viewModel.onViewTypeChange(it) },
-            onDateChange = { viewModel.onDateChange(it) }
+            onDateChange = { viewModel.onDateChange(it) },
+            weeklyGoalHours = weeklyGoalHours
         )
 
         Spacer(modifier = Modifier.height(24.dp))

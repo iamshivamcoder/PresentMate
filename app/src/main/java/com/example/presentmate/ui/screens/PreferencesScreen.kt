@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.InsertChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -52,6 +53,15 @@ fun PreferencesScreen(navController: NavHostController) {
                 description = "Configure platform, API key, and model settings",
                 icon = Icons.Default.SmartToy,
                 onClick = { navController.navigate("aiPreferences") }
+            )
+        }
+
+        SettingsGroup("Overview") {
+            PreferenceItem(
+                title = "Overview Settings",
+                description = "Set weekly goal hours and chart preferences",
+                icon = Icons.Outlined.InsertChart,
+                onClick = { navController.navigate("overviewPreferences") }
             )
         }
     }

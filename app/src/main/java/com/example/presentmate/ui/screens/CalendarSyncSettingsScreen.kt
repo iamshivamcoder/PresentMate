@@ -47,7 +47,6 @@ fun CalendarSyncSettingsScreen() {
     // State
     var isEnabled by remember { mutableStateOf(CalendarSyncPreferences.isCalendarSyncEnabled(context)) }
     var selectedCalendarId by remember { mutableStateOf(CalendarSyncPreferences.getSelectedCalendarId(context)) }
-    var keywordsList by remember { mutableStateOf(CalendarSyncPreferences.getWhitelistKeywords(context)) }
     var delayMinutes by remember { mutableStateOf(CalendarSyncPreferences.getDelayMinutes(context)) }
     
     var availableCalendars by remember { mutableStateOf<List<CalendarInfo>>(emptyList()) }
@@ -213,58 +212,6 @@ fun CalendarSyncSettingsScreen() {
                 }
             }
             
-            // --- Keywords ---
-            SettingsGroup("Whitelist Keywords") {
-                Text(
-                    "Only events containing these words will be tracked:",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-                
-                // Chip Group
-                FlowRow(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    keywordsList.forEach { keyword ->
-                        InputChip(
-                            selected = true,
-                            onClick = { 
-                                val newList = keywordsList - keyword
-                                keywordsList = newList
-                                CalendarSyncPreferences.setWhitelistKeywords(context, newList)
-                            },
-                            label = { Text(keyword) },
-                            trailingIcon = { Icon(Icons.Default.Close, contentDescription = "Remove") }
-                        )
-                    }
-                }
-                
-                // Add new keyword
-                var newKeyword by remember { mutableStateOf("") }
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = newKeyword,
-                        onValueChange = { newKeyword = it },
-                        label = { Text("Add Keyword") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                    IconButton(onClick = {
-                        if (newKeyword.isNotBlank() && !keywordsList.contains(newKeyword.trim())) {
-                            val newList = keywordsList + newKeyword.trim()
-                            keywordsList = newList
-                            CalendarSyncPreferences.setWhitelistKeywords(context, newList)
-                            newKeyword = ""
-                        }
-                    }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add")
-                    }
-                }
-            }
             
             // --- Delay ---
             SettingsGroup("Notification Delay") {

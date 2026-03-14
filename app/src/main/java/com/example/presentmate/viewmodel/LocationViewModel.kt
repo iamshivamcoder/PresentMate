@@ -34,6 +34,28 @@ class LocationViewModel(private val context: Context) : ViewModel() {
     fun setTrackingEnabled(isEnabled: Boolean) {
         _isTrackingEnabled.value = isEnabled
         GeofencePreferencesRepository.setGeofenceEnabled(context, isEnabled)
+
+        val geofenceManager = com.example.presentmate.geofence.GeofenceManager(context)
+        val pendingIntent = com.example.presentmate.geofence.GeofenceUtils.createGeofencePendingIntent(context)
+
+        if (isEnabled) {
+            val placeId = prefs.getInt("geofence_place_id", -1)
+            val lat = prefs.getFloat("geofence_latitude", 0f).toDouble()
+            val lon = prefs.getFloat("geofence_longitude", 0f).toDouble()
+            val radius = prefs.getFloat("geofence_radius", 200f)
+
+            if (placeId != -1) {
+                geofenceManager.addGeofence(
+                    placeId.toString(),
+                    lat,
+                    lon,
+                    radius,
+                    pendingIntent
+                )
+            }
+        } else {
+            geofenceManager.removeGeofence(pendingIntent)
+        }
     }
 
     companion object {

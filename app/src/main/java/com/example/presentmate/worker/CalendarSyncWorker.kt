@@ -40,13 +40,8 @@ class CalendarSyncWorker @AssistedInject constructor(
 
         return try {
             val events = calendarRepository.getTodayEvents(calendarId)
-            
-            // Filter
-            val matchingEvents = events.filter { 
-                CalendarEventFilter.matchesKeywords(it.title, keywords)
-            }
 
-            for (event in matchingEvents) {
+            for (event in events) {
                 // Check if already logged
                 val existingLog = studySessionLogDao.getByEventId(event.id)
                 if (existingLog == null) {
@@ -64,20 +59,27 @@ class CalendarSyncWorker @AssistedInject constructor(
                     
                     studySessionLogDao.insert(newLog)
                     
-                    // Schedule check worker
-                    val now = System.currentTimeMillis()
-                    val triggerTime = event.endTime + TimeUnit.MINUTES.toMillis(delayMinutes.toLong())
-                    val delay = (triggerTime - now).coerceAtLeast(0)
+                    // Schedule check worker if Progress Report preference is enabled
+                    val prefs = context.getSharedPreferences("session_reminder_prefs", Context.MODE_PRIVATE)
+                    val progressReportEnabled = prefs.getBoolean("progress_report_enabled", true)
                     
-                    val workRequest = OneTimeWorkRequestBuilder<StudySessionCheckWorker>()
-                        .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                        .setInputData(workDataOf(
-                            "calendar_event_id" to event.id
-                        ))
-                        .build()
+                    if (progressReportEnabled) {
+                        val now = System.currentTimeMillis()
+                        val triggerTime = event.endTime + TimeUnit.MINUTES.toMillis(delayMinutes.toLong())
+                        val delay = (triggerTime - now).coerceAtLeast(0)
+                        
+                        val workRequest = OneTimeWorkRequestBuilder<StudySessionCheckWorker>()
+                            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                            .setInputData(workDataOf(
+                                "calendar_event_id" to event.id
+                            ))
+                            .build()
 
-                    WorkManager.getInstance(context).enqueue(workRequest)
-                    Log.d("CalendarSyncWorker", "Scheduled check for ${event.title} in ${delay/1000}s")
+                        WorkManager.getInstance(context).enqueue(workRequest)
+                        Log.d("CalendarSyncWorker", "Scheduled check for ${event.title} in ${delay/1000}s")
+                    } else {
+                        Log.d("CalendarSyncWorker", "Skipped scheduling check for ${event.title} (Disabled)")
+                    }
                 }
             }
             

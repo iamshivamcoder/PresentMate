@@ -72,7 +72,7 @@ fun AppNavigation() {
         }
     }
 
-    val routesWithoutBottomBar = listOf("locationPickerScreen")
+    val routesWithoutBottomBar = listOf("locationPickerScreen", "aiAssistant")
     val routesWithCustomTopBar = listOf("locationPickerScreen") // These screens provide their own top bar
 
     ModalNavigationDrawer(
@@ -159,6 +159,9 @@ fun AppNavigation() {
                 composable("preferences") { PreferencesScreen(navController = navController) }
                 composable("notificationPreferences") { NotificationPreferencesScreen() }
                 composable("aiPreferences") { AIPreferencesScreen() }
+                composable("overviewPreferences") {
+                    com.example.presentmate.ui.screens.OverviewPreferencesScreen(navController = navController)
+                }
                 composable("changelog") { ChangelogScreen() }
             }
         }

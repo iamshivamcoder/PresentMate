@@ -48,8 +48,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.TextField
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.CalendarMonth
+import android.app.DatePickerDialog
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
 import androidx.core.content.ContextCompat
 import com.example.presentmate.worker.SessionReminderScheduler
+import com.example.presentmate.worker.CustomReminderWorker
 
 @Composable
 fun NotificationPreferencesScreen() {
@@ -60,6 +74,9 @@ fun NotificationPreferencesScreen() {
     var savedMinute by remember { mutableIntStateOf(prefs.getInt("reminder_minute", 30)) }
     var reminderEnabled by remember {
         mutableStateOf(prefs.getBoolean("reminder_enabled", true))
+    }
+    var progressReportEnabled by remember {
+        mutableStateOf(prefs.getBoolean("progress_report_enabled", true))
     }
 
     val hasNotificationPermission = remember {
@@ -245,6 +262,139 @@ fun NotificationPreferencesScreen() {
                 }
             }
         }
+        
+        // Custom Reminder
+        SettingsGroup("Custom Reminder") {
+            var showCustomReminderDialog by remember { mutableStateOf(false) }
+
+            if (showCustomReminderDialog) {
+                var message by remember { mutableStateOf("") }
+                var selectedDate by remember { mutableStateOf(Calendar.getInstance()) }
+                var dateText by remember { mutableStateOf("") }
+                var timeText by remember { mutableStateOf("") }
+
+                AlertDialog(
+                    onDismissRequest = { showCustomReminderDialog = false },
+                    title = { Text("Add Custom Reminder") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = message,
+                                onValueChange = { message = it },
+                                label = { Text("Reminder Message") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = {
+                                        val c = Calendar.getInstance()
+                                        DatePickerDialog(
+                                            context,
+                                            { _, y, m, d ->
+                                                selectedDate.set(Calendar.YEAR, y)
+                                                selectedDate.set(Calendar.MONTH, m)
+                                                selectedDate.set(Calendar.DAY_OF_MONTH, d)
+                                                dateText = "$d/${m + 1}/$y"
+                                            },
+                                            c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)
+                                        ).show()
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.size(4.dp))
+                                    Text(if (dateText.isEmpty()) "Date" else dateText, maxLines = 1)
+                                }
+                                Button(
+                                    onClick = {
+                                        val c = Calendar.getInstance()
+                                        TimePickerDialog(
+                                            context,
+                                            { _, h, min ->
+                                                selectedDate.set(Calendar.HOUR_OF_DAY, h)
+                                                selectedDate.set(Calendar.MINUTE, min)
+                                                selectedDate.set(Calendar.SECOND, 0)
+                                                timeText = "$h:${min.toString().padStart(2, '0')}"
+                                            },
+                                            c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), false
+                                        ).show()
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Default.AccessTime, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.size(4.dp))
+                                    Text(if (timeText.isEmpty()) "Time" else timeText, maxLines = 1)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (message.isNotBlank() && dateText.isNotEmpty() && timeText.isNotEmpty()) {
+                                    val delay = selectedDate.timeInMillis - System.currentTimeMillis()
+                                    if (delay > 0) {
+                                        val workRequest = OneTimeWorkRequestBuilder<CustomReminderWorker>()
+                                            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                                            .setInputData(workDataOf("reminder_message" to message))
+                                            .build()
+                                        WorkManager.getInstance(context).enqueue(workRequest)
+                                        Toast.makeText(context, "Reminder scheduled", Toast.LENGTH_SHORT).show()
+                                        showCustomReminderDialog = false
+                                    } else {
+                                        Toast.makeText(context, "Please select a future time", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCustomReminderDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Event,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.size(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Set Custom Reminder", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Schedule a one-time notification",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = { showCustomReminderDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("Add Reminder")
+                    }
+                }
+            }
+        }
+
 
         // Troubleshoot Section
         SettingsGroup("Troubleshoot") {

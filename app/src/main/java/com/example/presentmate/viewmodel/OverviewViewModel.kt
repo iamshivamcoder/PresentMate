@@ -49,12 +49,18 @@ class OverviewViewModel @Inject constructor(
 
     fun onDateChange(newDate: LocalDate) {
         _uiState.update { it.copy(currentDisplayDate = newDate) }
-        processRecords(attendanceDao.getAllRecordsNonFlow())
+        viewModelScope.launch(backgroundDispatcher) {
+            val records = attendanceDao.getAllRecordsNonFlow()
+            processRecords(records)
+        }
     }
 
     fun onViewTypeChange(newViewType: GraphViewType) {
         _uiState.update { it.copy(selectedGraphViewType = newViewType) }
-        processRecords(attendanceDao.getAllRecordsNonFlow())
+        viewModelScope.launch(backgroundDispatcher) {
+            val records = attendanceDao.getAllRecordsNonFlow()
+            processRecords(records)
+        }
     }
 
     private fun processRecords(records: List<AttendanceRecord>) {
