@@ -1,6 +1,6 @@
-package com.example.presentmate.db
+package com.example.presentmate.ui.components
 
-import androidx.compose.foundation.Canvas // Added import for Canvas
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,11 +11,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset // For Canvas drawing
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import com.example.presentmate.db.AttendanceRecord
+import com.example.presentmate.db.DeletedRecord
+import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.utils.DateTimeFormatters
 import java.time.Instant
 import java.time.ZoneId
@@ -26,7 +31,7 @@ import java.util.*
 @Composable
 fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val db = PresentMateDatabase.getDatabase(context)
+    val database = remember { PresentMateDatabase.getDatabase(context) }
     val scope = rememberCoroutineScope()
     var showEditDialog by remember { mutableStateOf(false) }
     var recordToEdit by remember { mutableStateOf<AttendanceRecord?>(null) }
@@ -39,12 +44,14 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
     val recordsByDate = remember(records) {
         records.groupBy {
             Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate()
-        }.toSortedMap(compareByDescending { it }) // Sort by date descending
+        }.toSortedMap(compareByDescending { it })
     }
 
     if (recordsByDate.isEmpty()) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -84,7 +91,7 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
                         scope.launch {
                             val parsedTimeIn = try { timeFormat.parse(editedTimeInText)?.time } catch (_: Exception) { null }
                             val parsedTimeOut = try { timeFormat.parse(editedTimeOutText)?.time } catch (_: Exception) { null }
-                            db.attendanceDao().updateRecord(
+                            database.attendanceDao().updateRecord(
                                 recordToEdit!!.copy(
                                     timeIn = parsedTimeIn,
                                     timeOut = parsedTimeOut
@@ -108,7 +115,7 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
             confirmButton = {
                 TextButton(onClick = {
                     scope.launch {
-                        db.attendanceDao().insertDeletedRecord(
+                        database.attendanceDao().insertDeletedRecord(
                             DeletedRecord(
                                 originalId = recordToDelete!!.id,
                                 date = recordToDelete!!.date,
@@ -117,7 +124,7 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
                                 deletedAt = System.currentTimeMillis()
                             )
                         )
-                        db.attendanceDao().deleteRecord(recordToDelete!!)
+                        database.attendanceDao().deleteRecord(recordToDelete!!)
                         showDeleteDialog = false
                     }
                 }) { Text("Delete") }
@@ -130,30 +137,26 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
 
     Column(modifier = modifier) {
         recordsByDate.forEach { (date, recordsForDate) ->
-            // Section header (replaces stickyHeader)
-            Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
-                HorizontalDivider()
+            Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                 Text(
-                    text = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp, horizontal = 16.dp),
-                    style = MaterialTheme.typography.titleMedium,
+                    text = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             recordsForDate.forEach { record ->
                 AttendanceRecordItem(
                     record = record,
-                    onEdit = { recordToEditParam ->
-                        recordToEdit = recordToEditParam
-                        editedTimeInText = recordToEditParam.timeIn?.let { timeFormat.format(Date(it)) } ?: ""
-                        editedTimeOutText = recordToEditParam.timeOut?.let { timeFormat.format(Date(it)) } ?: ""
+                    onEdit = { r ->
+                        recordToEdit = r
+                        editedTimeInText = r.timeIn?.let { timeFormat.format(Date(it)) } ?: ""
+                        editedTimeOutText = r.timeOut?.let { timeFormat.format(Date(it)) } ?: ""
                         showEditDialog = true
                     },
-                    onDelete = { recordToDeleteParam ->
-                        recordToDelete = recordToDeleteParam
+                    onDelete = { r ->
+                        recordToDelete = r
                         showDeleteDialog = true
                     }
                 )
@@ -164,14 +167,14 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
 
 @Composable
 fun AttendanceRecordItem(
-    // modifier: Modifier = Modifier, // Modifier will be applied to the Row
     record: AttendanceRecord,
     onEdit: (AttendanceRecord) -> Unit = {},
     onDelete: (AttendanceRecord) -> Unit = {}
 ) {
     val timeFormat = remember { DateTimeFormatters.timeFormat }
-    val timelineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-    val dotRadius = 4.dp
+    val timelineColor = MaterialTheme.colorScheme.outlineVariant
+    val dotColor = MaterialTheme.colorScheme.primary
+    val dotRadius = 5.dp
     val lineWidth = 2.dp
 
     val durationString = remember(record.timeIn, record.timeOut) {
@@ -186,85 +189,118 @@ fun AttendanceRecordItem(
                 minutes > 0 -> "${minutes}m"
                 else -> "<1m"
             }
-        } else {
-            ""
-        }
+        } else ""
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp), // Original item padding applied here
-        verticalAlignment = Alignment.Top // Align timeline and card to the top
+            .height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.Top
     ) {
-        Canvas(
+        // Timeline column
+        Box(
             modifier = Modifier
-                .width(24.dp) // Width for timeline elements
-                .fillMaxHeight() // Fill height of the Row
-                .padding(end = 12.dp) // Space between timeline and card
-        ) { 
-            val dotCenterY = 16.dp.toPx() // Align dot with the first line of text in Card (approx)
-            // Draw the line
-            drawLine(
-                color = timelineColor,
-                start = Offset(size.width / 2, 0f),
-                end = Offset(size.width / 2, size.height),
-                strokeWidth = lineWidth.toPx()
-            )
-            // Draw the dot
-            drawCircle(
-                color = timelineColor,
-                radius = dotRadius.toPx(),
-                center = Offset(size.width / 2, dotCenterY)
-            )
+                .width(32.dp)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val centerX = size.width / 2
+                drawLine(
+                    color = timelineColor,
+                    start = Offset(centerX, 0f),
+                    end = Offset(centerX, size.height),
+                    strokeWidth = lineWidth.toPx()
+                )
+                drawCircle(
+                    color = dotColor,
+                    radius = dotRadius.toPx(),
+                    center = Offset(centerX, 28.dp.toPx())
+                )
+            }
         }
 
+        // Content card
         Card(
-            modifier = Modifier.weight(1f), // Card takes remaining space
-            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier
+                .weight(1f)
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(16.dp)
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "${record.timeIn?.let { timeFormat.format(Date(it)) } ?: "N/A"} → ${record.timeOut?.let { timeFormat.format(Date(it)) } ?: "N/A"}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (durationString.isNotEmpty()) {
-                        Text(
-                            text = "Duration: $durationString",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = record.timeIn?.let { timeFormat.format(Date(it)) } ?: "--:--",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = " → ",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = record.timeOut?.let { timeFormat.format(Date(it)) } ?: "Ongoing",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (record.timeOut == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        
+                        if (durationString.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = durationString,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
-                }
-                Row {
-                    IconButton(onClick = { onEdit(record) }) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Edit record",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    IconButton(onClick = { onDelete(record) }) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete record",
-                            tint = MaterialTheme.colorScheme.error
-                        )
+
+                    Row {
+                        IconButton(onClick = { onEdit(record) }) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Edit",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { onDelete(record) }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+

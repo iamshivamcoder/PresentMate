@@ -22,6 +22,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.presentmate.MainActivity
+import com.example.presentmate.ui.components.SessionReminderDialog
+import com.example.presentmate.ui.components.StudyRecapDialog
 import com.example.presentmate.ui.screens.*
 import kotlinx.coroutines.launch
 
@@ -168,6 +171,28 @@ fun AppNavigation() {
                 composable("changelog") { ChangelogScreen() }
             }
         }
+    }
+
+    // ── Notification-triggered dialog overlays ──────────────────────────────
+    val recapLogId     by MainActivity.recapLogId
+    val isRecapPartial by MainActivity.isRecapPartial
+    val showReminder   by MainActivity.showReminderDialog
+
+    recapLogId?.let { logId ->
+        StudyRecapDialog(
+            logId = logId,
+            isPartial = isRecapPartial,
+            onDismiss = {
+                MainActivity.recapLogId.value = null
+                MainActivity.isRecapPartial.value = false
+            }
+        )
+    }
+
+    if (showReminder) {
+        SessionReminderDialog(
+            onDismiss = { MainActivity.showReminderDialog.value = false }
+        )
     }
 }
 

@@ -30,21 +30,21 @@ class CheckpointActionReceiver : BroadcastReceiver() {
 
         scope.launch {
             try {
-                // Fetch the log first? Or just update fields needed?
-                // Better to fetch to ensure existence
-                // For simplicity, we directly call update status methods
-                
-                // Assuming we added updateStatus methods to DAO in next step or use existing update(log).
                 val log = studySessionLogDao.getById(logId)
                 if (log != null) {
                     val now = System.currentTimeMillis()
-                    
+
                     when (action) {
-                        StudyCheckpointNotificationUtils.ACTION_COMPLETED -> {
-                            studySessionLogDao.update(log.copy(status = "COMPLETED", loggedAt = now))
-                            Handler(Looper.getMainLooper()).post {
-                                Toast.makeText(context.applicationContext, "Session marked as Completed via Checkpoint", Toast.LENGTH_SHORT).show()
+                        StudyCheckpointNotificationUtils.ACTION_OPEN_RECAP -> {
+                            // Launch MainActivity to show the StudyRecapDialog
+                            val activityIntent = Intent(context, MainActivity::class.java).apply {
+                                this.action = StudyCheckpointNotificationUtils.ACTION_OPEN_RECAP
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                putExtra(StudyCheckpointNotificationUtils.EXTRA_LOG_ID, logId)
                             }
+                            context.startActivity(activityIntent)
                         }
                         StudyCheckpointNotificationUtils.ACTION_SKIPPED -> {
                             studySessionLogDao.update(log.copy(status = "SKIPPED", loggedAt = now))
@@ -53,10 +53,14 @@ class CheckpointActionReceiver : BroadcastReceiver() {
                             }
                         }
                         StudyCheckpointNotificationUtils.ACTION_PARTIAL -> {
-                            // Open Activity with dialog
+                            // Open Activity with dialog for partial duration input
                             val activityIntent = Intent(context, MainActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                putExtra("partial_log_id", logId)
+                                this.action = StudyCheckpointNotificationUtils.ACTION_OPEN_RECAP
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                putExtra(StudyCheckpointNotificationUtils.EXTRA_LOG_ID, logId)
+                                putExtra("is_partial", true)
                             }
                             context.startActivity(activityIntent)
                         }

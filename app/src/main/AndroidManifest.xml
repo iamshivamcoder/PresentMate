@@ -30,6 +30,16 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
+    <!-- Activity Recognition for step detection (Android 10+) -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- Foreground service for step detection -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+
+    <!-- Step counter / detector hardware feature (optional — graceful fallback) -->
+    <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.stepdetector" android:required="false" />
+
     <application
         android:name=".PresentMateApplication"
         android:allowBackup="true"
@@ -91,6 +101,29 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Step Activity Detection -->
+        <service
+            android:name=".services.StepActivityService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
+        <receiver
+            android:name=".worker.StepActivityReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <receiver
+            android:name=".worker.StepWindowAlarmReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.presentmate.STEP_START_MORNING" />
+                <action android:name="com.example.presentmate.STEP_STOP_MORNING" />
+                <action android:name="com.example.presentmate.STEP_START_EVENING" />
+                <action android:name="com.example.presentmate.STEP_STOP_EVENING" />
             </intent-filter>
         </receiver>
 
