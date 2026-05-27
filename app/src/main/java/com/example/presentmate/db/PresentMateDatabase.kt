@@ -49,14 +49,15 @@ interface AttendanceDao {
 
 // --- Unified Database --- //
 @Database(
-    entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class, StudySessionLog::class],
-    version = 4,
+    entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class, StudySessionLog::class, StepActivityLog::class],
+    version = 5,
     exportSchema = false
 )
 abstract class PresentMateDatabase : RoomDatabase() {
     abstract fun attendanceDao(): AttendanceDao
     abstract fun savedPlaceDao(): SavedPlaceDao
     abstract fun studySessionLogDao(): StudySessionLogDao
+    abstract fun stepActivityLogDao(): StepActivityLogDao
 
     companion object {
         @Volatile
@@ -64,7 +65,6 @@ abstract class PresentMateDatabase : RoomDatabase() {
         
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Create the new study_session_logs table (additive change, no data loss)
                 db.execSQL("""
                     CREATE TABLE IF NOT EXISTS study_session_logs (
                         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -83,6 +83,22 @@ abstract class PresentMateDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS step_activity_logs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        detectedAt INTEGER NOT NULL,
+                        stepCount INTEGER NOT NULL DEFAULT 0,
+                        windowMinutes INTEGER NOT NULL DEFAULT 30,
+                        type TEXT NOT NULL DEFAULT 'PERIODIC_SYNC',
+                        window TEXT NOT NULL DEFAULT 'BACKGROUND',
+                        triggered INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): PresentMateDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -90,7 +106,7 @@ abstract class PresentMateDatabase : RoomDatabase() {
                     PresentMateDatabase::class.java,
                     "presentmate_database"
                 )
-                    .addMigrations(MIGRATION_3_4)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

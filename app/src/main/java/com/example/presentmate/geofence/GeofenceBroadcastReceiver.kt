@@ -13,6 +13,7 @@ import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofenceStatusCodes
 import com.google.android.gms.location.GeofencingEvent
 import com.example.presentmate.db.AttendanceRecord
+import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.di.getEntryPoint
 import com.example.presentmate.data.GeofencePreferencesRepository
 import com.google.android.gms.location.GeofencingRequest
@@ -68,10 +69,29 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                         )
                         Log.d("GeofenceReceiver", "Session started via geofence")
                         val placeName = GeofencePreferencesRepository.getGeofencePlaceName(context)
-                        GeofenceNotificationUtils.showGeofenceEnterNotification(
-                            context,
-                            placeName
-                        )
+                        GeofenceNotificationUtils.showGeofenceEnterNotification(context, placeName)
+
+                        // Fix #5 — link the new session to the nearest upcoming calendar event
+                        try {
+                            val db = PresentMateDatabase.getDatabase(context)
+                            val todayStart = now - (now % 86_400_000L)
+                            val todayEnd   = todayStart + 86_400_000L
+                            val todayLogs  = db.studySessionLogDao()
+                                .getLogsForDay(todayStart, todayEnd)
+                                .first()
+                            val upcoming = todayLogs
+                                .filter { it.status == "PENDING" && it.scheduledStartTime >= now }
+                                .minByOrNull { it.scheduledStartTime }
+                            if (upcoming != null) {
+                                db.studySessionLogDao().update(
+                                    upcoming.copy(status = "IN_PROGRESS")
+                                )
+                                Log.d("GeofenceReceiver",
+                                    "Linked session to event '${upcoming.eventTitle}'")
+                            }
+                        } catch (linkEx: Exception) {
+                            Log.w("GeofenceReceiver", "Could not link session to calendar event", linkEx)
+                        }
                     } else {
                         Log.d("GeofenceReceiver", "Session already active")
                     }
@@ -186,23 +206,23 @@ class GeofenceManager(private val context: Context) {
             .addGeofence(geofence)
             .build()
 
-        // Remove existing geofence before adding new one to prevent conflicts
-        removeGeofence(pendingIntent) { _ ->
-            geofencingClient.addGeofences(geofencingRequest, pendingIntent)
-                .addOnSuccessListener {
-                    Log.d(TAG, "Geofence added successfully for ID: $id")
-                    GeofenceNotificationUtils.showGeofenceEnterNotification(
-                        context,
-                        "Geofence activated for $id"
-                    )
-                }
-                .addOnFailureListener { exception ->
-                    val errorCode = (exception as? com.google.android.gms.common.api.ApiException)?.statusCode ?: -1
-                    val errorMessage = GeofenceErrorMessages.getErrorMessage(errorCode)
-                    Log.e(TAG, "Failed to add geofence: $errorMessage", exception)
-                    GeofenceNotificationUtils.showGeofenceErrorNotification(context, errorMessage)
-                }
-        }
+        // Fix #18 — remove ONLY this geofence by its ID (not the entire PendingIntent = all geofences)
+        geofencingClient.removeGeofences(listOf(id))
+            .addOnCompleteListener {
+                // Add regardless of removal result (it may not have existed yet)
+                geofencingClient.addGeofences(geofencingRequest, pendingIntent)
+                    .addOnSuccessListener {
+                        Log.d(TAG, "Geofence added successfully for ID: $id")
+                    }
+                    .addOnFailureListener { exception ->
+                        val errorCode = (exception as? com.google.android.gms.common.api.ApiException)?.statusCode ?: -1
+                        val errorMessage = GeofenceErrorMessages.getErrorMessage(errorCode)
+                        Log.e(TAG, "Failed to add geofence: $errorMessage", exception)
+                        // Show as notification — Toast is unsafe from a background BroadcastReceiver
+                        // (BadTokenException on Android 10+ when no foreground window exists)
+                        GeofenceNotificationUtils.showGeofenceErrorNotification(context, errorMessage)
+                    }
+            }
     }
 
     fun removeGeofence(pendingIntent: PendingIntent, callback: ((Boolean) -> Unit)? = null) {

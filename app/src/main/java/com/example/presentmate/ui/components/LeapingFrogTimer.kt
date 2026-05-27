@@ -131,7 +131,7 @@ fun LeapingFrogTimer(
                 }
 
                 // The Leaping Frog
-                val frogOffset = progress * 100 // This is a simplification for visual positioning
+                progress * 100 // This is a simplification for visual positioning
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(progress.coerceAtLeast(0.05f))

@@ -33,7 +33,7 @@ object DataExportUtils {
             }
 
             val document = HWPFDocument(inputStream)
-            val range: Range = document.getRange()
+            val range: Range = document.range
 
             range.insertAfter("Attendance Records Backup\r\r")
 

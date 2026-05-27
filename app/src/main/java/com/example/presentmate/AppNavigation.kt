@@ -1,6 +1,8 @@
 package com.example.presentmate
 
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -72,6 +74,7 @@ fun AppNavigation() {
             "preferences" -> "Preferences"
             "notificationPreferences" -> "Notification Preferences"
             "aiPreferences" -> "AI Settings"
+            "themePreferences" -> "App Theme"
             "changelog" -> "Changelog"
             else -> "Present Mate"
         }
@@ -128,6 +131,7 @@ fun AppNavigation() {
                     AppBottomNavigationBar(navController = navController)
                 }
             },
+            contentWindowInsets = WindowInsets(0),
             modifier = Modifier.fillMaxSize()
         ) { innerPadding ->
             val context = LocalContext.current
@@ -138,7 +142,9 @@ fun AppNavigation() {
             NavHost(
                 navController = navController,
                 startDestination = Screen.Home.route,
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding)
             ) {
                 composable(Screen.Home.route) { AttendanceScreen(navController = navController) }
                 composable(Screen.Overview.route) { OverviewScreen() }
@@ -165,8 +171,9 @@ fun AppNavigation() {
                 composable("notificationPreferences") { NotificationPreferencesScreen() }
                 composable("aiPreferences") { AIPreferencesScreen() }
                 composable("overviewPreferences") {
-                    com.example.presentmate.ui.screens.OverviewPreferencesScreen()
+                    OverviewPreferencesScreen()
                 }
+                composable("themePreferences") { ThemePreferencesScreen() }
                 composable(Screen.ActivityVerification.route) { ActivityVerificationScreen() }
                 composable("changelog") { ChangelogScreen() }
             }

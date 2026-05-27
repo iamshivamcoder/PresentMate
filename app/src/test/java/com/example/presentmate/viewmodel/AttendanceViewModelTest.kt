@@ -75,7 +75,7 @@ class AttendanceViewModelTest {
         
         // Recreate viewModel so it picks up the flow
         viewModel = AttendanceViewModel(attendanceDao)
-        val collectJob = backgroundScope.launch { 
+        backgroundScope.launch {
             viewModel.ongoingSession.collect {} 
         }
         advanceUntilIdle()
@@ -103,8 +103,8 @@ class AttendanceViewModelTest {
         every { attendanceDao.getOngoingSessionFlow() } returns flowOf(ongoingRecord)
 
         viewModel = AttendanceViewModel(attendanceDao)
-        val collectJob1 = backgroundScope.launch { viewModel.ongoingSession.collect {} }
-        val collectJob2 = backgroundScope.launch { viewModel.allRecords.collect {} }
+        backgroundScope.launch { viewModel.ongoingSession.collect {} }
+        backgroundScope.launch { viewModel.allRecords.collect {} }
         advanceUntilIdle()
 
         assertEquals(testRecords, viewModel.allRecords.value)

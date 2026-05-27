@@ -6,6 +6,7 @@ import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.google.ai.client.generativeai.type.generationConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -17,7 +18,7 @@ import java.util.Locale
 class GeminiService(apiKey: String) : AIService {
 
     private val model = GenerativeModel(
-        modelName = "gemini-1.5-flash-latest",
+        modelName = "gemini-2.0-flash",
         apiKey = apiKey,
         generationConfig = generationConfig {
             temperature = 0.7f
@@ -55,28 +56,41 @@ When processing attendance images:
      * Send a text message to the AI
      */
     override suspend fun sendMessage(message: String): AIResponse = withContext(Dispatchers.IO) {
-        try {
-            val response = chat.sendMessage(message)
-            val responseText = response.text ?: "I couldn't generate a response."
+        var currentDelay = 1000L
+        var lastErrorMsg = "Unknown error"
+        
+        for (attempt in 1..3) {
+            try {
+                val response = chat.sendMessage(message)
+                val responseText = response.text ?: "I couldn't generate a response."
+                val attendanceRecords = parseAttendanceData(responseText)
 
-            // Check if response contains attendance data
-            val attendanceRecords = parseAttendanceData(responseText)
-
-            AIResponse.Success(
-                message = responseText,
-                extractedRecords = attendanceRecords
-            )
-        } catch (e: Exception) {
-            AIResponse.Error("Failed to get response: ${e.message}")
+                return@withContext AIResponse.Success(
+                    message = responseText,
+                    extractedRecords = attendanceRecords
+                )
+            } catch (e: Exception) {
+                lastErrorMsg = e.message ?: "Unknown error"
+                val isQuota = lastErrorMsg.contains("quota", ignoreCase = true) || lastErrorMsg.contains("429") || lastErrorMsg.contains("exhausted", ignoreCase = true)
+                val isServer = lastErrorMsg.contains("503") || lastErrorMsg.contains("unavailable", ignoreCase = true)
+                
+                if ((isQuota || isServer) && attempt < 3) {
+                    delay(currentDelay)
+                    currentDelay *= 2
+                    continue
+                }
+                break // Don't retry other errors like 400 Bad Request
+            }
         }
+        
+        AIResponse.Error("Failed to get response: $lastErrorMsg")
     }
 
     /**
      * Send a message with an image for processing
      */
     override suspend fun sendMessageWithImage(message: String, image: Bitmap): AIResponse = withContext(Dispatchers.IO) {
-        try {
-            val prompt = """
+        val prompt = """
 $message
 
 If this image contains an attendance sheet or work schedule:
@@ -86,24 +100,40 @@ If this image contains an attendance sheet or work schedule:
 
 If it's not an attendance sheet, describe what you see.
 """
+        var currentDelay = 1000L
+        var lastErrorMsg = "Unknown error"
 
-            val response = model.generateContent(
-                content {
-                    image(image)
-                    text(prompt)
+        for (attempt in 1..3) {
+            try {
+                val response = model.generateContent(
+                    content {
+                        image(image)
+                        text(prompt)
+                    }
+                )
+
+                val responseText = response.text ?: "I couldn't analyze this image."
+                val attendanceRecords = parseAttendanceData(responseText)
+
+                return@withContext AIResponse.Success(
+                    message = responseText,
+                    extractedRecords = attendanceRecords
+                )
+            } catch (e: Exception) {
+                lastErrorMsg = e.message ?: "Unknown error"
+                val isQuota = lastErrorMsg.contains("quota", ignoreCase = true) || lastErrorMsg.contains("429") || lastErrorMsg.contains("exhausted", ignoreCase = true)
+                val isServer = lastErrorMsg.contains("503") || lastErrorMsg.contains("unavailable", ignoreCase = true)
+                
+                if ((isQuota || isServer) && attempt < 3) {
+                    delay(currentDelay)
+                    currentDelay *= 2
+                    continue
                 }
-            )
-
-            val responseText = response.text ?: "I couldn't analyze this image."
-            val attendanceRecords = parseAttendanceData(responseText)
-
-            AIResponse.Success(
-                message = responseText,
-                extractedRecords = attendanceRecords
-            )
-        } catch (e: Exception) {
-            AIResponse.Error("Failed to process image: ${e.message}")
+                break
+            }
         }
+        
+        AIResponse.Error("Failed to process image: $lastErrorMsg")
     }
 
     /**

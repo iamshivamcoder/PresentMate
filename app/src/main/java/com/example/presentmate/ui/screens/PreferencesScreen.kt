@@ -15,7 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.outlined.InsertChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -62,6 +62,15 @@ fun PreferencesScreen(navController: NavHostController) {
                 description = "Set weekly goal hours and chart preferences",
                 icon = Icons.Outlined.InsertChart,
                 onClick = { navController.navigate("overviewPreferences") }
+            )
+        }
+
+        SettingsGroup("Theme Preferences") {
+            PreferenceItem(
+                title = "App Theme",
+                description = "Choose between Light, Dark, or System Default theme",
+                icon = Icons.Default.Palette,
+                onClick = { navController.navigate("themePreferences") }
             )
         }
     }

@@ -1,5 +1,8 @@
 package com.example.presentmate.ui.screens
 
+import android.app.TimePickerDialog
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +32,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,7 +47,10 @@ import com.example.presentmate.ui.components.LeapingFrogTimer
 import com.example.presentmate.utils.DateTimeFormatters
 import com.example.presentmate.utils.LocationUtils
 import com.example.presentmate.viewmodel.AttendanceViewModel
+import kotlinx.coroutines.launch
+import java.util.Calendar
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AttendanceScreen(
     modifier: Modifier = Modifier,
@@ -53,14 +60,16 @@ fun AttendanceScreen(
     var showDialog by remember { mutableStateOf(false) }
     var dialogMessage by remember { mutableStateOf("") }
     var recordedTimeAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var showEditTimeInDialog by remember { mutableStateOf(false) }  // Fix #4
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val ongoingSession by viewModel.ongoingSession.collectAsState()
     val attendanceRecords by viewModel.allRecords.collectAsState()
     val sessionInProgress = ongoingSession != null
 
-    val isLocationEnabled = LocationUtils.isLocationEnabled(context)
-    val isGeofenceTrackingEnabled = GeofencePreferencesRepository.isGeofenceEnabled(context)
+    LocationUtils.isLocationEnabled(context)
+    GeofencePreferencesRepository.isGeofenceEnabled(context)
 
     val listState = rememberLazyListState()
     val isExpanded by remember {
@@ -95,10 +104,14 @@ fun AttendanceScreen(
                     val btnModifier = Modifier.weight(1f).height(56.dp)
 
                     if (sessionInProgress) {
+                        // Disabled Time In — long-press to retroactively edit (Fix #4)
                         OutlinedButton(
                             onClick = { },
                             enabled = false,
-                            modifier = btnModifier,
+                            modifier = btnModifier.combinedClickable(
+                                onClick = {},
+                                onLongClick = { showEditTimeInDialog = true }
+                            ),
                             shape = RoundedCornerShape(16.dp)
                         ) { Text("Time In", style = MaterialTheme.typography.titleMedium) }
                         Button(
@@ -197,5 +210,32 @@ fun AttendanceScreen(
                 TextButton(onClick = { showDialog = false }) { Text("Cancel") }
             }
         )
+    }
+
+    // Fix #4 — retroactive Time In edit via TimePickerDialog
+    if (showEditTimeInDialog) {
+        showEditTimeInDialog = false
+        val now = Calendar.getInstance()
+        TimePickerDialog(
+            context,
+            { _, hour, minute ->
+                val cal = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, hour)
+                    set(Calendar.MINUTE, minute)
+                    set(Calendar.SECOND, 0)
+                }
+                scope.launch {
+                    viewModel.updateSessionTimeIn(cal.timeInMillis)
+                }
+                android.widget.Toast.makeText(
+                    context,
+                    "Session start time updated",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            },
+            now.get(Calendar.HOUR_OF_DAY),
+            now.get(Calendar.MINUTE),
+            false
+        ).show()
     }
 }

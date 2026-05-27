@@ -10,6 +10,8 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 
+import com.example.presentmate.db.StepActivityLogDao
+
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 interface GeofenceBroadcastReceiverEntryPoint {
@@ -18,6 +20,7 @@ interface GeofenceBroadcastReceiverEntryPoint {
     fun appDatabase(): PresentMateDatabase
     fun attendanceDao(): AttendanceDao
     fun studySessionLogDao(): StudySessionLogDao
+    fun stepActivityLogDao(): StepActivityLogDao
 }
 
 fun getEntryPoint(context: Context): GeofenceBroadcastReceiverEntryPoint {

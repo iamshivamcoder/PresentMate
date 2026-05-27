@@ -101,7 +101,7 @@ fun LocationScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
+                        containerColor = colorScheme.errorContainer
                     ),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
                 ) {
@@ -116,21 +116,21 @@ fun LocationScreen(
                             Icon(
                                 imageVector = Icons.Default.LocationOff,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
+                                tint = colorScheme.error,
                                 modifier = Modifier.padding(end = 8.dp)
                             )
                             Text(
                                 text = "Location Services Disabled",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onErrorContainer
+                                color = colorScheme.onErrorContainer
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Location services are required for automatic session tracking. Please enable in your device settings.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                            color = colorScheme.onErrorContainer.copy(alpha = 0.8f)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
@@ -139,7 +139,7 @@ fun LocationScreen(
                                 context.startActivity(intent)
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
+                                containerColor = colorScheme.error
                             ),
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                         ) {

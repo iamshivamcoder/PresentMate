@@ -1,10 +1,14 @@
 package com.example.presentmate.di
 
 import android.content.Context
+import com.example.presentmate.ai.AIPreferences
+import com.example.presentmate.ai.AIService
+import com.example.presentmate.ai.AIServiceFactory
 import com.example.presentmate.calendar.CalendarRepository
 import com.example.presentmate.data.SavedPlaceDao
 import com.example.presentmate.db.AttendanceDao
 import com.example.presentmate.db.PresentMateDatabase
+import com.example.presentmate.db.StepActivityLogDao
 import com.example.presentmate.db.StudySessionLogDao
 import dagger.Module
 import dagger.Provides
@@ -36,12 +40,17 @@ object AppModule {
     fun provideSavedPlaceDao(database: PresentMateDatabase): SavedPlaceDao {
         return database.savedPlaceDao()
     }
-    
+
     @Provides
     fun provideStudySessionLogDao(database: PresentMateDatabase): StudySessionLogDao {
         return database.studySessionLogDao()
     }
-    
+
+    @Provides
+    fun provideStepActivityLogDao(database: PresentMateDatabase): StepActivityLogDao {
+        return database.stepActivityLogDao()
+    }
+
     @Provides
     @Singleton
     fun provideCalendarRepository(@ApplicationContext context: Context): CalendarRepository {
@@ -54,4 +63,18 @@ object AppModule {
 
     @Provides
     fun provideCoroutineDispatcher(): CoroutineDispatcher = Dispatchers.IO
+
+    /**
+     * Provides the currently configured AIService, or null if no API key is set.
+     * Re-read on every ViewModel creation so settings changes are picked up.
+     */
+    @Provides
+    fun provideAIService(@ApplicationContext context: Context): AIService? {
+        val platform    = AIPreferences.getPlatform(context)
+        val apiKey      = AIPreferences.getApiKey(context)
+        val temperature = AIPreferences.getTemperature(context)
+        val maxTokens   = AIPreferences.getMaxTokens(context)
+        return AIServiceFactory.create(platform, apiKey, temperature, maxTokens)
+    }
 }
+

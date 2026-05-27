@@ -1,29 +1,37 @@
 package com.example.presentmate.viewmodel
 
-import android.graphics.Bitmap
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.presentmate.ai.AIResponse
 import com.example.presentmate.ai.AIService
+import com.example.presentmate.ai.AIServiceFactory
+import com.example.presentmate.ai.AIPreferences
 import com.example.presentmate.ai.ParsedAttendance
 import com.example.presentmate.db.AttendanceDao
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
 import java.util.UUID
+import javax.inject.Inject
 
 /**
- * Chat message data class
+ * Chat message data class.
+ *
+ * Note: images are stored as URI (not Bitmap) to avoid holding large
+ * bitmaps in the ViewModel StateFlow, which would cause OOM errors as the
+ * chat history grows.
  */
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val content: String,
     val isFromUser: Boolean,
-    val image: Bitmap? = null,
+    val imageUri: Uri? = null,       // URI reference only — decode to Bitmap at render time
     val extractedRecords: List<ParsedAttendance> = emptyList(),
     val isLoading: Boolean = false
 )
@@ -48,18 +56,38 @@ data class AIAssistantUiState(
     val apiKeyMissing: Boolean = false
 )
 
-class AIAssistantViewModel(
+/**
+ * ViewModel for the AI Assistant screen.
+ *
+ * Injected via Hilt (@HiltViewModel) so the full Hilt graph is used.
+ */
+@HiltViewModel
+class AIAssistantViewModel @Inject constructor(
     private val attendanceDao: AttendanceDao,
-    private val aiService: AIService?
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
-    
-    private val _uiState = MutableStateFlow(AIAssistantUiState(
-        apiKeyMissing = aiService == null
-    ))
+
+    private val _uiState = MutableStateFlow(AIAssistantUiState())
     val uiState: StateFlow<AIAssistantUiState> = _uiState.asStateFlow()
-    
+
+    private fun getAiService(): AIService? {
+        val platform    = AIPreferences.getPlatform(context)
+        val apiKey      = AIPreferences.getApiKey(context)
+        val temperature = AIPreferences.getTemperature(context)
+        val maxTokens   = AIPreferences.getMaxTokens(context)
+        return AIServiceFactory.create(platform, apiKey, temperature, maxTokens)
+    }
+
     init {
-        if (aiService != null) {
+        refreshAiServiceState()
+    }
+
+    fun refreshAiServiceState() {
+        val service = getAiService()
+        val isMissing = service == null
+        _uiState.update { it.copy(apiKeyMissing = isMissing) }
+
+        if (!isMissing && _uiState.value.messages.isEmpty()) {
             addMessage(ChatMessage(
                 content = "👋 Hi! I'm your AI assistant. I can help you with:\n\n" +
                         "• Understanding your attendance data\n" +
@@ -70,22 +98,24 @@ class AIAssistantViewModel(
             ))
         }
     }
-    
+
     fun sendMessage(text: String) {
-        if (text.isBlank() || aiService == null) return
-        
+        val service = getAiService()
+        if (text.isBlank() || service == null) return
+
         addMessage(ChatMessage(content = text, isFromUser = true))
-        val loadingMessage = ChatMessage(content = "Thinking...", isFromUser = false, isLoading = true)
-        addMessage(loadingMessage)
-        
+        addMessage(ChatMessage(content = "Thinking...", isFromUser = false, isLoading = true))
+
         viewModelScope.launch {
-            val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                aiService.sendMessage(text)
-            }
+            val response = service.sendMessage(text)
             when (response) {
                 is AIResponse.Success -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(content = response.message, isFromUser = false, extractedRecords = response.extractedRecords))
+                    addMessage(ChatMessage(
+                        content = response.message,
+                        isFromUser = false,
+                        extractedRecords = response.extractedRecords
+                    ))
                     if (response.extractedRecords.isNotEmpty()) {
                         promptFirstConfirmation(response.extractedRecords)
                     }
@@ -97,21 +127,33 @@ class AIAssistantViewModel(
             }
         }
     }
-    
-    fun sendMessageWithImage(text: String, image: Bitmap) {
-        if (aiService == null) return
+
+    /**
+     * Send a message with an image identified by its [imageUri].
+     * The actual Bitmap decoding is done inside the coroutine, not stored in state.
+     */
+    fun sendMessageWithImage(text: String, imageUri: Uri, resolveBitmap: suspend (Uri) -> android.graphics.Bitmap?) {
+        val service = getAiService()
+        if (service == null) return
         val messageText = text.ifBlank { "Please analyze this attendance sheet" }
-        addMessage(ChatMessage(content = messageText, isFromUser = true, image = image))
+        addMessage(ChatMessage(content = messageText, isFromUser = true, imageUri = imageUri))
         addMessage(ChatMessage(content = "Analyzing image...", isFromUser = false, isLoading = true))
-        
+
         viewModelScope.launch {
-            val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                aiService.sendMessageWithImage(messageText, image)
+            val bitmap = resolveBitmap(imageUri)
+            val response = if (bitmap != null) {
+                service.sendMessageWithImage(messageText, bitmap)
+            } else {
+                AIResponse.Error("Could not decode the selected image.")
             }
             when (response) {
                 is AIResponse.Success -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(content = response.message, isFromUser = false, extractedRecords = response.extractedRecords))
+                    addMessage(ChatMessage(
+                        content = response.message,
+                        isFromUser = false,
+                        extractedRecords = response.extractedRecords
+                    ))
                     if (response.extractedRecords.isNotEmpty()) {
                         promptFirstConfirmation(response.extractedRecords)
                     }
@@ -123,12 +165,15 @@ class AIAssistantViewModel(
             }
         }
     }
-    
+
     private fun promptFirstConfirmation(records: List<ParsedAttendance>) {
         _uiState.update { it.copy(confirmationState = ConfirmationState.FirstConfirmation(records)) }
-        addMessage(ChatMessage(content = "📋 I found ${records.size} attendance record(s). Would you like to add them to your database?", isFromUser = false))
+        addMessage(ChatMessage(
+            content = "📋 I found ${records.size} attendance record(s). Would you like to add them to your database?",
+            isFromUser = false
+        ))
     }
-    
+
     fun onFirstConfirmation() {
         val state = _uiState.value.confirmationState
         if (state is ConfirmationState.FirstConfirmation) {
@@ -142,12 +187,11 @@ class AIAssistantViewModel(
             ))
         }
     }
-    
+
     fun onSecondConfirmation() {
         val state = _uiState.value.confirmationState
         if (state is ConfirmationState.SecondConfirmation) {
             viewModelScope.launch {
-                // Convert parsed records to AttendanceRecord
                 val records = state.records.map { parsed ->
                     com.example.presentmate.db.AttendanceRecord(
                         date = parsed.date,
@@ -157,33 +201,24 @@ class AIAssistantViewModel(
                 }
                 records.forEach { attendanceDao.insertRecord(it) }
                 _uiState.update { it.copy(confirmationState = ConfirmationState.None) }
-                addMessage(ChatMessage(content = "✅ Successfully added ${records.size} record(s) to your database!", isFromUser = false))
+                addMessage(ChatMessage(
+                    content = "✅ Successfully added ${records.size} record(s) to your database!",
+                    isFromUser = false
+                ))
             }
         }
     }
-    
+
     fun onCancelConfirmation() {
         _uiState.update { it.copy(confirmationState = ConfirmationState.None) }
         addMessage(ChatMessage(content = "❌ Operation cancelled. No records were added.", isFromUser = false))
     }
-    
+
     private fun addMessage(message: ChatMessage) {
         _uiState.update { state -> state.copy(messages = state.messages + message) }
     }
-    
+
     private fun removeLoadingMessage() {
         _uiState.update { state -> state.copy(messages = state.messages.filterNot { it.isLoading }) }
-    }
-    
-    companion object {
-        fun provideFactory(
-            attendanceDao: AttendanceDao,
-            aiService: AIService?
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return AIAssistantViewModel(attendanceDao, aiService) as T
-            }
-        }
     }
 }

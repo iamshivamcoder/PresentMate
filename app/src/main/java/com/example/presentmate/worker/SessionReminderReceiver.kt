@@ -17,9 +17,18 @@ class SessionReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             SessionReminderScheduler.ACTION_ALARM -> {
-                // Show the notification
-                SessionReminderNotificationUtils.showSessionReminderNotification(context)
-                // Schedule next alarm
+                // Fix #17 — check leave-day suppression before firing
+                val leavePrefs = context.getSharedPreferences("session_reminder_leave", Context.MODE_PRIVATE)
+                val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                    .format(java.util.Date())
+                val isLeaveDay = leavePrefs.getBoolean(today, false)
+
+                if (!isLeaveDay) {
+                    SessionReminderNotificationUtils.showSessionReminderNotification(context)
+                } else {
+                    Log.d("SessionReminderReceiver", "Leave day suppression active — skipping notification")
+                }
+                // Always schedule the next alarm, leave day or not
                 SessionReminderScheduler.scheduleNext(context)
             }
             SessionReminderNotificationUtils.ACTION_YESS -> {

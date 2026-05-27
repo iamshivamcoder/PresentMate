@@ -52,11 +52,12 @@ fun RecycleBinScreen(/*navController: NavHostController*/) { // Removed unused n
                         record = deletedRecord,
                         onRestore = {
                             scope.launch {
+                                // Fix #13: use id=0 so Room auto-assigns a fresh PK
                                 db.attendanceDao().insertRecord(
                                     AttendanceRecord(
-                                        id = it.originalId, 
-                                        date = it.date,
-                                        timeIn = it.timeIn,
+                                        id      = 0,
+                                        date    = it.date,
+                                        timeIn  = it.timeIn,
                                         timeOut = it.timeOut
                                     )
                                 )

@@ -1,5 +1,7 @@
 package com.example.presentmate.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,8 +17,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Coffee
-import androidx.compose.material.icons.filled.Email // Placeholder
-import androidx.compose.material.icons.filled.Person // Placeholder
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,6 +41,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun AboutDeveloperScreen() {
+    val context = LocalContext.current
+    fun openUrl(url: String) = context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -93,7 +99,11 @@ fun AboutDeveloperScreen() {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("I'm always building and experimenting. You can check out my other projects, articles, or open-source contributions on my portfolio website.")
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { /* TODO */ }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                Button(
+                    onClick = { openUrl("https://github.com/iamshivamcoder") },
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Icon(Icons.Default.Language, null, modifier = Modifier.padding(end = 8.dp))
                     Text("Visit My Portfolio")
                 }
             }
@@ -103,20 +113,20 @@ fun AboutDeveloperScreen() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Connect With Me", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                IconButton(onClick = { /* TODO: LinkedIn URL */ }) {
+                IconButton(onClick = { openUrl("https://linkedin.com/in/iamshivamcoder") }) {
                     Icon(Icons.Default.Person, contentDescription = "LinkedIn", modifier = Modifier.size(32.dp))
                 }
-                IconButton(onClick = { /* TODO: X/Twitter URL */ }) {
+                IconButton(onClick = { openUrl("https://x.com/iamshivamcoder") }) {
                     Icon(Icons.Default.Person, contentDescription = "X / Twitter", modifier = Modifier.size(32.dp))
                 }
-                IconButton(onClick = { /* TODO: GitHub URL */ }) {
-                    Icon(Icons.Default.Email, contentDescription = "GitHub", modifier = Modifier.size(32.dp)) // Placeholder icon
+                IconButton(onClick = { openUrl("https://github.com/iamshivamcoder") }) {
+                    Icon(Icons.Default.Email, contentDescription = "GitHub", modifier = Modifier.size(32.dp))
                 }
             }
         }
 
         // Support Button
-        Button(onClick = { /* TODO */ }) {
+        Button(onClick = { openUrl("https://buymeacoffee.com/iamshivamcoder") }) {
             Icon(Icons.Default.Coffee, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
             Text("Buy Me a Coffee")
         }

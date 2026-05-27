@@ -23,7 +23,7 @@ object DataImportUtils {
         try {
             FileInputStream(file).use { inputStream ->
                 val document = HWPFDocument(inputStream)
-                val range: Range = document.getRange()
+                val range: Range = document.range
                 val text = range.text()
                 val lines = text.split("\r") // HWPF uses \r for paragraph breaks
 

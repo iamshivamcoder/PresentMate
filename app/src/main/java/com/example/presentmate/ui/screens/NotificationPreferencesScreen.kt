@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -38,10 +39,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,6 +66,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.example.presentmate.worker.CustomReminderWorker
 import com.example.presentmate.worker.SessionReminderScheduler
+import com.example.presentmate.worker.StepSyncWorker
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.Calendar
@@ -75,17 +79,11 @@ fun NotificationPreferencesScreen() {
 
     var savedHour by remember { mutableIntStateOf(prefs.getInt("reminder_hour", 9)) }
     var savedMinute by remember { mutableIntStateOf(prefs.getInt("reminder_minute", 30)) }
-    
+
     val reminderPrefs = remember { context.getSharedPreferences("custom_reminders", Context.MODE_PRIVATE) }
-    var scheduledReminders by remember { 
-        mutableStateOf(loadReminders(reminderPrefs))
-    }
-    var reminderEnabled by remember {
-        mutableStateOf(prefs.getBoolean("reminder_enabled", true))
-    }
-    var progressReportEnabled by remember {
-        mutableStateOf(prefs.getBoolean("progress_report_enabled", true))
-    }
+    var scheduledReminders by remember { mutableStateOf(loadReminders(reminderPrefs)) }
+    var reminderEnabled by remember { mutableStateOf(prefs.getBoolean("reminder_enabled", true)) }
+    var progressReportEnabled by remember { mutableStateOf(prefs.getBoolean("progress_report_enabled", true)) }
 
     val hasNotificationPermission = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -95,7 +93,6 @@ fun NotificationPreferencesScreen() {
         } else true
     }
 
-    // Check exact alarm permission
     val canScheduleExact = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -120,7 +117,7 @@ fun NotificationPreferencesScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Permission Status Card
+        // ── Permission Status Card ──────────────────────────────────────────
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = if (hasNotificationPermission)
@@ -130,9 +127,7 @@ fun NotificationPreferencesScreen() {
             )
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -140,24 +135,19 @@ fun NotificationPreferencesScreen() {
                     imageVector = if (hasNotificationPermission)
                         Icons.Default.CheckCircle else Icons.Default.NotificationsOff,
                     contentDescription = null,
-                    tint = if (hasNotificationPermission) Color(0xFF4CAF50)
-                    else MaterialTheme.colorScheme.error,
+                    tint = if (hasNotificationPermission) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(32.dp)
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (hasNotificationPermission) "Notifications Allowed ✅"
-                        else "Notifications Not Allowed ❌",
+                        text = if (hasNotificationPermission) "Notifications Allowed ✅" else "Notifications Not Allowed ❌",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (hasNotificationPermission) Color(0xFF2E7D32)
-                        else MaterialTheme.colorScheme.error
+                        color = if (hasNotificationPermission) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error
                     )
                     Text(
-                        text = if (hasNotificationPermission)
-                            "You'll receive daily session reminders"
-                        else
-                            "Grant permission to receive reminders",
+                        text = if (hasNotificationPermission) "You'll receive daily session reminders"
+                               else "Grant permission to receive reminders",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -165,7 +155,7 @@ fun NotificationPreferencesScreen() {
             }
         }
 
-        // Enable/Disable Toggle
+        // ── Session Reminder ────────────────────────────────────────────────
         SettingsGroup("Session Reminder") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -173,24 +163,13 @@ fun NotificationPreferencesScreen() {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.NotificationsActive,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(end = 12.dp)
-                    )
+                    Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Daily Reminder", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Mon–Sat at $timeDisplayString",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text("Mon–Sat at $timeDisplayString", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(
                         checked = reminderEnabled,
@@ -217,24 +196,13 @@ fun NotificationPreferencesScreen() {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Schedule,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(end = 12.dp)
-                    )
+                    Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(end = 12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Progress Reports", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Notify on event completions",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text("Notify on event completions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(
                         checked = progressReportEnabled,
@@ -248,7 +216,7 @@ fun NotificationPreferencesScreen() {
             }
         }
 
-        // Time Picker
+        // ── Reminder Time ───────────────────────────────────────────────────
         SettingsGroup("Reminder Time") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -257,47 +225,23 @@ fun NotificationPreferencesScreen() {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.AccessTime,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.size(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Notification Time", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                timeDisplayString,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text(timeDisplayString, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = {
-                            TimePickerDialog(
-                                context,
-                                { _, hour, minute ->
-                                    savedHour = hour
-                                    savedMinute = minute
-                                    prefs.edit()
-                                        .putInt("reminder_hour", hour)
-                                        .putInt("reminder_minute", minute)
-                                        .apply()
-                                    if (reminderEnabled) {
-                                        SessionReminderScheduler.scheduleNext(context)
-                                    }
-                                    Toast.makeText(
-                                        context,
-                                        "Reminder time updated to $timeDisplayString",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                savedHour,
-                                savedMinute,
-                                false
-                            ).show()
+                            TimePickerDialog(context, { _, hour, minute ->
+                                savedHour = hour
+                                savedMinute = minute
+                                prefs.edit().putInt("reminder_hour", hour).putInt("reminder_minute", minute).apply()
+                                if (reminderEnabled) SessionReminderScheduler.scheduleNext(context)
+                                Toast.makeText(context, "Reminder time updated to $timeDisplayString", Toast.LENGTH_SHORT).show()
+                            }, savedHour, savedMinute, false).show()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -308,8 +252,8 @@ fun NotificationPreferencesScreen() {
                 }
             }
         }
-        
-        // Custom Reminder
+
+        // ── Custom Reminder ─────────────────────────────────────────────────
         SettingsGroup("Custom Reminder") {
             var showCustomReminderDialog by remember { mutableStateOf(false) }
 
@@ -324,26 +268,15 @@ fun NotificationPreferencesScreen() {
                     title = { Text("Add Custom Reminder") },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = message,
-                                onValueChange = { message = it },
-                                label = { Text("Reminder Message") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            OutlinedTextField(value = message, onValueChange = { message = it }, label = { Text("Reminder Message") }, modifier = Modifier.fillMaxWidth())
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
                                     onClick = {
                                         val c = Calendar.getInstance()
-                                        DatePickerDialog(
-                                            context,
-                                            { _, y, m, d ->
-                                                selectedDate.set(Calendar.YEAR, y)
-                                                selectedDate.set(Calendar.MONTH, m)
-                                                selectedDate.set(Calendar.DAY_OF_MONTH, d)
-                                                dateText = "$d/${m + 1}/$y"
-                                            },
-                                            c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)
-                                        ).show()
+                                        DatePickerDialog(context, { _, y, m, d ->
+                                            selectedDate.set(Calendar.YEAR, y); selectedDate.set(Calendar.MONTH, m); selectedDate.set(Calendar.DAY_OF_MONTH, d)
+                                            dateText = "$d/${m + 1}/$y"
+                                        }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show()
                                     },
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -354,16 +287,10 @@ fun NotificationPreferencesScreen() {
                                 Button(
                                     onClick = {
                                         val c = Calendar.getInstance()
-                                        TimePickerDialog(
-                                            context,
-                                            { _, h, min ->
-                                                selectedDate.set(Calendar.HOUR_OF_DAY, h)
-                                                selectedDate.set(Calendar.MINUTE, min)
-                                                selectedDate.set(Calendar.SECOND, 0)
-                                                timeText = "$h:${min.toString().padStart(2, '0')}"
-                                            },
-                                            c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), false
-                                        ).show()
+                                        TimePickerDialog(context, { _, h, min ->
+                                            selectedDate.set(Calendar.HOUR_OF_DAY, h); selectedDate.set(Calendar.MINUTE, min); selectedDate.set(Calendar.SECOND, 0)
+                                            timeText = "$h:${min.toString().padStart(2, '0')}"
+                                        }, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), false).show()
                                     },
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -384,15 +311,11 @@ fun NotificationPreferencesScreen() {
                                         val workRequest = OneTimeWorkRequestBuilder<CustomReminderWorker>()
                                             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                                             .setInputData(workDataOf("reminder_message" to message))
-                                            .setId(workId)
-                                            .build()
+                                            .setId(workId).build()
                                         WorkManager.getInstance(context).enqueue(workRequest)
-                                        
-                                        // Save to prefs
                                         val newReminder = ScheduledReminder(workId.toString(), message, dateText, timeText)
                                         scheduledReminders = scheduledReminders + newReminder
                                         saveReminders(reminderPrefs, scheduledReminders)
-                                        
                                         Toast.makeText(context, "Reminder scheduled", Toast.LENGTH_SHORT).show()
                                         showCustomReminderDialog = false
                                     } else {
@@ -402,29 +325,19 @@ fun NotificationPreferencesScreen() {
                                     Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
                                 }
                             }
-                        ) {
-                            Text("Save")
-                        }
+                        ) { Text("Save") }
                     },
-                    dismissButton = {
-                        TextButton(onClick = { showCustomReminderDialog = false }) {
-                            Text("Cancel")
-                        }
-                    }
+                    dismissButton = { TextButton(onClick = { showCustomReminderDialog = false }) { Text("Cancel") } }
                 )
             }
 
-            // List scheduled reminders
             scheduledReminders.forEach { reminder ->
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(reminder.message, fontWeight = FontWeight.Bold)
                             Text("${reminder.date} at ${reminder.time}", style = MaterialTheme.typography.bodySmall)
@@ -447,26 +360,15 @@ fun NotificationPreferencesScreen() {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Event,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Default.Event, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.size(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Set Custom Reminder", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "Schedule a one-time notification",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text("Schedule a one-time notification", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = { showCustomReminderDialog = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Button(onClick = { showCustomReminderDialog = true }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(modifier = Modifier.size(8.dp))
                         Text("Add Reminder")
@@ -475,19 +377,91 @@ fun NotificationPreferencesScreen() {
             }
         }
 
+        // ── Activity Detection Sync ─────────────────────────────────────────
+        SettingsGroup("Activity Detection") {
+            var syncEnabled by remember { mutableStateOf(prefs.getBoolean("step_sync_enabled", true)) }
 
-        // Troubleshoot Section
+            val intervalOptions = listOf(15, 30, 60, 120)
+            var intervalIndex by remember {
+                val saved = StepSyncWorker.getSyncInterval(context)
+                mutableIntStateOf(intervalOptions.indexOfFirst { it == saved }.coerceAtLeast(1))
+            }
+            val selectedInterval = intervalOptions[intervalIndex]
+            val intervalLabel = when (selectedInterval) {
+                15   -> "15 minutes"
+                30   -> "30 minutes"
+                60   -> "1 hour"
+                120  -> "2 hours"
+                else -> "$selectedInterval min"
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Enable / disable toggle
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.AutoMirrored.Filled.DirectionsWalk, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Step-Activity Sync", style = MaterialTheme.typography.titleMedium)
+                            Text("Periodic step-count snapshots", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = syncEnabled,
+                            onCheckedChange = { enabled ->
+                                syncEnabled = enabled
+                                prefs.edit().putBoolean("step_sync_enabled", enabled).apply()
+                                if (enabled) {
+                                    StepSyncWorker.schedulePeriodicSync(context)
+                                    Toast.makeText(context, "Step sync enabled", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    StepSyncWorker.cancelPeriodicSync(context)
+                                    Toast.makeText(context, "Step sync disabled", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    // Interval slider
+                    Text("Sync Frequency: $intervalLabel", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    Slider(
+                        value = intervalIndex.toFloat(),
+                        onValueChange = { intervalIndex = it.toInt() },
+                        onValueChangeFinished = {
+                            val newInterval = intervalOptions[intervalIndex]
+                            StepSyncWorker.setSyncInterval(context, newInterval)
+                            if (syncEnabled) StepSyncWorker.schedulePeriodicSync(context)
+                            Toast.makeText(context, "Sync interval set to $intervalLabel", Toast.LENGTH_SHORT).show()
+                        },
+                        valueRange = 0f..(intervalOptions.lastIndex.toFloat()),
+                        steps = intervalOptions.lastIndex - 1,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        intervalOptions.forEach { opt ->
+                            Text(
+                                text = when (opt) { 60 -> "1 hr"; 120 -> "2 hr"; else -> "${opt}m" },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (opt == selectedInterval) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Troubleshoot ────────────────────────────────────────────────────
         SettingsGroup("Troubleshoot") {
             FilledTonalButton(
                 onClick = {
                     val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                        }
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply { putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName) }
                     } else {
-                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = android.net.Uri.fromParts("package", context.packageName, null)
-                        }
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply { data = android.net.Uri.fromParts("package", context.packageName, null) }
                     }
                     context.startActivity(intent)
                 },
@@ -501,10 +475,7 @@ fun NotificationPreferencesScreen() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExact) {
                 Spacer(modifier = Modifier.height(8.dp))
                 FilledTonalButton(
-                    onClick = {
-                        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                        context.startActivity(intent)
-                    },
+                    onClick = { context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Grant Exact Alarm Permission")
@@ -517,8 +488,7 @@ fun NotificationPreferencesScreen() {
 data class ScheduledReminder(val id: String, val message: String, val date: String, val time: String)
 
 private fun saveReminders(prefs: android.content.SharedPreferences, reminders: List<ScheduledReminder>) {
-    val json = Gson().toJson(reminders)
-    prefs.edit().putString("reminders", json).apply()
+    prefs.edit().putString("reminders", Gson().toJson(reminders)).apply()
 }
 
 private fun loadReminders(prefs: android.content.SharedPreferences): List<ScheduledReminder> {
@@ -526,4 +496,3 @@ private fun loadReminders(prefs: android.content.SharedPreferences): List<Schedu
     val type = object : TypeToken<List<ScheduledReminder>>() {}.type
     return Gson().fromJson(json, type)
 }
-

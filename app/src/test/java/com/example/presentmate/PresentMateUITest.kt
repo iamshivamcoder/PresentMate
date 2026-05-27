@@ -48,7 +48,8 @@ class PresentMateUITest {
     @Test
     fun testHelpScreen_DisplaysPlannedFeaturesCards() {
         composeTestRule.setContent {
-            HelpScreen()
+            val navController = rememberNavController()
+            HelpScreen(_navController = navController)
         }
         
         composeTestRule.onNodeWithText("PresentMate App Help").assertExists()
@@ -99,7 +100,8 @@ class PresentMateUITest {
     @Test
     fun testWhyPresentMateScreen_Exists() {
         composeTestRule.setContent {
-            WhyPresentMateScreen()
+            val navController = rememberNavController()
+            WhyPresentMateScreen(_navController = navController)
         }
         
         composeTestRule.onNodeWithText("The Mission").assertExists()

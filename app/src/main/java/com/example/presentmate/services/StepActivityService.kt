@@ -17,8 +17,15 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.presentmate.R
+import com.example.presentmate.db.PresentMateDatabase
+import com.example.presentmate.db.StepActivityLog
 import com.example.presentmate.worker.StepActivityNotificationUtils
 import com.example.presentmate.worker.StepWindowScheduler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 /**
@@ -56,7 +63,7 @@ class StepActivityService : Service(), SensorEventListener {
 
     override fun onCreate() {
         super.onCreate()
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        sensorManager = getSystemService(SENSOR_SERVICE) as? SensorManager
         stepDetector  = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
         Log.d(TAG, "Service created. Step detector available: ${stepDetector != null}")
     }
@@ -79,17 +86,26 @@ class StepActivityService : Service(), SensorEventListener {
         super.onDestroy()
         sensorManager?.unregisterListener(this)
         handler.removeCallbacksAndMessages(null)
+        ioScope.cancel()  // prevent coroutine leaks after service is destroyed
         Log.d(TAG, "Service destroyed")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ── Sensor callbacks ───────────────────────────────────────────────────
+    // ── Shared prefs key for last known step count (read by StepSyncWorker) ──
+    private val syncPrefs by lazy {
+        getSharedPreferences("step_sync_prefs", MODE_PRIVATE)
+    }
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type != Sensor.TYPE_STEP_DETECTOR) return
 
         val now = System.currentTimeMillis()
+
+        // Persist cumulative step count for StepSyncWorker (fix #8)
+        val currentTotal = syncPrefs.getLong("last_step_total", 0L) + 1
+        syncPrefs.edit().putLong("last_step_total", currentTotal).apply()
 
         // Add this step and prune anything older than the rolling window
         stepTimestamps.addLast(now)
@@ -104,18 +120,45 @@ class StepActivityService : Service(), SensorEventListener {
             lastFiredAt = now
             stepTimestamps.clear() // reset window after firing
 
-            // Determine which window we're in and fire appropriate notification
             val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-            when {
-                hour in 9..9  -> {
+            val windowLabel = when {
+                hour in 9..9   -> "MORNING"
+                hour in 20..20 -> "EVENING"
+                else           -> null
+            }
+
+            when (windowLabel) {
+                "MORNING" -> {
                     Log.d(TAG, "Morning stair burst detected — showing 'going out' notification")
                     StepActivityNotificationUtils.showGoingOutNotification(this)
                 }
-                hour in 20..20 -> {
+                "EVENING" -> {
                     Log.d(TAG, "Evening stair burst detected — showing 'going home' notification")
                     StepActivityNotificationUtils.showGoingHomeNotification(this)
                 }
-                else -> Log.d(TAG, "Burst detected outside target window — ignoring")
+                else -> {
+                    Log.d(TAG, "Burst detected outside target window — ignoring")
+                    return
+                }
+            }
+
+            // Fix #9 — persist burst to history DB
+            ioScope.launch {
+                try {
+                    val db = PresentMateDatabase.getDatabase(applicationContext)
+                    db.stepActivityLogDao().insert(
+                        StepActivityLog(
+                            detectedAt    = now,
+                            stepCount     = windowCount,
+                            windowMinutes = (WINDOW_MS / 60_000).toInt(),
+                            type          = "STAIR_BURST",
+                            window        = windowLabel,
+                            triggered     = true
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to log burst event", e)
+                }
             }
         }
     }
@@ -131,7 +174,7 @@ class StepActivityService : Service(), SensorEventListener {
                 "Activity Monitor",
                 NotificationManager.IMPORTANCE_MIN  // silent, no sound/vibrate
             ).apply { setShowBadge(false) }
-            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
                 .createNotificationChannel(channel)
         }
 

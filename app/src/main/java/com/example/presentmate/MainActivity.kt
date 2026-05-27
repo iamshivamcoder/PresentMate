@@ -15,8 +15,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.presentmate.ui.theme.PresentMateTheme
+import com.example.presentmate.worker.CalendarSyncWorker
 import com.example.presentmate.worker.SessionReminderNotificationUtils
 import com.example.presentmate.worker.SessionReminderScheduler
+import com.example.presentmate.worker.StepSyncWorker
 import com.example.presentmate.worker.StepWindowScheduler
 import com.example.presentmate.worker.StudyCheckpointNotificationUtils
 import dagger.hilt.android.AndroidEntryPoint
@@ -38,11 +40,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Initialize ThemePreferences
+        com.example.presentmate.data.ThemePreferences.init(this)
+
         // Handle deep-link intents from notifications
         handleNotificationIntent(intent)
 
         // Request permissions only once
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         if (!prefs.getBoolean(KEY_PERMISSIONS_REQUESTED, false)) {
             requestNotificationPermission()
             requestLocationPermissions()
@@ -53,6 +58,10 @@ class MainActivity : ComponentActivity() {
         // Ensure alarms are always scheduled
         SessionReminderScheduler.ensureScheduled(this)
         StepWindowScheduler.ensureScheduled(this)
+        StepSyncWorker.schedulePeriodicSync(this)
+
+        // Fix #7 — seed today's calendar events immediately so check-workers have data
+        CalendarSyncWorker.runImmediateSync(this)
 
         setContent {
             PresentMateTheme {
@@ -107,20 +116,56 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestLocationPermissions() {
-        val permissions = mutableListOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
-        val toRequest = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-        if (toRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, toRequest.toTypedArray(), 1002)
+        val fineGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!fineGranted) {
+            // Step 1: request fine + coarse only (no background yet — Android 11+ requires separate dialog)
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ),
+                1002
+            )
+        } else {
+            // Fine location already granted — now request background location separately if needed
+            requestBackgroundLocationIfNeeded()
         }
     }
+
+    private fun requestBackgroundLocationIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val bgGranted = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!bgGranted) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+                    1004
+                )
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // After fine location is granted, immediately ask for background location separately
+        if (requestCode == 1002) {
+            val fineGranted = grantResults.getOrNull(0) == PackageManager.PERMISSION_GRANTED
+            if (fineGranted) {
+                requestBackgroundLocationIfNeeded()
+            }
+        }
+    }
+
 
     private fun requestActivityRecognitionPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

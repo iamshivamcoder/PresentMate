@@ -11,6 +11,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import com.example.presentmate.data.ThemePreferences
 
 private val DarkColorScheme = darkColorScheme(
     primary = DarkPrimary,
@@ -38,16 +41,23 @@ private val LightColorScheme = lightColorScheme(
     onSurface = OnSurface
 )
 
+
 @Composable
 fun PresentMateTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val themeMode by remember { ThemePreferences.currentThemeState }
+    val darkTheme = when (themeMode) {
+        ThemePreferences.MODE_LIGHT -> false
+        ThemePreferences.MODE_DARK -> true
+        else -> isSystemInDarkTheme()
+    }
+
+    val context = LocalContext.current
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
@@ -60,4 +70,4 @@ fun PresentMateTheme(
         typography = Typography,
         content = content
     )
-}
+}

@@ -389,7 +389,7 @@ internal fun LocationSearchBar(
                         }
                     }
                 },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Companion.Search),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(
                     onSearch = {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)

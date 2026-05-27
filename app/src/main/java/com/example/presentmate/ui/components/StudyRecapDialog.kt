@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -67,6 +68,7 @@ fun StudyRecapDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()   // Fix #19 — stay above gesture nav bar
                 .padding(horizontal = 20.dp)
         ) {
             Column(

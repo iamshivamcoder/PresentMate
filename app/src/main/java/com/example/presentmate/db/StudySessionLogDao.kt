@@ -24,6 +24,14 @@ interface StudySessionLogDao {
     @Query("SELECT * FROM study_session_logs WHERE status = 'PENDING' AND scheduledEndTime < :now")
     suspend fun getPendingOverdue(now: Long): List<StudySessionLog>
 
+    /** Fix #16 — returns all PENDING logs so CalendarSyncWorker can cross-check against live events. */
+    @Query("SELECT * FROM study_session_logs WHERE status = 'PENDING'")
+    suspend fun getPendingLogs(): List<StudySessionLog>
+
+    /** Fix #16 — deletes the log for a cancelled/removed calendar event. */
+    @Query("DELETE FROM study_session_logs WHERE calendarEventId = :eventId")
+    suspend fun deleteByEventId(eventId: Long)
+
     @Query("SELECT * FROM study_session_logs ORDER BY scheduledStartTime DESC")
     fun getAllLogs(): Flow<List<StudySessionLog>>
 

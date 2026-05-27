@@ -1,9 +1,10 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.kapt")
+    id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.parcelize")
     id("com.google.dagger.hilt.android")
+    alias(libs.plugins.kotlin.compose)
 
 }
 
@@ -11,20 +12,16 @@ android {
     namespace = "com.example.presentmate"
     compileSdk = 35
 
-    kapt {
-        correctErrorTypes = true
-        useBuildCache = false
-        arguments {
-            arg("room.schemaLocation", "$projectDir/schemas")
-            arg("room.incremental", "true")
-            arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
-        }
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+        arg("room.incremental", "true")
+        arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
     }
 
     defaultConfig {
         applicationId = "com.example.presentmate"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 6
         versionName = "1.6"
 
@@ -42,16 +39,16 @@ android {
         }
         debug {
             isDebuggable = true
-            // Remove applicationIdSuffix for debug build type
+            // Disable minify & resource shrinking for debug — massively speeds up debug builds
+            isMinifyEnabled = false
+            isShrinkResources = false
+            // Disable PNG crunching in debug (saves seconds on every build with images)
+            aaptOptions.cruncherEnabled = false
         }
     }
 
     buildFeatures {
         compose = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
     }
 
     compileOptions {
@@ -61,6 +58,11 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        // Speed up debug Kotlin compilation: skip friend path resolution & opt-in checks
+        freeCompilerArgs += listOf(
+            "-opt-in=kotlin.RequiresOptIn",
+            "-Xjvm-default=all",  // faster default method dispatch
+        )
     }
 
     packaging {
@@ -71,10 +73,20 @@ android {
     }
 
     testOptions {
-        // Enable parallel test execution
-        execution = "ANDROIDX_TEST_ORCHESTRATOR"
-        unitTests.isIncludeAndroidResources = false
-        unitTests.isReturnDefaultValues = true
+        // Run unit tests in-process without forking a new JVM per test class.
+        // Combined with maxParallelForks this is the fastest setup for unit tests.
+        unitTests {
+            isIncludeAndroidResources = false
+            isReturnDefaultValues = true
+            all {
+                // Run test classes in parallel across half your CPU cores.
+                it.maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+                // Reuse the same JVM process for all test classes (no fork overhead).
+                it.forkEvery = 0
+                // Give each test JVM enough heap.
+                it.jvmArgs("-Xmx2048m", "-XX:+UseG1GC")
+            }
+        }
     }
 }
 
@@ -94,6 +106,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    // Encrypted SharedPreferences for secure API key storage
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Compose dependencies
     implementation("androidx.compose.ui:ui")
@@ -107,10 +121,10 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.6")
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.50")
-    kapt("com.google.dagger:hilt-android-compiler:2.50")
+    implementation("com.google.dagger:hilt-android:2.57.2")
+    ksp("com.google.dagger:hilt-android-compiler:2.57.2")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
-    kapt("androidx.hilt:hilt-compiler:1.2.0")
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
     
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
@@ -123,10 +137,9 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     // Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
-    annotationProcessor("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.7.1")
+    implementation("androidx.room:room-ktx:2.7.1")
+    ksp("androidx.room:room-compiler:2.7.1")
 
     // Apache POI for .doc export
     implementation("org.apache.poi:poi:5.4.1")

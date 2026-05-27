@@ -45,7 +45,7 @@ class CalendarSyncWorker @AssistedInject constructor(
                 val existingLog = studySessionLogDao.getByEventId(event.id)
                 if (existingLog == null) {
                     val (subject, topic) = EventMetadataExtractor.extract(event.title)
-                    
+
                     val newLog = StudySessionLog(
                         calendarEventId = event.id,
                         eventTitle = event.title,
@@ -55,30 +55,45 @@ class CalendarSyncWorker @AssistedInject constructor(
                         scheduledEndTime = event.endTime,
                         status = "PENDING"
                     )
-                    
+
                     studySessionLogDao.insert(newLog)
-                    
-                    // Schedule check worker if Progress Report preference is enabled
+
                     val prefs = context.getSharedPreferences("session_reminder_prefs", Context.MODE_PRIVATE)
                     val progressReportEnabled = prefs.getBoolean("progress_report_enabled", true)
-                    
+
                     if (progressReportEnabled) {
                         val now = System.currentTimeMillis()
                         val triggerTime = event.endTime + TimeUnit.MINUTES.toMillis(delayMinutes.toLong())
                         val delay = (triggerTime - now).coerceAtLeast(0)
-                        
+
+                        // Fix #16 — tag by event ID so we can cancel it if event is removed
+                        val eventTag = "check_event_${event.id}"
                         val workRequest = OneTimeWorkRequestBuilder<StudySessionCheckWorker>()
                             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                            .setInputData(workDataOf(
-                                "calendar_event_id" to event.id
-                            ))
+                            .setInputData(workDataOf("calendar_event_id" to event.id))
+                            .addTag(eventTag)
                             .build()
 
-                        WorkManager.getInstance(context).enqueue(workRequest)
-                        Log.d("CalendarSyncWorker", "Scheduled check for ${event.title} in ${delay/1000}s")
+                        WorkManager.getInstance(context).enqueueUniqueWork(
+                            eventTag,
+                            androidx.work.ExistingWorkPolicy.KEEP,  // don't re-schedule if already queued
+                            workRequest
+                        )
+                        Log.d("CalendarSyncWorker", "Scheduled check for ${event.title} in ${delay/1000}s [tag=$eventTag]")
                     } else {
                         Log.d("CalendarSyncWorker", "Skipped scheduling check for ${event.title} (Disabled)")
                     }
+                }
+            }
+
+            // Fix #16 — cancel check-workers for events that have been removed from the calendar
+            val currentEventIds = events.map { it.id }.toSet()
+            val allLogs = studySessionLogDao.getPendingLogs()
+            for (log in allLogs) {
+                if (log.calendarEventId !in currentEventIds) {
+                    Log.d("CalendarSyncWorker", "Event ${log.calendarEventId} removed — cancelling check worker")
+                    WorkManager.getInstance(context).cancelUniqueWork("check_event_${log.calendarEventId}")
+                    studySessionLogDao.deleteByEventId(log.calendarEventId)
                 }
             }
             
@@ -86,6 +101,22 @@ class CalendarSyncWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Log.e("CalendarSyncWorker", "Error syncing calendar", e)
             Result.failure()
+        }
+    }
+
+    companion object {
+        private const val WORK_NAME_IMMEDIATE = "calendar_sync_immediate"
+
+        /** Run a one-shot CalendarSyncWorker immediately (e.g. on app launch). */
+        fun runImmediateSync(context: Context) {
+            val request = OneTimeWorkRequestBuilder<CalendarSyncWorker>()
+                .addTag("calendar_sync_immediate")
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                WORK_NAME_IMMEDIATE,
+                androidx.work.ExistingWorkPolicy.KEEP,  // don't re-run if already queued
+                request
+            )
         }
     }
 }

@@ -34,4 +34,13 @@ class AttendanceViewModel @Inject constructor(private val attendanceDao: Attenda
             }
         }
     }
+
+    /** Fix #4 — retroactively correct the start time of the current ongoing session. */
+    fun updateSessionTimeIn(newTimeInMs: Long) {
+        viewModelScope.launch {
+            ongoingSession.value?.let {
+                attendanceDao.updateRecord(it.copy(timeIn = newTimeInMs))
+            }
+        }
+    }
 }

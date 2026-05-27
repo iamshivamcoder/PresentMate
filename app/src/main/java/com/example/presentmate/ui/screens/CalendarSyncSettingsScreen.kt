@@ -1,5 +1,6 @@
 package com.example.presentmate.ui.screens
 
+import android.content.Context
 import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Log
@@ -88,16 +89,19 @@ fun CalendarSyncSettingsScreen() {
     fun updateWorkManager(enabled: Boolean) {
         val workManager = WorkManager.getInstance(context)
         if (enabled) {
+            // Fix #11 — use user-selected interval instead of hardcoded 6 hours
+            val savedHours = context.getSharedPreferences("calendar_sync_prefs", Context.MODE_PRIVATE)
+                .getInt("sync_interval_hours", 6).toLong()
             val request = PeriodicWorkRequestBuilder<CalendarSyncWorker>(
-                6, TimeUnit.HOURS // Minimum repeatable interval roughly
+                savedHours, TimeUnit.HOURS
             ).build()
-            
+
             workManager.enqueueUniquePeriodicWork(
                 "CalendarSyncWorker",
                 ExistingPeriodicWorkPolicy.UPDATE,
                 request
             )
-            Toast.makeText(context, "Sync enabled (runs every 6 hours)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Sync enabled (every ${savedHours}h)", Toast.LENGTH_SHORT).show()
         } else {
             workManager.cancelUniqueWork("CalendarSyncWorker")
             Toast.makeText(context, "Sync disabled", Toast.LENGTH_SHORT).show()
@@ -213,7 +217,47 @@ fun CalendarSyncSettingsScreen() {
             }
             
             
-            // --- Delay ---
+            // Fix #11 — configurable sync interval (was hardcoded to 6 hours)
+            val syncIntervalOptions = listOf(1, 3, 6, 12)
+            val syncIntervalLabels  = listOf("1 hr", "3 hrs", "6 hrs", "12 hrs")
+            var syncIntervalIndex by remember {
+                val saved = context.getSharedPreferences("calendar_sync_prefs", Context.MODE_PRIVATE)
+                    .getInt("sync_interval_hours", 6)
+                mutableStateOf(syncIntervalOptions.indexOfFirst { it == saved }.coerceAtLeast(2))
+            }
+            syncIntervalOptions[syncIntervalIndex]
+
+            SettingsGroup("Auto-Sync Frequency") {
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Timer, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sync every ${syncIntervalLabels[syncIntervalIndex]}")
+                    }
+                    Slider(
+                        value = syncIntervalIndex.toFloat(),
+                        onValueChange = { syncIntervalIndex = it.toInt() },
+                        onValueChangeFinished = {
+                            val hours = syncIntervalOptions[syncIntervalIndex]
+                            context.getSharedPreferences("calendar_sync_prefs", Context.MODE_PRIVATE)
+                                .edit().putInt("sync_interval_hours", hours).apply()
+                            updateWorkManager(isEnabled)
+                        },
+                        valueRange = 0f..(syncIntervalOptions.lastIndex.toFloat()),
+                        steps = syncIntervalOptions.lastIndex - 1
+                    )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        syncIntervalLabels.forEachIndexed { idx, lbl ->
+                            Text(lbl,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (idx == syncIntervalIndex) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+
+            // --- Notification Delay ---
             SettingsGroup("Notification Delay") {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -325,7 +369,7 @@ private fun CalendarEventCard(event: com.example.presentmate.calendar.CalendarEv
                 Text(
                     event.title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    fontWeight = FontWeight.Bold
                 )
                 if (isOngoing) {
                     Text(

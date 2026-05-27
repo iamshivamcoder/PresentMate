@@ -68,6 +68,7 @@ fun SessionReminderDialog(onDismiss: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()   // Fix #19 — stay above gesture nav bar
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(MaterialTheme.colorScheme.surface)
@@ -207,11 +208,11 @@ private fun handleReminderConfirm(
 ) {
     when {
         leaveStatus == LeaveStatus.TAKING_LEAVE -> {
-            // Suppress all study notifications for today
-            val prefs = context.getSharedPreferences("presentmate_leave_prefs", android.content.Context.MODE_PRIVATE)
-            val cal = Calendar.getInstance()
-            val todayKey = "${cal.get(Calendar.YEAR)}_${cal.get(Calendar.DAY_OF_YEAR)}"
-            prefs.edit().putString("leave_day", todayKey).apply()
+            // Fix #6 — write to the SAME prefs/key that SessionReminderReceiver reads
+            val prefs = context.getSharedPreferences("session_reminder_leave", android.content.Context.MODE_PRIVATE)
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                .format(java.util.Date())
+            prefs.edit().putBoolean(today, true).apply()
             onDismiss()
         }
         leaveStatus == LeaveStatus.GOING_AFTERNOON -> {

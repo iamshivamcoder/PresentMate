@@ -73,7 +73,7 @@ fun LocationPickerScreen(
     )
 
     val viewModel: LocationPickerViewModel = viewModel(
-        factory = LocationPickerViewModel.Companion.provideFactory(
+        factory = LocationPickerViewModel.provideFactory(
             geocoder,
             searchHistoryRepository,
             savedPlacesRepository,

@@ -1,5 +1,6 @@
 package com.example.presentmate.ui.screens
 
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +17,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -49,7 +52,15 @@ fun OverviewScreen(viewModel: OverviewViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("overview_prefs", Context.MODE_PRIVATE) }
-    val weeklyGoalHours by remember { androidx.compose.runtime.mutableFloatStateOf(prefs.getFloat("weekly_goal_hours", 10f)) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var weeklyGoalHours by remember { mutableFloatStateOf(prefs.getFloat("weekly_goal_hours", 10f)) }
+
+    // Fix #12 — re-read on every Resume so changes from OverviewPreferencesScreen are picked up
+    androidx.compose.runtime.LaunchedEffect(lifecycleOwner.lifecycle.currentState) {
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+            weeklyGoalHours = prefs.getFloat("weekly_goal_hours", 10f)
+        }
+    }
 
     Column(
         modifier = Modifier

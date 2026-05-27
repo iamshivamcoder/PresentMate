@@ -69,7 +69,7 @@ fun DrumRollerPicker(
             .drawWithContent {
                 drawContent()
                 // Fade top and bottom edges for the "drum roll" effect
-                val fadeHeight = (totalHeight / visibleItems * halfVisible).toPx()
+                (totalHeight / visibleItems * halfVisible).toPx()
                 drawRect(
                     brush = Brush.verticalGradient(
                         0f to Color.Transparent,
