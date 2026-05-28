@@ -4,8 +4,10 @@ plugins {
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.parcelize")
     id("com.google.dagger.hilt.android")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
+    id("com.google.firebase.appdistribution")
     alias(libs.plugins.kotlin.compose)
-
 }
 
 android {
@@ -93,9 +95,14 @@ android {
 dependencies {
 
     implementation(libs.androidx.appcompat)
-     implementation(libs.androidx.compose.material3)
-    implementation(libs.firebase.crashlytics.buildtools)
+    implementation(libs.androidx.compose.material3)
     implementation(libs.gson)
+    
+    // Firebase Setup
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-crashlytics")
+    
     val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
     implementation(composeBom)
 
