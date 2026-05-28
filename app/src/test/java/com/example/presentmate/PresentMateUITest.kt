@@ -11,7 +11,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [34])
+@Config(sdk = [34], manifest = Config.NONE)
 class PresentMateUITest {
 
     @get:Rule
@@ -24,7 +24,7 @@ class PresentMateUITest {
         }
         
         // Find the input field
-        composeTestRule.onNodeWithText("Ask me anything about your studies...").assertExists()
+        composeTestRule.onNodeWithText("Ask AI Assistant...").assertExists()
         // Find the send button
         composeTestRule.onNodeWithContentDescription("Send").assertExists()
     }
@@ -115,5 +115,18 @@ class PresentMateUITest {
         }
         
         composeTestRule.onNodeWithText("Shivam Tripathi").assertExists()
+    }
+
+    @Test
+    fun testThemePreferencesScreen_Exists() {
+        composeTestRule.setContent {
+            ThemePreferencesScreen()
+        }
+        
+        composeTestRule.onNodeWithText("App Theme").assertExists()
+        composeTestRule.onNodeWithText("Select Theme Mode").assertExists()
+        composeTestRule.onNodeWithText("System Default").assertExists()
+        composeTestRule.onNodeWithText("Light Mode").assertExists()
+        composeTestRule.onNodeWithText("Dark Mode").assertExists()
     }
 }

@@ -1,12 +1,17 @@
 package com.example.presentmate.ui.screens
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.presentmate.data.GeofencePreferencesRepository
+import com.example.presentmate.geofence.GeofenceManager
+import com.example.presentmate.geofence.GeofenceUtils
 import com.example.presentmate.viewmodel.LocationViewModel
 import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.mockk
+import io.mockk.mockkConstructor
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
 import io.mockk.verify
@@ -48,6 +53,13 @@ class LocationScreenTest {
         every { sharedPreferences.edit() } returns editor
         every { editor.putBoolean(any(), any()) } returns editor
         every { editor.apply() } returns Unit
+
+        mockkObject(GeofenceUtils)
+        every { GeofenceUtils.createGeofencePendingIntent(any()) } returns mockk()
+
+        mockkConstructor(GeofenceManager::class)
+        every { anyConstructed<GeofenceManager>().addGeofence(any(), any(), any(), any(), any()) } returns Unit
+        every { anyConstructed<GeofenceManager>().removeGeofence(any()) } returns Unit
     }
 
     @After

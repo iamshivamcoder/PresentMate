@@ -41,6 +41,7 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
     object AboutDeveloper : Screen("aboutDeveloper", "About Developer", Icons.Filled.Info)
     object ActivityVerification : Screen("activityVerification", "Activity", Icons.Filled.Checklist)
+    object Profile : Screen("profile", "Profile", Icons.Filled.Person)
 }
 
 val navItems = listOf(
@@ -48,7 +49,8 @@ val navItems = listOf(
     Screen.Overview,
     Screen.ActivityVerification,
     Screen.Location,
-    Screen.Settings
+    Screen.Settings,
+    Screen.Profile
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -226,6 +228,22 @@ fun AppNavigation() {
                 composable("themePreferences") { ThemePreferencesScreen() }
                 composable(Screen.ActivityVerification.route) { ActivityVerificationScreen() }
                 composable("changelog") { ChangelogScreen() }
+                composable(Screen.Profile.route) { 
+                    com.example.presentmate.ui.screens.ProfileScreen(
+                        onNavigateToManageProfile = { navController.navigate("manageProfile") },
+                        onSignOut = {
+                            com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                            navController.navigate("auth_graph") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    ) 
+                }
+                composable("manageProfile") {
+                    com.example.presentmate.ui.screens.ManageProfileScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
             }
         }
     }
