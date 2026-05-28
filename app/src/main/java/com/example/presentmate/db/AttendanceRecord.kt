@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "attendance_records")
 data class AttendanceRecord(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val userId: String = "",
     val date: Long,
     val timeIn: Long? = null,
     val timeOut: Long? = null
@@ -15,6 +16,7 @@ data class AttendanceRecord(
 data class DeletedRecord(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val originalId: Int,
+    val userId: String = "",
     val date: Long,
     val timeIn: Long? = null,
     val timeOut: Long? = null,

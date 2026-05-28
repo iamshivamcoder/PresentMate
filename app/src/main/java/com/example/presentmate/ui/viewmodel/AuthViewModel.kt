@@ -31,11 +31,50 @@ class AuthViewModel @Inject constructor(
         _authState.value = AuthState.Loading
         viewModelScope.launch {
             val result = authRepository.signInWithGoogle()
+            handleAuthResult(result)
+        }
+    }
+
+    fun signUpWithEmail(email: String, password: String) {
+        _authState.value = AuthState.Loading
+        viewModelScope.launch {
+            val result = authRepository.signUpWithEmail(email, password)
+            handleAuthResult(result)
+        }
+    }
+
+    fun signInWithEmail(email: String, password: String) {
+        _authState.value = AuthState.Loading
+        viewModelScope.launch {
+            val result = authRepository.signInWithEmail(email, password)
+            handleAuthResult(result)
+        }
+    }
+
+    fun sendPasswordResetEmail(email: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val result = authRepository.sendPasswordResetEmail(email)
             if (result.isSuccess) {
-                _authState.value = AuthState.Authenticated
+                onResult(true, null)
             } else {
-                _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error occurred")
+                onResult(false, result.exceptionOrNull()?.message)
             }
+        }
+    }
+
+    private fun handleAuthResult(result: Result<*>) {
+        if (result.isSuccess) {
+            _authState.value = AuthState.Authenticated
+        } else {
+            _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error occurred")
+        }
+    }
+
+    fun resetState() {
+        if (authRepository.currentUser != null) {
+            _authState.value = AuthState.Authenticated
+        } else {
+            _authState.value = AuthState.Idle
         }
     }
 

@@ -16,6 +16,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "step_activity_logs")
 data class StepActivityLog(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val userId: String = "",
     val detectedAt: Long = System.currentTimeMillis(),
     val stepCount: Int = 0,
     val windowMinutes: Int = 30,

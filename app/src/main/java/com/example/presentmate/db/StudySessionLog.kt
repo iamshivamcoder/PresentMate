@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "study_session_logs")
 data class StudySessionLog(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val userId: String = "",
     val calendarEventId: Long,          // CalendarContract event ID
     val eventTitle: String,             // Raw title from calendar
     val subject: String?,               // Extracted subject (e.g., "Modern History")

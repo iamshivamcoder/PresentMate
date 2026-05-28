@@ -20,16 +20,41 @@ android {
         arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
     }
 
+    // Dynamic Versioning Logic
+    val baseVersionName = project.findProperty("VERSION_NAME") as? String ?: "1.0"
+    val baseVersionCode = (project.findProperty("VERSION_CODE_BASE") as? String)?.toIntOrNull() ?: 1
+
+    val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+    val isCiBuild = ciRunNumber != null
+
+    val finalVersionCode = if (isCiBuild) baseVersionCode + ciRunNumber!! else baseVersionCode
+    
+    val ciCommitSha = System.getenv("GITHUB_SHA")?.take(7)
+    val finalVersionName = if (isCiBuild && ciCommitSha != null) {
+        "$baseVersionName-$ciCommitSha"
+    } else {
+        baseVersionName // Local builds keep stable version name
+    }
+
     defaultConfig {
         applicationId = "com.example.presentmate"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.6"
+        versionCode = finalVersionCode
+        versionName = finalVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    signingConfigs {
+        create("sharedDebug") {
+            storeFile = file("presentmate-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
         }
     }
 
@@ -40,11 +65,10 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
+            signingConfig = signingConfigs.getByName("sharedDebug") // Use shared keystore to prevent conflict
             isDebuggable = true
-            // Disable minify & resource shrinking for debug — massively speeds up debug builds
             isMinifyEnabled = false
             isShrinkResources = false
-            // Disable PNG crunching in debug (saves seconds on every build with images)
             aaptOptions.cruncherEnabled = false
 
             // Firebase App Distribution
@@ -53,6 +77,24 @@ android {
                 val credsFile = System.getenv("GOOGLE_APPLICATION_CREDENTIALS")
                 if (!credsFile.isNullOrBlank()) {
                     serviceCredentialsFile = credsFile
+                }
+
+                // Dynamic Release Notes
+                if (isCiBuild) {
+                    val branchName = System.getenv("CI_BRANCH_NAME") ?: "Unknown Branch"
+                    val commitMsg = System.getenv("CI_COMMIT_MESSAGE") ?: "No commit message"
+                    val actor = System.getenv("GITHUB_ACTOR") ?: "Automated CI"
+                    
+                    releaseNotes = """
+                        Branch: $branchName
+                        Commit: $ciCommitSha
+                        Triggered by: $actor
+                        
+                        Message:
+                        $commitMsg
+                    """.trimIndent()
+                } else {
+                    releaseNotes = "Local manual build"
                 }
             }
         }
@@ -137,6 +179,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.ui:ui-text-google-fonts:1.6.8")
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
     // Navigation

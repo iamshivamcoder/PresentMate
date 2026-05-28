@@ -54,6 +54,11 @@ object AppModule {
     }
 
     @Provides
+    fun provideActivityEventDao(database: PresentMateDatabase): com.example.presentmate.db.ActivityEventDao {
+        return database.activityEventDao()
+    }
+
+    @Provides
     @Singleton
     fun provideCalendarRepository(@ApplicationContext context: Context): CalendarRepository {
         return CalendarRepository(context)

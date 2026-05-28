@@ -25,6 +25,16 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      - name: Extract Git Metadata
+        id: meta
+        run: |
+          echo "CI_BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          # Use jq to safely escape multiline commit messages
+          commit_msg=$(git log -1 --pretty=%B)
+          echo "CI_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
+          echo "$commit_msg" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Restore google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}

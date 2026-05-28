@@ -24,10 +24,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.navigation
+import androidx.navigation.navigation
 import com.example.presentmate.MainActivity
 import com.example.presentmate.ui.components.SessionReminderDialog
 import com.example.presentmate.ui.components.StudyRecapDialog
 import com.example.presentmate.ui.screens.*
+import com.example.presentmate.ui.screens.auth.*
 import kotlinx.coroutines.launch
 
 // Sealed class for Navigation items
@@ -142,7 +145,7 @@ fun AppNavigation() {
             val startRoute = if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
                 Screen.Home.route
             } else {
-                "login"
+                "auth_graph"
             }
 
             NavHost(
@@ -152,14 +155,46 @@ fun AppNavigation() {
                     .padding(innerPadding)
                     .consumeWindowInsets(innerPadding)
             ) {
-                composable("login") {
-                    LoginScreen(
-                        onLoginSuccess = {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo("login") { inclusive = true }
-                            }
+                navigation(startDestination = "welcome", route = "auth_graph") {
+                    composable("welcome") {
+                        com.example.presentmate.ui.theme.auth.AuthTheme {
+                            WelcomeScreen(
+                                onGetStarted = { navController.navigate("login") }
+                            )
                         }
-                    )
+                    }
+                    composable("login") {
+                        com.example.presentmate.ui.theme.auth.AuthTheme {
+                            LoginScreen(
+                                onLoginSuccess = {
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo("auth_graph") { inclusive = true }
+                                    }
+                                },
+                                onNavigateToSignUp = { navController.navigate("signup") },
+                                onNavigateToResetPassword = { navController.navigate("reset_password") }
+                            )
+                        }
+                    }
+                    composable("signup") {
+                        com.example.presentmate.ui.theme.auth.AuthTheme {
+                            SignUpScreen(
+                                onNavigateBack = { navController.popBackStack() },
+                                onSignUpSuccess = {
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo("auth_graph") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    composable("reset_password") {
+                        com.example.presentmate.ui.theme.auth.AuthTheme {
+                            ResetPasswordScreen(
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+                    }
                 }
                 composable(Screen.Home.route) { AttendanceScreen(navController = navController) }
                 composable(Screen.Overview.route) { OverviewScreen() }

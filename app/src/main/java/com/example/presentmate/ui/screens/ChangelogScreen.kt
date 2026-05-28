@@ -38,7 +38,7 @@ data class ChangelogEntry(
 private val changelog = listOf(
     ChangelogEntry(
         version = "1.7",
-        date = "May 2026",
+        date = "28 May 2026",
         isLatest = true,
         changes = listOf(
             "🚀 Complete CI/CD Pipeline with GitHub Actions",
@@ -49,7 +49,7 @@ private val changelog = listOf(
     ),
     ChangelogEntry(
         version = "1.6",
-        date = "March 2026",
+        date = "15 Mar 2026",
         isLatest = false,
         changes = listOf(
             "🛠️ Finalized AI Chat: Fixed floaty text bar & model logic (v1.5-flash-latest)",
@@ -65,7 +65,7 @@ private val changelog = listOf(
     ),
     ChangelogEntry(
         version = "1.4",
-        date = "March 2026",
+        date = "01 Mar 2026",
         changes = listOf(
             "✅ Daily 'Started the session?' notification at 9:30 AM (Mon–Sat)",
             "📱 Home screen is now fully scrollable",
@@ -79,7 +79,7 @@ private val changelog = listOf(
     ),
     ChangelogEntry(
         version = "1.3",
-        date = "February 2026",
+        date = "10 Feb 2026",
         changes = listOf(
             "🗓️ Google Calendar sync for study sessions",
             "🤖 AI attendance sheet processing with Gemini",
@@ -89,7 +89,7 @@ private val changelog = listOf(
     ),
     ChangelogEntry(
         version = "1.2",
-        date = "January 2026",
+        date = "15 Jan 2026",
         changes = listOf(
             "📍 Location picker with map support (OpenStreetMap)",
             "🗺️ Improved MapView stability and performance",
@@ -99,7 +99,7 @@ private val changelog = listOf(
     ),
     ChangelogEntry(
         version = "1.1",
-        date = "December 2025",
+        date = "10 Dec 2025",
         changes = listOf(
             "🎉 Initial release of PresentMate",
             "⏱️ Manual attendance tracking (Time In / Time Out)",

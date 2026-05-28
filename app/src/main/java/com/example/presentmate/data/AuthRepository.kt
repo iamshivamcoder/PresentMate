@@ -23,6 +23,7 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val credentialManager: CredentialManager,
+    private val database: com.example.presentmate.db.PresentMateDatabase,
     @ApplicationContext private val context: Context
 ) {
 
@@ -79,8 +80,54 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun signUpWithEmail(email: String, password: String): Result<FirebaseUser> {
+        return try {
+            val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+            val user = authResult.user
+            if (user != null) {
+                Result.success(user)
+            } else {
+                Result.failure(Exception("Failed to create user."))
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Sign up failed", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun signInWithEmail(email: String, password: String): Result<FirebaseUser> {
+        return try {
+            val authResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
+            val user = authResult.user
+            if (user != null) {
+                Result.success(user)
+            } else {
+                Result.failure(Exception("Failed to sign in."))
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Sign in failed", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        return try {
+            firebaseAuth.sendPasswordResetEmail(email).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Password reset failed", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun signOut() {
         firebaseAuth.signOut()
+        
+        // Wipe local database for multi-user isolation
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            database.clearAllTables()
+        }
+        
         // Optionally clear Credential Manager state here if needed
         // credentialManager.clearCredentialState(...) 
     }

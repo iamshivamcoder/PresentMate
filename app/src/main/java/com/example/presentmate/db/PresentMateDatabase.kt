@@ -49,8 +49,8 @@ interface AttendanceDao {
 
 // --- Unified Database --- //
 @Database(
-    entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class, StudySessionLog::class, StepActivityLog::class],
-    version = 5,
+    entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class, StudySessionLog::class, StepActivityLog::class, ActivityEvent::class],
+    version = 7,
     exportSchema = false
 )
 abstract class PresentMateDatabase : RoomDatabase() {
@@ -58,6 +58,7 @@ abstract class PresentMateDatabase : RoomDatabase() {
     abstract fun savedPlaceDao(): SavedPlaceDao
     abstract fun studySessionLogDao(): StudySessionLogDao
     abstract fun stepActivityLogDao(): StepActivityLogDao
+    abstract fun activityEventDao(): ActivityEventDao
 
     companion object {
         @Volatile
@@ -99,6 +100,31 @@ abstract class PresentMateDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE attendance_records ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE deleted_records ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE saved_places ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE study_session_logs ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE step_activity_logs ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS activity_events (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        userId TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        eventType TEXT NOT NULL,
+                        metadataJson TEXT,
+                        isSynced INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): PresentMateDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -106,7 +132,7 @@ abstract class PresentMateDatabase : RoomDatabase() {
                     PresentMateDatabase::class.java,
                     "presentmate_database"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build()
                 INSTANCE = instance
                 instance
