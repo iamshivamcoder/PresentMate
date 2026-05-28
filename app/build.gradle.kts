@@ -50,7 +50,6 @@ android {
             // Firebase App Distribution
             configure<com.google.firebase.appdistribution.gradle.AppDistributionExtension> {
                 artifactType = "APK"
-                groups = "qa-testers"
                 val credsFile = System.getenv("GOOGLE_APPLICATION_CREDENTIALS")
                 if (!credsFile.isNullOrBlank()) {
                     serviceCredentialsFile = credsFile
