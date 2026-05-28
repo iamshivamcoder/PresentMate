@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "417667318367",
+    "project_id": "presentmate-78ecc",
+    "storage_bucket": "presentmate-78ecc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:417667318367:android:ced9fb531ef4b2a1f411ea",
+        "android_client_info": {
+          "package_name": "com.example.presentmate"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "417667318367-j7a1vu9edacqmk01018ub4fnj1nem1ac.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.presentmate",
+            "certificate_hash": "d37eac0f36cdf225246894ac30a29427c872313d"
+          }
+        },
+        {
+          "client_id": "417667318367-slf4tb6p1ckcrm0fg8subaomv30ocive.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDi-0ginlkYyXWPWWTDqIjVFJ6QEqtMOg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "417667318367-slf4tb6p1ckcrm0fg8subaomv30ocive.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

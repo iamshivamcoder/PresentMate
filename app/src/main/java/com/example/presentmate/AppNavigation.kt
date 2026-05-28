@@ -139,13 +139,28 @@ fun AppNavigation() {
             val database = remember { com.example.presentmate.db.PresentMateDatabase.getDatabase(context) }
             val savedPlacesRepository = remember { com.example.presentmate.data.SavedPlacesRepository(database.savedPlaceDao()) }
 
+            val startRoute = if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
+                Screen.Home.route
+            } else {
+                "login"
+            }
+
             NavHost(
                 navController = navController,
-                startDestination = Screen.Home.route,
+                startDestination = startRoute,
                 modifier = Modifier
                     .padding(innerPadding)
                     .consumeWindowInsets(innerPadding)
             ) {
+                composable("login") {
+                    LoginScreen(
+                        onLoginSuccess = {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo("login") { inclusive = true }
+                            }
+                        }
+                    )
+                }
                 composable(Screen.Home.route) { AttendanceScreen(navController = navController) }
                 composable(Screen.Overview.route) { OverviewScreen() }
                 composable(Screen.Location.route) { LocationScreen(navController = navController) }

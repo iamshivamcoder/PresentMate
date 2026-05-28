@@ -10,6 +10,8 @@ import com.example.presentmate.db.AttendanceDao
 import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.db.StepActivityLogDao
 import com.example.presentmate.db.StudySessionLogDao
+import com.google.firebase.auth.FirebaseAuth
+import androidx.credentials.CredentialManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -75,6 +77,18 @@ object AppModule {
         val temperature = AIPreferences.getTemperature(context)
         val maxTokens   = AIPreferences.getMaxTokens(context)
         return AIServiceFactory.create(platform, apiKey, temperature, maxTokens)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth {
+        return FirebaseAuth.getInstance()
+    }
+
+    @Provides
+    @Singleton
+    fun provideCredentialManager(@ApplicationContext context: Context): CredentialManager {
+        return CredentialManager.create(context)
     }
 }
 

@@ -260,11 +260,32 @@ fun SettingsScreen(navController: NavHostController) {
             )
         }
 
+        SettingsGroup("Account") {
+            val authViewModel: com.example.presentmate.ui.viewmodel.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val authState by authViewModel.authState.collectAsState()
+            
+            SettingsItem(
+                title = if (authState is com.example.presentmate.ui.viewmodel.AuthState.Authenticated) "Sign Out" else "Sign In",
+                description = "Manage your Google account session",
+                icon = androidx.compose.material.icons.Icons.Default.Verified,
+                onClick = { 
+                    if (authState is com.example.presentmate.ui.viewmodel.AuthState.Authenticated) {
+                        authViewModel.signOut()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate("login")
+                    }
+                }
+            )
+        }
+
         SettingsGroup("General") {
             SettingsItem(
                 title = "App Version",
                 description = "v$appVersion — Tap to see what's new",
-                icon = Icons.Filled.Verified,
+                icon = Icons.Filled.Info,
                 onClick = { navController.navigate("changelog") }
             )
         }
