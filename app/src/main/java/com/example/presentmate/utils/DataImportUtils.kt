@@ -60,7 +60,7 @@ object DataImportUtils {
                             // Basic validation: timeIn must exist if timeOut exists, though export logic allows timeIn=null (resulting in N/A duration)
                             // However, an AttendanceRecord fundamentally needs a date. timeIn and timeOut can be null.
                             
-                            records.add(AttendanceRecord(date = date, timeIn = timeIn, timeOut = timeOut))
+                            records.add(AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", date = date, timeIn = timeIn, timeOut = timeOut))
                         } catch (e: Exception) {
                             e.printStackTrace() // Log parsing error for a specific line
                             // Continue to next line

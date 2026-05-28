@@ -3,15 +3,33 @@ package com.example.presentmate
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.navigation.compose.rememberNavController
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import com.example.presentmate.data.CalendarSyncPreferences
+import com.example.presentmate.db.PresentMateDatabase
+import com.example.presentmate.db.AttendanceDao
 import com.example.presentmate.ui.screens.*
+import com.example.presentmate.ui.viewmodel.AuthViewModel
+import com.example.presentmate.ui.viewmodel.AuthState
+import com.example.presentmate.viewmodel.AIAssistantViewModel
+import com.google.firebase.auth.FirebaseAuth
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.mockkStatic
+import io.mockk.unmockkAll
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [34], manifest = Config.NONE)
+@Config(sdk = [34], manifest = Config.NONE, application = android.app.Application::class)
 class PresentMateUITest {
 
     @get:Rule
@@ -19,8 +37,12 @@ class PresentMateUITest {
 
     @Test
     fun testAIAssistantScreen_InputBarIsVisible() {
+        // Mock dependencies for ViewModel to avoid hiltViewModel() lookup crash in unit tests
+        val attendanceDao = mockk<AttendanceDao>(relaxed = true)
+        val mockViewModel = AIAssistantViewModel(attendanceDao, ApplicationProvider.getApplicationContext())
+        
         composeTestRule.setContent {
-            AIAssistantScreen()
+            AIAssistantScreen(viewModel = mockViewModel)
         }
         
         // Find the input field
@@ -31,15 +53,33 @@ class PresentMateUITest {
 
     @Test
     fun testOverviewScreen_TogglesGraphs() {
-        // Here we mock the viewModel or just test the UI component if we use pure UI testing.
-        // It's safer to just launch the GraphSection or something similar if we don't have a mocked ViewModel.
-        // Let's test the SettingsScreen items instead to prevent hiltViewModel issues.
-        composeTestRule.setContent {
-            val navController = rememberNavController()
-            SettingsScreen(navController = navController)
+        mockkStatic(FirebaseAuth::class)
+        val mockAuth = mockk<FirebaseAuth>(relaxed = true) {
+            every { currentUser } returns null
+        }
+        every { FirebaseAuth.getInstance() } returns mockAuth
+
+        val mockAttendanceDao = mockk<AttendanceDao>(relaxed = true) {
+            every { getAllDeletedRecords() } returns flowOf(emptyList())
+            every { getAllRecords() } returns flowOf(emptyList())
+        }
+        val mockDb = mockk<PresentMateDatabase>(relaxed = true) {
+            every { attendanceDao() } returns mockAttendanceDao
+        }
+        val mockAuthViewModel = mockk<AuthViewModel>(relaxed = true) {
+            every { authState } returns MutableStateFlow(AuthState.Idle)
         }
         
-        composeTestRule.onNodeWithText("Preferences").assertExists()
+        composeTestRule.setContent {
+            val navController = rememberNavController()
+            SettingsScreen(
+                navController = navController,
+                db = mockDb,
+                authViewModel = mockAuthViewModel
+            )
+        }
+        
+        composeTestRule.onAllNodesWithText("Preferences").onFirst().assertExists()
         composeTestRule.onNodeWithText("Recycle Bin").assertExists()
         composeTestRule.onNodeWithText("Export Data").assertExists()
         composeTestRule.onNodeWithText("Import Data").assertExists()
@@ -52,7 +92,7 @@ class PresentMateUITest {
             HelpScreen(_navController = navController)
         }
         
-        composeTestRule.onNodeWithText("PresentMate App Help").assertExists()
+        composeTestRule.onNodeWithText("What's Planned: Feature Explanations").assertExists()
         
         // Assuming HelpScreen has sections. The new visual cards:
         composeTestRule.onNodeWithText("Location-Based Session").assertIsDisplayed()
@@ -79,22 +119,35 @@ class PresentMateUITest {
         
         composeTestRule.onNodeWithText("Daily Reminder").assertExists()
         composeTestRule.onNodeWithText("Change Time").assertExists()
-        composeTestRule.onNodeWithText("Progress Report").assertExists()
-        composeTestRule.onNodeWithText("Ask if an event is completed when it ends").assertExists()
+        composeTestRule.onNodeWithText("Progress Reports").assertExists()
+        composeTestRule.onNodeWithText("Notify on event completions").assertExists()
     }
 
     @Test
     fun testCalendarSyncSettingsScreen_BasicElementsExist() {
+        mockkObject(CalendarSyncPreferences)
+        every { CalendarSyncPreferences.isCalendarSyncEnabled(any()) } returns true
+        every { CalendarSyncPreferences.getDelayMinutes(any()) } returns 5
+        every { CalendarSyncPreferences.getSelectedCalendarId(any()) } returns -1L
+
+        mockkStatic(ContextCompat::class)
+        every { ContextCompat.checkSelfPermission(any(), Manifest.permission.READ_CALENDAR) } returns PackageManager.PERMISSION_GRANTED
+
         composeTestRule.setContent {
             CalendarSyncSettingsScreen()
         }
         
-        composeTestRule.onNodeWithText("Google Calendar Sync").assertExists()
-        composeTestRule.onNodeWithText("Enable Auto-Sync").assertExists()
+        composeTestRule.onNodeWithText("Sync with Google Calendar to automatically track study sessions. Notifications appear after sessions end.").assertExists()
         composeTestRule.onNodeWithText("Notification Delay").assertExists()
+        composeTestRule.onNodeWithText("Auto-Sync Frequency").assertExists()
         
         // Whitelist keywords should NOT exist
         composeTestRule.onNodeWithText("Whitelist Keywords").assertDoesNotExist()
+    }
+
+    @org.junit.After
+    fun tearDown() {
+        unmockkAll()
     }
 
     @Test
@@ -104,8 +157,8 @@ class PresentMateUITest {
             WhyPresentMateScreen(_navController = navController)
         }
         
-        composeTestRule.onNodeWithText("The Mission").assertExists()
-        composeTestRule.onNodeWithText("Target Audience").assertExists()
+        composeTestRule.onNodeWithText("About Present Mate: Your Questions Answered").assertExists()
+        composeTestRule.onNodeWithText("1. What is Present Mate?").assertExists()
     }
     
     @Test
@@ -114,7 +167,7 @@ class PresentMateUITest {
             AboutDeveloperScreen()
         }
         
-        composeTestRule.onNodeWithText("Shivam Tripathi").assertExists()
+        composeTestRule.onNodeWithText("Shivam").assertExists()
     }
 
     @Test

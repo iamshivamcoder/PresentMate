@@ -171,8 +171,9 @@ fun LoginScreen(
                     HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline)
                 }
 
+                val context = LocalContext.current
                 OutlinedButton(
-                    onClick = { viewModel.signInWithGoogle() },
+                    onClick = { viewModel.signInWithGoogle(context) },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(

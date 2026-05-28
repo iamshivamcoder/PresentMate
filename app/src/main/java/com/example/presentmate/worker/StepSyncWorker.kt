@@ -1,6 +1,14 @@
 package com.example.presentmate.worker
 
+import com.google.firebase.auth.FirebaseAuth
+
 import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
@@ -8,8 +16,10 @@ import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.db.StepActivityLog
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 
 /**
  * Periodic WorkManager worker that reads a 5-second burst of the Android Step Counter sensor
@@ -36,7 +46,9 @@ class StepSyncWorker @AssistedInject constructor(
                 else      -> "BACKGROUND"
             }
 
+            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"
             val log = StepActivityLog(
+                userId        = uid,
                 detectedAt    = System.currentTimeMillis(),
                 stepCount     = steps,
                 windowMinutes = getSyncInterval(appContext),
@@ -50,7 +62,7 @@ class StepSyncWorker @AssistedInject constructor(
 
             // Prune entries older than 30 days
             val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(30)
-            db.stepActivityLogDao().deleteOlderThan(cutoff)
+            db.stepActivityLogDao().deleteOlderThan(cutoff, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
 
             Log.d(TAG, "Logged $steps steps (delta) in window=$window")
             Result.success()
@@ -60,17 +72,60 @@ class StepSyncWorker @AssistedInject constructor(
         }
     }
 
-    /**
-     * Fix #8: StepActivityService increments "last_step_total" in SharedPrefs on every step.
-     * We read the delta since the previous sync, then save the new baseline.
-     * This avoids registering a sensor listener in WorkManager (which Android blocks when screen is off).
-     */
-    private fun readStepDelta(): Int {
+    private suspend fun readStepCounterSensor(): Long = suspendCancellableCoroutine { continuation ->
+        val sensorManager = appContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val stepCounter = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+        if (stepCounter == null) {
+            continuation.resume(0L)
+            return@suspendCancellableCoroutine
+        }
+
+        var listener: SensorEventListener? = null
+        listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER && event.values.isNotEmpty()) {
+                    val count = event.values[0].toLong()
+                    sensorManager.unregisterListener(listener)
+                    if (continuation.isActive) {
+                        continuation.resume(count)
+                    }
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        val handler = Handler(Looper.getMainLooper())
+        val timeoutRunnable = Runnable {
+            sensorManager.unregisterListener(listener)
+            if (continuation.isActive) {
+                continuation.resume(-1L)
+            }
+        }
+
+        continuation.invokeOnCancellation {
+            sensorManager.unregisterListener(listener)
+            handler.removeCallbacks(timeoutRunnable)
+        }
+
+        sensorManager.registerListener(listener, stepCounter, SensorManager.SENSOR_DELAY_NORMAL)
+        handler.postDelayed(timeoutRunnable, 4000L) // 4 seconds timeout
+    }
+
+    private suspend fun readStepDelta(): Int {
         val prefs        = appContext.getSharedPreferences(STEP_PREFS, Context.MODE_PRIVATE)
-        val currentTotal = prefs.getLong(KEY_LAST_STEP_TOTAL, -1L)
         val prevSyncBase = prefs.getLong(KEY_SYNC_BASE, -1L)
 
-        if (currentTotal < 0) return 0          // service never ran / no sensor
+        // Try reading hardware step counter first
+        var currentTotal = readStepCounterSensor()
+        if (currentTotal <= 0) {
+            // Fallback to service's last step total
+            currentTotal = prefs.getLong(KEY_LAST_STEP_TOTAL, -1L)
+        } else {
+            // Update KEY_LAST_STEP_TOTAL to keep it in sync
+            prefs.edit().putLong(KEY_LAST_STEP_TOTAL, currentTotal).apply()
+        }
+
+        if (currentTotal < 0) return 0          // no sensor data at all
 
         val delta = if (prevSyncBase < 0) 0
                     else (currentTotal - prevSyncBase).toInt().coerceAtLeast(0)

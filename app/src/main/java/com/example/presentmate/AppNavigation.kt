@@ -41,7 +41,6 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
     object AboutDeveloper : Screen("aboutDeveloper", "About Developer", Icons.Filled.Info)
     object ActivityVerification : Screen("activityVerification", "Activity", Icons.Filled.Checklist)
-    object Profile : Screen("profile", "Profile", Icons.Filled.Person)
 }
 
 val navItems = listOf(
@@ -49,8 +48,7 @@ val navItems = listOf(
     Screen.Overview,
     Screen.ActivityVerification,
     Screen.Location,
-    Screen.Settings,
-    Screen.Profile
+    Screen.Settings
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,8 +83,9 @@ fun AppNavigation() {
         }
     }
 
-    val routesWithoutBottomBar = listOf("locationPickerScreen", "aiAssistant")
-    val routesWithCustomTopBar = listOf("locationPickerScreen") // These screens provide their own top bar
+    val authRoutes = listOf("welcome", "login", "signup", "reset_password")
+    val routesWithoutBottomBar = listOf("locationPickerScreen", "aiAssistant") + authRoutes
+    val routesWithCustomTopBar = listOf("locationPickerScreen", "aiAssistant") + authRoutes
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -228,17 +227,6 @@ fun AppNavigation() {
                 composable("themePreferences") { ThemePreferencesScreen() }
                 composable(Screen.ActivityVerification.route) { ActivityVerificationScreen() }
                 composable("changelog") { ChangelogScreen() }
-                composable(Screen.Profile.route) { 
-                    com.example.presentmate.ui.screens.ProfileScreen(
-                        onNavigateToManageProfile = { navController.navigate("manageProfile") },
-                        onSignOut = {
-                            com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
-                            navController.navigate("auth_graph") {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        }
-                    ) 
-                }
                 composable("manageProfile") {
                     com.example.presentmate.ui.screens.ManageProfileScreen(
                         onNavigateBack = { navController.popBackStack() }

@@ -1,5 +1,7 @@
 package com.example.presentmate.viewmodel
 
+import com.google.firebase.auth.FirebaseAuth
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.presentmate.db.AttendanceDao
@@ -41,7 +43,7 @@ class OverviewViewModel @Inject constructor(
 
     init {
         viewModelScope.launch(backgroundDispatcher) {
-            attendanceDao.getAllRecords().collect { records ->
+            attendanceDao.getAllRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).collect { records ->
                 processRecords(records)
             }
         }
@@ -50,7 +52,7 @@ class OverviewViewModel @Inject constructor(
     fun onDateChange(newDate: LocalDate) {
         _uiState.update { it.copy(currentDisplayDate = newDate) }
         viewModelScope.launch(backgroundDispatcher) {
-            val records = attendanceDao.getAllRecordsNonFlow()
+            val records = attendanceDao.getAllRecordsNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
             processRecords(records)
         }
     }
@@ -58,7 +60,7 @@ class OverviewViewModel @Inject constructor(
     fun onViewTypeChange(newViewType: GraphViewType) {
         _uiState.update { it.copy(selectedGraphViewType = newViewType) }
         viewModelScope.launch(backgroundDispatcher) {
-            val records = attendanceDao.getAllRecordsNonFlow()
+            val records = attendanceDao.getAllRecordsNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
             processRecords(records)
         }
     }

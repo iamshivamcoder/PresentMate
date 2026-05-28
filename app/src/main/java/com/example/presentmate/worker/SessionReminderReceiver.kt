@@ -1,5 +1,7 @@
 package com.example.presentmate.worker
 
+import com.google.firebase.auth.FirebaseAuth
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -44,7 +46,7 @@ class SessionReminderReceiver : BroadcastReceiver() {
                     try {
                         // getOngoingSession is blocking – call from IO dispatcher
                         val ongoing = withContext(Dispatchers.IO) {
-                            db.attendanceDao().getOngoingSession()
+                            db.attendanceDao().getOngoingSession((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                         }
                         if (ongoing == null) {
                             val now = System.currentTimeMillis()
@@ -58,7 +60,7 @@ class SessionReminderReceiver : BroadcastReceiver() {
                             }
                             val todayMidnight = calendar.timeInMillis
                             db.attendanceDao().insertRecord(
-                                AttendanceRecord(date = todayMidnight, timeIn = now, timeOut = null)
+                                AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", date = todayMidnight, timeIn = now, timeOut = null)
                             )
                             Log.d("SessionReminder", "Session started via 'Yess' notification")
                         } else {

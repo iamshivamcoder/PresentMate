@@ -1,5 +1,7 @@
 package com.example.presentmate.services
 
+import com.google.firebase.auth.FirebaseAuth
+
 import android.graphics.drawable.Icon
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -36,7 +38,7 @@ class SessionTileService : TileService() {
         serviceScope.launch {
             try {
                 val attendanceDao = db.attendanceDao()
-                val ongoingSession = attendanceDao.getAllRecords().firstOrNull()?.lastOrNull { record -> record.timeOut == null }
+                val ongoingSession = attendanceDao.getAllRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).firstOrNull()?.lastOrNull { record -> record.timeOut == null }
 
                 if (ongoingSession != null) {
                     // End current session
@@ -44,7 +46,7 @@ class SessionTileService : TileService() {
                 } else {
                     // Start new session
                     val now = System.currentTimeMillis()
-                    attendanceDao.insertRecord(AttendanceRecord(date = now, timeIn = now, timeOut = null))
+                    attendanceDao.insertRecord(AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", date = now, timeIn = now, timeOut = null))
                 }
             } catch (e: Exception) {
                 Log.e("SessionTileService", "Error onClick: ", e)
@@ -62,7 +64,7 @@ class SessionTileService : TileService() {
         val tile = qsTile ?: return
         serviceScope.launch {
             try {
-                val ongoingSession = db.attendanceDao().getAllRecords().firstOrNull()?.lastOrNull { record -> record.timeOut == null }
+                val ongoingSession = db.attendanceDao().getAllRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).firstOrNull()?.lastOrNull { record -> record.timeOut == null }
                 val isSessionActive = ongoingSession != null
 
                 if (isSessionActive) {

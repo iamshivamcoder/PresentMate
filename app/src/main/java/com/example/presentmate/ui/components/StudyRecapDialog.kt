@@ -1,5 +1,7 @@
 package com.example.presentmate.ui.components
 
+import com.google.firebase.auth.FirebaseAuth
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,7 +59,7 @@ fun StudyRecapDialog(
     LaunchedEffect(logId) {
         withContext(Dispatchers.IO) {
             val db = PresentMateDatabase.getDatabase(context)
-            sessionLog = db.studySessionLogDao().getById(logId)
+            sessionLog = db.studySessionLogDao().getById(logId, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
         }
     }
 
@@ -206,7 +208,7 @@ fun StudyRecapDialog(
                                 CoroutineScope(Dispatchers.IO).launch {
                                     try {
                                         val db = PresentMateDatabase.getDatabase(context)
-                                        val log = db.studySessionLogDao().getById(logId)
+                                        val log = db.studySessionLogDao().getById(logId, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                                         if (log != null) {
                                             db.studySessionLogDao().update(
                                                 log.copy(

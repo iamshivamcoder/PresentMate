@@ -22,11 +22,11 @@ interface ActivityEventDao {
     @Query("SELECT * FROM activity_events WHERE userId = :userId ORDER BY timestamp DESC LIMIT :limit")
     fun getRecentEventsFlow(userId: String, limit: Int = 50): Flow<List<ActivityEvent>>
 
-    @Query("DELETE FROM activity_events WHERE timestamp < :olderThan AND isSynced = 1")
-    suspend fun cleanupOldSyncedEvents(olderThan: Long)
+    @Query("DELETE FROM activity_events WHERE timestamp < :olderThan AND isSynced = 1 AND userId = :userId")
+    suspend fun cleanupOldSyncedEvents(olderThan: Long, userId: String)
     
-    @Query("SELECT * FROM activity_events WHERE isSynced = 0")
-    suspend fun getUnsyncedEvents(): List<ActivityEvent>
+    @Query("SELECT * FROM activity_events WHERE isSynced = 0 AND userId = :userId")
+    suspend fun getUnsyncedEvents(userId: String): List<ActivityEvent>
     
     @Query("UPDATE activity_events SET isSynced = 1 WHERE id IN (:ids)")
     suspend fun markAsSynced(ids: List<String>)

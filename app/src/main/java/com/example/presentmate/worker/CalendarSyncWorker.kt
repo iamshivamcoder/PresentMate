@@ -1,5 +1,7 @@
 package com.example.presentmate.worker
 
+import com.google.firebase.auth.FirebaseAuth
+
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
@@ -42,11 +44,11 @@ class CalendarSyncWorker @AssistedInject constructor(
 
             for (event in events) {
                 // Check if already logged
-                val existingLog = studySessionLogDao.getByEventId(event.id)
+                val existingLog = studySessionLogDao.getByEventId(event.id, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                 if (existingLog == null) {
                     val (subject, topic) = EventMetadataExtractor.extract(event.title)
 
-                    val newLog = StudySessionLog(
+                    val newLog = StudySessionLog(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", 
                         calendarEventId = event.id,
                         eventTitle = event.title,
                         subject = subject,
@@ -88,12 +90,12 @@ class CalendarSyncWorker @AssistedInject constructor(
 
             // Fix #16 — cancel check-workers for events that have been removed from the calendar
             val currentEventIds = events.map { it.id }.toSet()
-            val allLogs = studySessionLogDao.getPendingLogs()
+            val allLogs = studySessionLogDao.getPendingLogs((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
             for (log in allLogs) {
                 if (log.calendarEventId !in currentEventIds) {
                     Log.d("CalendarSyncWorker", "Event ${log.calendarEventId} removed — cancelling check worker")
                     WorkManager.getInstance(context).cancelUniqueWork("check_event_${log.calendarEventId}")
-                    studySessionLogDao.deleteByEventId(log.calendarEventId)
+                    studySessionLogDao.deleteByEventId(log.calendarEventId, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                 }
             }
             

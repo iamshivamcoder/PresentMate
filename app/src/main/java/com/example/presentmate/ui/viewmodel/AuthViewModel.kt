@@ -28,10 +28,10 @@ class AuthViewModel @Inject constructor(
     )
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
-    fun signInWithGoogle() {
+    fun signInWithGoogle(context: android.content.Context) {
         _authState.value = AuthState.Loading
         viewModelScope.launch {
-            val result = authRepository.signInWithGoogle()
+            val result = authRepository.signInWithGoogle(context)
             handleAuthResult(result)
         }
     }
@@ -92,6 +92,20 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.signOut()
             _authState.value = AuthState.Idle
+        }
+    }
+
+    fun backupDatabaseToDrive(onResult: (Result<Unit>) -> Unit) {
+        viewModelScope.launch {
+            val result = driveSyncManager.backupDatabaseToDrive()
+            onResult(result)
+        }
+    }
+
+    fun restoreDatabaseFromDrive(onResult: (Result<Boolean>) -> Unit) {
+        viewModelScope.launch {
+            val result = driveSyncManager.restoreDatabaseFromDrive()
+            onResult(result)
         }
     }
 }

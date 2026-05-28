@@ -16,14 +16,14 @@ interface AttendanceDao {
     @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun insertRecord(record: AttendanceRecord)
 
-    @androidx.room.Query("SELECT * FROM attendance_records ORDER BY date DESC")
-    fun getAllRecords(): Flow<List<AttendanceRecord>>
+    @androidx.room.Query("SELECT * FROM attendance_records WHERE userId = :userId ORDER BY date DESC")
+    fun getAllRecords(userId: String): Flow<List<AttendanceRecord>>
 
-    @androidx.room.Query("SELECT * FROM attendance_records ORDER BY date DESC")
-    fun getAllRecordsNonFlow(): List<AttendanceRecord>
+    @androidx.room.Query("SELECT * FROM attendance_records WHERE userId = :userId ORDER BY date DESC")
+    fun getAllRecordsNonFlow(userId: String): List<AttendanceRecord>
 
-    @androidx.room.Query("SELECT * FROM attendance_records WHERE date = :date LIMIT 1")
-    suspend fun getRecordByDate(date: Long): AttendanceRecord?
+    @androidx.room.Query("SELECT * FROM attendance_records WHERE date = :date AND userId = :userId LIMIT 1")
+    suspend fun getRecordByDate(date: Long, userId: String): AttendanceRecord?
 
     @androidx.room.Update
     suspend fun updateRecord(record: AttendanceRecord)
@@ -34,17 +34,17 @@ interface AttendanceDao {
     @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun insertDeletedRecord(record: DeletedRecord)
 
-    @androidx.room.Query("SELECT * FROM deleted_records ORDER BY deletedAt DESC")
-    fun getAllDeletedRecords(): Flow<List<DeletedRecord>>
+    @androidx.room.Query("SELECT * FROM deleted_records WHERE userId = :userId ORDER BY deletedAt DESC")
+    fun getAllDeletedRecords(userId: String): Flow<List<DeletedRecord>>
 
-    @androidx.room.Query("DELETE FROM deleted_records WHERE id = :id")
-    suspend fun permanentlyDeleteRecord(id: Int)
+    @androidx.room.Query("DELETE FROM deleted_records WHERE id = :id AND userId = :userId")
+    suspend fun permanentlyDeleteRecord(id: Int, userId: String)
 
-    @androidx.room.Query("SELECT * FROM attendance_records WHERE timeOut IS NULL ORDER BY timeIn DESC LIMIT 1")
-    fun getOngoingSession(): AttendanceRecord?
+    @androidx.room.Query("SELECT * FROM attendance_records WHERE timeOut IS NULL AND userId = :userId ORDER BY timeIn DESC LIMIT 1")
+    fun getOngoingSession(userId: String): AttendanceRecord?
 
-    @androidx.room.Query("SELECT * FROM attendance_records WHERE timeOut IS NULL ORDER BY timeIn DESC LIMIT 1")
-    fun getOngoingSessionFlow(): Flow<AttendanceRecord?>
+    @androidx.room.Query("SELECT * FROM attendance_records WHERE timeOut IS NULL AND userId = :userId ORDER BY timeIn DESC LIMIT 1")
+    fun getOngoingSessionFlow(userId: String): Flow<AttendanceRecord?>
 }
 
 // --- Unified Database --- //

@@ -15,29 +15,29 @@ interface StudySessionLogDao {
     @Update
     suspend fun update(log: StudySessionLog)
 
-    @Query("SELECT * FROM study_session_logs WHERE calendarEventId = :eventId LIMIT 1")
-    suspend fun getByEventId(eventId: Long): StudySessionLog?
+    @Query("SELECT * FROM study_session_logs WHERE calendarEventId = :eventId AND userId = :userId LIMIT 1")
+    suspend fun getByEventId(eventId: Long, userId: String): StudySessionLog?
 
-    @Query("SELECT * FROM study_session_logs WHERE id = :id LIMIT 1")
-    suspend fun getById(id: Int): StudySessionLog?
+    @Query("SELECT * FROM study_session_logs WHERE id = :id AND userId = :userId LIMIT 1")
+    suspend fun getById(id: Int, userId: String): StudySessionLog?
 
-    @Query("SELECT * FROM study_session_logs WHERE status = 'PENDING' AND scheduledEndTime < :now")
-    suspend fun getPendingOverdue(now: Long): List<StudySessionLog>
+    @Query("SELECT * FROM study_session_logs WHERE status = 'PENDING' AND scheduledEndTime < :now AND userId = :userId")
+    suspend fun getPendingOverdue(now: Long, userId: String): List<StudySessionLog>
 
     /** Fix #16 — returns all PENDING logs so CalendarSyncWorker can cross-check against live events. */
-    @Query("SELECT * FROM study_session_logs WHERE status = 'PENDING'")
-    suspend fun getPendingLogs(): List<StudySessionLog>
+    @Query("SELECT * FROM study_session_logs WHERE status = 'PENDING' AND userId = :userId")
+    suspend fun getPendingLogs(userId: String): List<StudySessionLog>
 
     /** Fix #16 — deletes the log for a cancelled/removed calendar event. */
-    @Query("DELETE FROM study_session_logs WHERE calendarEventId = :eventId")
-    suspend fun deleteByEventId(eventId: Long)
+    @Query("DELETE FROM study_session_logs WHERE calendarEventId = :eventId AND userId = :userId")
+    suspend fun deleteByEventId(eventId: Long, userId: String)
 
-    @Query("SELECT * FROM study_session_logs ORDER BY scheduledStartTime DESC")
-    fun getAllLogs(): Flow<List<StudySessionLog>>
+    @Query("SELECT * FROM study_session_logs WHERE userId = :userId ORDER BY scheduledStartTime DESC")
+    fun getAllLogs(userId: String): Flow<List<StudySessionLog>>
 
-    @Query("SELECT * FROM study_session_logs ORDER BY scheduledStartTime DESC")
-    suspend fun getAllNonFlow(): List<StudySessionLog>
+    @Query("SELECT * FROM study_session_logs WHERE userId = :userId ORDER BY scheduledStartTime DESC")
+    suspend fun getAllNonFlow(userId: String): List<StudySessionLog>
 
-    @Query("SELECT * FROM study_session_logs WHERE scheduledStartTime >= :dayStart AND scheduledStartTime < :dayEnd ORDER BY scheduledStartTime ASC")
-    fun getLogsForDay(dayStart: Long, dayEnd: Long): Flow<List<StudySessionLog>>
+    @Query("SELECT * FROM study_session_logs WHERE scheduledStartTime >= :dayStart AND scheduledStartTime < :dayEnd AND userId = :userId ORDER BY scheduledStartTime ASC")
+    fun getLogsForDay(dayStart: Long, dayEnd: Long, userId: String): Flow<List<StudySessionLog>>
 }

@@ -193,7 +193,7 @@ class AIAssistantViewModel @Inject constructor(
         if (state is ConfirmationState.SecondConfirmation) {
             viewModelScope.launch {
                 val records = state.records.map { parsed ->
-                    com.example.presentmate.db.AttendanceRecord(
+                    com.example.presentmate.db.AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", 
                         date = parsed.date,
                         timeIn = parsed.timeIn,
                         timeOut = parsed.timeOut

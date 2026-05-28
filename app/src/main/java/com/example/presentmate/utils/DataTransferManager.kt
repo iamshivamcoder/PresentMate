@@ -116,7 +116,7 @@ object DataTransferManager {
                             } else null
                             
                             records.add(
-                                AttendanceRecord(
+                                AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", 
                                     date = date,
                                     timeIn = timeIn,
                                     timeOut = timeOut

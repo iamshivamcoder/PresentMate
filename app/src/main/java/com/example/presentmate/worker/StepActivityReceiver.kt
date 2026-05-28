@@ -1,5 +1,7 @@
 package com.example.presentmate.worker
 
+import com.google.firebase.auth.FirebaseAuth
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -34,7 +36,7 @@ class StepActivityReceiver : BroadcastReceiver() {
         scope.launch {
             try {
                 val db = PresentMateDatabase.getDatabase(context)
-                val ongoing = withContext(Dispatchers.IO) { db.attendanceDao().getOngoingSession() }
+                val ongoing = withContext(Dispatchers.IO) { db.attendanceDao().getOngoingSession((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")) }
                 if (ongoing == null) {
                     val now = System.currentTimeMillis()
                     val todayMidnight = Calendar.getInstance().apply {
@@ -43,7 +45,7 @@ class StepActivityReceiver : BroadcastReceiver() {
                         set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
                     }.timeInMillis
                     db.attendanceDao().insertRecord(
-                        AttendanceRecord(date = todayMidnight, timeIn = now, timeOut = null)
+                        AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", date = todayMidnight, timeIn = now, timeOut = null)
                     )
                     Log.d("StepActivityReceiver", "Session started via step detection")
                 } else {
@@ -60,7 +62,7 @@ class StepActivityReceiver : BroadcastReceiver() {
         scope.launch {
             try {
                 val db = PresentMateDatabase.getDatabase(context)
-                val ongoing = withContext(Dispatchers.IO) { db.attendanceDao().getOngoingSession() }
+                val ongoing = withContext(Dispatchers.IO) { db.attendanceDao().getOngoingSession((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")) }
                 if (ongoing != null) {
                     val now = System.currentTimeMillis()
                     db.attendanceDao().updateRecord(ongoing.copy(timeOut = now))

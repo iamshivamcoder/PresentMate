@@ -1,5 +1,7 @@
 package com.example.presentmate.ui.screens
 
+import com.google.firebase.auth.FirebaseAuth
+
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -41,7 +43,7 @@ fun ActivityVerificationScreen() {
     val dateFmt  = remember { SimpleDateFormat("dd MMM", Locale.getDefault()) }
 
     // Live history
-    val history by db.stepActivityLogDao().getAllFlow()
+    val history by db.stepActivityLogDao().getAllFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Latest burst entry drives the verification card (#2 fix)

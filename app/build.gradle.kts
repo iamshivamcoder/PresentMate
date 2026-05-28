@@ -128,7 +128,7 @@ android {
         // Run unit tests in-process without forking a new JVM per test class.
         // Combined with maxParallelForks this is the fastest setup for unit tests.
         unitTests {
-            isIncludeAndroidResources = false
+            isIncludeAndroidResources = true
             isReturnDefaultValues = true
             all {
                 // Run test classes in parallel across half your CPU cores.

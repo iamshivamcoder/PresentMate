@@ -1,5 +1,7 @@
 package com.example.presentmate.viewmodel
 
+import com.google.firebase.auth.FirebaseAuth
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.presentmate.db.AttendanceDao
@@ -14,16 +16,16 @@ import javax.inject.Inject
 @HiltViewModel
 class AttendanceViewModel @Inject constructor(private val attendanceDao: AttendanceDao) : ViewModel() {
 
-    val ongoingSession: StateFlow<AttendanceRecord?> = attendanceDao.getOngoingSessionFlow()
+    val ongoingSession: StateFlow<AttendanceRecord?> = attendanceDao.getOngoingSessionFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val allRecords: StateFlow<List<AttendanceRecord>> = attendanceDao.getAllRecords()
+    val allRecords: StateFlow<List<AttendanceRecord>> = attendanceDao.getAllRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun startSession() {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            attendanceDao.insertRecord(AttendanceRecord(date = now, timeIn = now, timeOut = null))
+            attendanceDao.insertRecord(AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", date = now, timeIn = now, timeOut = null))
         }
     }
 

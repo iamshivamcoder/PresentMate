@@ -1,5 +1,7 @@
 package com.example.presentmate.ui.screens
 
+import com.google.firebase.auth.FirebaseAuth
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,7 +29,7 @@ fun RecycleBinScreen(/*navController: NavHostController*/) { // Removed unused n
     val context = LocalContext.current
     val db = PresentMateDatabase.getDatabase(context)
     val scope = rememberCoroutineScope()
-    val deletedRecords by db.attendanceDao().getAllDeletedRecords().collectAsState(initial = emptyList())
+    val deletedRecords by db.attendanceDao().getAllDeletedRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).collectAsState(initial = emptyList())
 
     // Removed Scaffold and TopAppBar as this is handled by MainActivity's Scaffold
     Column(
@@ -54,19 +56,19 @@ fun RecycleBinScreen(/*navController: NavHostController*/) { // Removed unused n
                             scope.launch {
                                 // Fix #13: use id=0 so Room auto-assigns a fresh PK
                                 db.attendanceDao().insertRecord(
-                                    AttendanceRecord(
+                                    AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", 
                                         id      = 0,
                                         date    = it.date,
                                         timeIn  = it.timeIn,
                                         timeOut = it.timeOut
                                     )
                                 )
-                                db.attendanceDao().permanentlyDeleteRecord(it.id)
+                                db.attendanceDao().permanentlyDeleteRecord(it.id, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                             }
                         },
                         onPermanentDelete = {
                             scope.launch {
-                                db.attendanceDao().permanentlyDeleteRecord(it.id)
+                                db.attendanceDao().permanentlyDeleteRecord(it.id, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                             }
                         }
                     )

@@ -1,5 +1,7 @@
 package com.example.presentmate.worker
 
+import com.google.firebase.auth.FirebaseAuth
+
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
@@ -21,7 +23,7 @@ class StudySessionCheckWorker @AssistedInject constructor(
         if (calendarEventId == -1L) return Result.failure()
 
         return try {
-            val log = studySessionLogDao.getByEventId(calendarEventId)
+            val log = studySessionLogDao.getByEventId(calendarEventId, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
             
             if (log != null && log.status == "PENDING") {
                 // Confirm it's actually overdue? Worker delay should handle this, 

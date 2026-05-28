@@ -95,10 +95,10 @@ import com.example.presentmate.viewmodel.ChatMessage
 import com.example.presentmate.viewmodel.ConfirmationState
 
 @Composable
-fun AIAssistantScreen() {
+fun AIAssistantScreen(viewModel: AIAssistantViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val platform = remember { AIPreferences.getPlatform(context) }
-    val viewModel: AIAssistantViewModel = hiltViewModel()
+
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var inputText by remember { mutableStateOf("") }
@@ -144,17 +144,10 @@ fun AIAssistantScreen() {
         ConfirmationState.None -> { /* no dialog */ }
     }
 
-    val isDark = isSystemInDarkTheme()
-    val bgColors = if (isDark) {
-        listOf(Color(0xFF0F172A), Color(0xFF0B132B), Color(0xFF0F172A))
-    } else {
-        listOf(Color(0xFFF8FAFC), Color(0xFFEFF6FF), Color(0xFFF8FAFC))
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.linearGradient(bgColors))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier
@@ -262,15 +255,16 @@ private fun WelcomeHeroCard(
     platformName: String,
     onSuggestionClick: (String) -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp)
             .background(
                 brush = Brush.linearGradient(
-                    colors = if (isDark) listOf(Color(0xFF1E293B), Color(0xFF0F172A))
-                             else listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9))
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surfaceContainer,
+                        MaterialTheme.colorScheme.surface
+                    )
                 ),
                 shape = RoundedCornerShape(24.dp)
             )
@@ -420,19 +414,16 @@ private fun SuggestionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
     Card(
         onClick = onClick,
         modifier = modifier.height(72.dp),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDark) Color(0xFF1E293B).copy(alpha = 0.5f)
-                             else Color(0xFFFFFFFF).copy(alpha = 0.8f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         border = BorderStroke(
             width = 1.dp,
-            color = if (isDark) Color(0xFF334155).copy(alpha = 0.5f)
-                    else Color(0xFFE2E8F0).copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         Row(
@@ -487,14 +478,12 @@ private fun ChatInputBar(
     onSend: () -> Unit
 ) {
     val canSend = (text.isNotBlank() || hasImage) && enabled
-    val isDark = isSystemInDarkTheme()
-
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         shape = RoundedCornerShape(28.dp),
-        color = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 8.dp,
         shadowElevation = 4.dp
     ) {
@@ -597,8 +586,7 @@ private fun ChatInputBar(
                             )
                         } else {
                             SolidColor(
-                                if (isDark) Color(0xFF334155).copy(alpha = 0.5f)
-                                else Color(0xFFE2E8F0)
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                             )
                         }
                     )
@@ -620,7 +608,6 @@ private fun ChatInputBar(
 @Composable
 private fun ChatMessageBubble(message: ChatMessage) {
     val isUser = message.isFromUser
-    val isDark = isSystemInDarkTheme()
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -725,10 +712,10 @@ private fun ChatMessageBubble(message: ChatMessage) {
                     // AI bubble
                     Surface(
                         shape = bubbleShape,
-                        color = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         border = BorderStroke(
                             width = 0.5.dp,
-                            color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                            color = MaterialTheme.colorScheme.outlineVariant
                         ),
                         tonalElevation = 0.dp,
                         modifier = Modifier.shadow(elevation = 1.dp, shape = bubbleShape)

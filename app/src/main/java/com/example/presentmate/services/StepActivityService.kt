@@ -146,8 +146,10 @@ class StepActivityService : Service(), SensorEventListener {
             ioScope.launch {
                 try {
                     val db = PresentMateDatabase.getDatabase(applicationContext)
+                    val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"
                     db.stepActivityLogDao().insert(
                         StepActivityLog(
+                            userId        = uid,
                             detectedAt    = now,
                             stepCount     = windowCount,
                             windowMinutes = (WINDOW_MS / 60_000).toInt(),

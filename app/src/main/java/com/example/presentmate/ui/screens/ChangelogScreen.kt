@@ -37,9 +37,21 @@ data class ChangelogEntry(
 
 private val changelog = listOf(
     ChangelogEntry(
-        version = "1.7",
+        version = "1.8",
         date = "28 May 2026",
         isLatest = true,
+        changes = listOf(
+            "👥 Multi-User Data Isolation with safe Room Migrations",
+            "☁️ Secure Google Drive AppData backup & restore integration",
+            "🤖 Enhanced AI Chatbot with theme-adaptive styling and custom suggestions",
+            "👣 Fixed step detection synchronization and activity notifications",
+            "🔒 Improved user credentials validation on login"
+        )
+    ),
+    ChangelogEntry(
+        version = "1.7",
+        date = "28 May 2026",
+        isLatest = false,
         changes = listOf(
             "🚀 Complete CI/CD Pipeline with GitHub Actions",
             "☁️ Automated Cloud APK builds & remote distribution",

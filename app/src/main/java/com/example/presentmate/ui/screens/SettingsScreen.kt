@@ -5,7 +5,10 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,6 +34,7 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -48,6 +54,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +64,7 @@ import androidx.navigation.NavHostController
 import com.example.presentmate.db.AttendanceRecord
 import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.utils.DataTransferManager
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -103,15 +112,18 @@ fun ImportConfirmDialog(
 }
 
 @Composable
-fun SettingsScreen(navController: NavHostController) {
+fun SettingsScreen(
+    navController: NavHostController,
+    db: PresentMateDatabase = PresentMateDatabase.getDatabase(LocalContext.current),
+    authViewModel: com.example.presentmate.ui.viewmodel.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+) {
     val context = LocalContext.current
-    val db = PresentMateDatabase.getDatabase(context)
     val scope = rememberCoroutineScope()
     
-    val deletedRecordsCount by db.attendanceDao().getAllDeletedRecords()
+    val deletedRecordsCount by db.attendanceDao().getAllDeletedRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
         .map { it.size }
         .collectAsState(initial = 0)
-    val allRecords by db.attendanceDao().getAllRecords()
+    val allRecords by db.attendanceDao().getAllRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
         .collectAsState(initial = emptyList())
     val appVersion = remember { getAppVersion(context) }
     
@@ -120,6 +132,18 @@ fun SettingsScreen(navController: NavHostController) {
     var showImportConfirmDialog by remember { mutableStateOf(false) }
     var pendingImportRecords by remember { mutableStateOf<List<AttendanceRecord>>(emptyList()) }
 
+    var isBackingUpToDrive by remember { mutableStateOf(false) }
+    var isRestoringFromDrive by remember { mutableStateOf(false) }
+    var showRestoreConfirm by remember { mutableStateOf(false) }
+
+    val intentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            Toast.makeText(context, "Google Drive authorized. Please try again.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // SAF launcher for creating export file
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -127,7 +151,7 @@ fun SettingsScreen(navController: NavHostController) {
         uri?.let {
             isExporting = true
             scope.launch {
-                val records = db.attendanceDao().getAllRecords().first()
+                val records = db.attendanceDao().getAllRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).first()
                 when (val result = DataTransferManager.exportToCSV(context, it, records)) {
                     is DataTransferManager.ExportResult.Success -> {
                         Toast.makeText(
@@ -191,6 +215,45 @@ fun SettingsScreen(navController: NavHostController) {
         )
     }
 
+    if (showRestoreConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRestoreConfirm = false },
+            title = { Text("Restore from Google Drive") },
+            text = { Text("This will merge your cloud backup into your current device. Proceed?") },
+            confirmButton = {
+                Button(onClick = {
+                    showRestoreConfirm = false
+                    isRestoringFromDrive = true
+                    authViewModel.restoreDatabaseFromDrive { result ->
+                        isRestoringFromDrive = false
+                        if (result.isSuccess) {
+                            val restored = result.getOrDefault(false)
+                            if (restored) {
+                                Toast.makeText(context, "Database restored successfully!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "No backup found in Google Drive.", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            val exception = result.exceptionOrNull()
+                            if (exception is com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
+                                intentLauncher.launch(exception.intent)
+                            } else {
+                                Toast.makeText(context, "Failed to restore: ${exception?.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }) {
+                    Text("Restore")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showRestoreConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -198,6 +261,85 @@ fun SettingsScreen(navController: NavHostController) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Profile Header Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            val user = FirebaseAuth.getInstance().currentUser
+            val displayName = user?.displayName ?: "User"
+            val email = user?.email ?: "Not signed in"
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Avatar
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Avatar",
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color.Green) // Status indicator
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Online",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+        
+        SettingsGroup("Profile") {
+            SettingsItem(
+                title = "Manage Profile",
+                description = "Update personal details",
+                icon = Icons.Default.Person,
+                onClick = { navController.navigate("manageProfile") }
+            )
+        }
+
         SettingsGroup("Preferences") {
             SettingsItem(
                 title = "Preferences",
@@ -240,6 +382,45 @@ fun SettingsScreen(navController: NavHostController) {
                     { CircularProgressIndicator(modifier = Modifier.width(24.dp)) }
                 } else null
             )
+            SettingsItem(
+                title = "Backup to Google Drive",
+                description = if (isBackingUpToDrive) "Backing up..." else "Save data to Drive appData",
+                icon = Icons.Filled.FileUpload,
+                onClick = {
+                    if (!isBackingUpToDrive) {
+                        isBackingUpToDrive = true
+                        authViewModel.backupDatabaseToDrive { result ->
+                            isBackingUpToDrive = false
+                            if (result.isSuccess) {
+                                Toast.makeText(context, "Database backed up successfully!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val exception = result.exceptionOrNull()
+                                if (exception is com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
+                                    intentLauncher.launch(exception.intent)
+                                } else {
+                                    Toast.makeText(context, "Failed to backup: ${exception?.message}", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    }
+                },
+                trailingContent = if (isBackingUpToDrive) {
+                    { CircularProgressIndicator(modifier = Modifier.width(24.dp)) }
+                } else null
+            )
+            SettingsItem(
+                title = "Restore from Google Drive",
+                description = if (isRestoringFromDrive) "Restoring..." else "Merge cloud data to device",
+                icon = Icons.Filled.FileDownload,
+                onClick = {
+                    if (!isRestoringFromDrive) {
+                        showRestoreConfirm = true
+                    }
+                },
+                trailingContent = if (isRestoringFromDrive) {
+                    { CircularProgressIndicator(modifier = Modifier.width(24.dp)) }
+                } else null
+            )
         }
 
         SettingsGroup("Study Calendar Sync") {
@@ -261,7 +442,6 @@ fun SettingsScreen(navController: NavHostController) {
         }
 
         SettingsGroup("Account") {
-            val authViewModel: com.example.presentmate.ui.viewmodel.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             val authState by authViewModel.authState.collectAsState()
             
             SettingsItem(

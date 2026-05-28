@@ -140,19 +140,19 @@ class DriveSyncManager @Inject constructor(
                 currentDb.clearAllTables()
                 
                 // Copy AttendanceRecords
-                val records = backupDb.attendanceDao().getAllRecordsNonFlow()
+                val records = backupDb.attendanceDao().getAllRecordsNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                 records.forEach { currentDb.attendanceDao().insertRecord(it) }
                 
                 // Copy SavedPlaces
-                val places = backupDb.savedPlaceDao().getAllNonFlow()
+                val places = backupDb.savedPlaceDao().getAllNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                 places.forEach { currentDb.savedPlaceDao().insert(it) }
                 
                 // Copy StudySessions
-                val sessions = backupDb.studySessionLogDao().getAllNonFlow()
+                val sessions = backupDb.studySessionLogDao().getAllNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                 sessions.forEach { currentDb.studySessionLogDao().insert(it) }
                 
                 // Copy StepLogs
-                val steps = backupDb.stepActivityLogDao().getAll()
+                val steps = backupDb.stepActivityLogDao().getAll((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                 steps.forEach { currentDb.stepActivityLogDao().insert(it) }
             }
 

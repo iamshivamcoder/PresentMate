@@ -1,5 +1,7 @@
 package com.example.presentmate.data
 
+import com.google.firebase.auth.FirebaseAuth
+
 import com.example.presentmate.db.ActivityEvent
 import com.example.presentmate.db.ActivityEventDao
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +31,6 @@ class ActivityRepository @Inject constructor(
     }
     
     suspend fun cleanupOldEvents(olderThanMs: Long) {
-        activityEventDao.cleanupOldSyncedEvents(olderThanMs)
+        activityEventDao.cleanupOldSyncedEvents(olderThanMs, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
     }
 }

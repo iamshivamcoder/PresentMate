@@ -15,12 +15,12 @@ interface SavedPlaceDao {
     @Delete
     suspend fun delete(savedPlace: SavedPlace)
 
-    @Query("SELECT * FROM saved_places ORDER BY name ASC")
-    fun getAll(): Flow<List<SavedPlace>>
+    @Query("SELECT * FROM saved_places WHERE userId = :userId ORDER BY name ASC")
+    fun getAll(userId: String): Flow<List<SavedPlace>>
 
-    @Query("SELECT * FROM saved_places ORDER BY name ASC")
-    suspend fun getAllNonFlow(): List<SavedPlace>
+    @Query("SELECT * FROM saved_places WHERE userId = :userId ORDER BY name ASC")
+    suspend fun getAllNonFlow(userId: String): List<SavedPlace>
 
-    @Query("SELECT * FROM saved_places WHERE name = :name")
-    suspend fun getByName(name: String): SavedPlace?
+    @Query("SELECT * FROM saved_places WHERE name = :name AND userId = :userId")
+    suspend fun getByName(name: String, userId: String): SavedPlace?
 }

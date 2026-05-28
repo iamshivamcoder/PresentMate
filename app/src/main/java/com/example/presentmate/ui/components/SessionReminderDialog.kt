@@ -1,5 +1,7 @@
 package com.example.presentmate.ui.components
 
+import com.google.firebase.auth.FirebaseAuth
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -227,14 +229,14 @@ private fun handleReminderConfirm(
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         val db = PresentMateDatabase.getDatabase(context)
-                        val ongoing = db.attendanceDao().getOngoingSession()
+                        val ongoing = db.attendanceDao().getOngoingSession((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                         if (ongoing == null) {
                             val cal = Calendar.getInstance().apply {
                                 set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
                                 set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
                             }
                             db.attendanceDao().insertRecord(
-                                AttendanceRecord(date = cal.timeInMillis, timeIn = parsedTime, timeOut = null)
+                                AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", date = cal.timeInMillis, timeIn = parsedTime, timeOut = null)
                             )
                         }
                     } catch (_: Exception) {}

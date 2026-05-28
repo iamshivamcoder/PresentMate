@@ -9,6 +9,7 @@ import androidx.credentials.GetCredentialResponse
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import androidx.credentials.ClearCredentialStateRequest
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -33,13 +34,13 @@ class AuthRepository @Inject constructor(
     val currentUser: FirebaseUser?
         get() = firebaseAuth.currentUser
 
-    suspend fun signInWithGoogle(): Result<FirebaseUser> {
+    suspend fun signInWithGoogle(activityContext: Context): Result<FirebaseUser> {
         return try {
             // 1. Configure the Google ID request
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(false)
                 .setServerClientId(webClientId)
-                .setAutoSelectEnabled(true)
+                .setAutoSelectEnabled(false) // Disable auto-select when the user clicks the button explicitly
                 .setNonce(generateNonce())
                 .build()
 
@@ -50,7 +51,7 @@ class AuthRepository @Inject constructor(
             // 2. Launch Credential Manager Bottom Sheet
             val result = credentialManager.getCredential(
                 request = request,
-                context = context
+                context = activityContext
             )
 
             // 3. Extract the Google ID Token
@@ -128,8 +129,11 @@ class AuthRepository @Inject constructor(
             database.clearAllTables()
         }
         
-        // Optionally clear Credential Manager state here if needed
-        // credentialManager.clearCredentialState(...) 
+        try {
+            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Failed to clear credential state", e)
+        }
     }
     
     private fun generateNonce(): String {

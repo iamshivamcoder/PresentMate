@@ -1,5 +1,7 @@
 package com.example.presentmate.geofence
 
+import com.google.firebase.auth.FirebaseAuth
+
 import android.Manifest
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -62,10 +64,10 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             applicationScope.launch {
                 try {
                     val now = System.currentTimeMillis()
-                    val ongoingSession = attendanceDao.getOngoingSessionFlow().first()
+                    val ongoingSession = attendanceDao.getOngoingSessionFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).first()
                     if (ongoingSession == null) {
                         attendanceDao.insertRecord(
-                            AttendanceRecord(date = now, timeIn = now, timeOut = null)
+                            AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", date = now, timeIn = now, timeOut = null)
                         )
                         Log.d("GeofenceReceiver", "Session started via geofence")
                         val placeName = GeofencePreferencesRepository.getGeofencePlaceName(context)
@@ -77,7 +79,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                             val todayStart = now - (now % 86_400_000L)
                             val todayEnd   = todayStart + 86_400_000L
                             val todayLogs  = db.studySessionLogDao()
-                                .getLogsForDay(todayStart, todayEnd)
+                                .getLogsForDay(todayStart, todayEnd, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                                 .first()
                             val upcoming = todayLogs
                                 .filter { it.status == "PENDING" && it.scheduledStartTime >= now }
@@ -107,7 +109,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             Log.d("GeofenceReceiver", "Geofence Exited")
             applicationScope.launch {
                 try {
-                    val ongoingSession = attendanceDao.getOngoingSessionFlow().first()
+                    val ongoingSession = attendanceDao.getOngoingSessionFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).first()
                     if (ongoingSession != null) {
                         attendanceDao.updateRecord(
                             ongoingSession.copy(timeOut = System.currentTimeMillis())

@@ -1,5 +1,7 @@
 package com.example.presentmate.worker
 
+import com.google.firebase.auth.FirebaseAuth
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -30,7 +32,7 @@ class CheckpointActionReceiver : BroadcastReceiver() {
 
         scope.launch {
             try {
-                val log = studySessionLogDao.getById(logId)
+                val log = studySessionLogDao.getById(logId, (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
                 if (log != null) {
                     val now = System.currentTimeMillis()
 

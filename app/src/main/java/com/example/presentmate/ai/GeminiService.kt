@@ -18,8 +18,9 @@ import java.util.Locale
 class GeminiService(apiKey: String) : AIService {
 
     private val model = GenerativeModel(
-        modelName = "gemini-2.0-flash",
+        modelName = "gemini-1.5-flash",
         apiKey = apiKey,
+        systemInstruction = content { text(SYSTEM_PROMPT) },
         generationConfig = generationConfig {
             temperature = 0.7f
             maxOutputTokens = 2048
@@ -185,7 +186,7 @@ If it's not an attendance sheet, describe what you see.
      */
     fun toAttendanceRecords(parsed: List<ParsedAttendance>): List<AttendanceRecord> {
         return parsed.map {
-            AttendanceRecord(
+            AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", 
                 date = it.date,
                 timeIn = it.timeIn,
                 timeOut = it.timeOut
