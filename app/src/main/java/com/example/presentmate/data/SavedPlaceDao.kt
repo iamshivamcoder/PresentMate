@@ -18,6 +18,9 @@ interface SavedPlaceDao {
     @Query("SELECT * FROM saved_places ORDER BY name ASC")
     fun getAll(): Flow<List<SavedPlace>>
 
+    @Query("SELECT * FROM saved_places ORDER BY name ASC")
+    suspend fun getAllNonFlow(): List<SavedPlace>
+
     @Query("SELECT * FROM saved_places WHERE name = :name")
     suspend fun getByName(name: String): SavedPlace?
 }

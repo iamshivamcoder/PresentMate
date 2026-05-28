@@ -35,6 +35,9 @@ interface StudySessionLogDao {
     @Query("SELECT * FROM study_session_logs ORDER BY scheduledStartTime DESC")
     fun getAllLogs(): Flow<List<StudySessionLog>>
 
+    @Query("SELECT * FROM study_session_logs ORDER BY scheduledStartTime DESC")
+    suspend fun getAllNonFlow(): List<StudySessionLog>
+
     @Query("SELECT * FROM study_session_logs WHERE scheduledStartTime >= :dayStart AND scheduledStartTime < :dayEnd ORDER BY scheduledStartTime ASC")
     fun getLogsForDay(dayStart: Long, dayEnd: Long): Flow<List<StudySessionLog>>
 }

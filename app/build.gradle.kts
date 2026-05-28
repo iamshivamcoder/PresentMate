@@ -111,10 +111,9 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
-        // Speed up debug Kotlin compilation: skip friend path resolution & opt-in checks
         freeCompilerArgs += listOf(
             "-opt-in=kotlin.RequiresOptIn",
-            "-Xjvm-default=all",  // faster default method dispatch
+            "-Xjvm-default=all",
         )
     }
 
@@ -159,6 +158,12 @@ dependencies {
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    
+    // Google Drive REST API
+    implementation("com.google.api-client:google-api-client-android:2.2.0")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20230822-2.0.0")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
     
     val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
     implementation(composeBom)

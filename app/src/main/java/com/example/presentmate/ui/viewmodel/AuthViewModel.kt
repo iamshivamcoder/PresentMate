@@ -19,7 +19,8 @@ sealed class AuthState {
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val driveSyncManager: com.example.presentmate.data.DriveSyncManager
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(
@@ -62,9 +63,18 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    private fun handleAuthResult(result: Result<*>) {
+    private suspend fun handleAuthResult(result: Result<*>) {
         if (result.isSuccess) {
-            _authState.value = AuthState.Authenticated
+            _authState.value = AuthState.Loading // Keep loading while syncing
+            val syncResult = driveSyncManager.restoreDatabaseFromDrive()
+            
+            if (syncResult.isFailure && syncResult.exceptionOrNull() is com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
+                // We'll just ignore for now if the user hasn't granted permissions on first login
+                // The app will prompt for permission when they try to backup manually from Settings
+                _authState.value = AuthState.Authenticated
+            } else {
+                _authState.value = AuthState.Authenticated
+            }
         } else {
             _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error occurred")
         }

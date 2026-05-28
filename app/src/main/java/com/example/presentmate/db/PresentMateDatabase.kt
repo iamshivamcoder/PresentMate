@@ -104,7 +104,12 @@ abstract class PresentMateDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE attendance_records ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE deleted_records ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                
+                // Add missing radius column before adding userId to avoid schema validation errors
+                // This handles cases where radius was added to the data class without a proper earlier migration
+                db.execSQL("ALTER TABLE saved_places ADD COLUMN radius REAL NOT NULL DEFAULT 100.0")
                 db.execSQL("ALTER TABLE saved_places ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                
                 db.execSQL("ALTER TABLE study_session_logs ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE step_activity_logs ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
             }
