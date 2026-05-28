@@ -37,9 +37,20 @@ data class ChangelogEntry(
 
 private val changelog = listOf(
     ChangelogEntry(
+        version = "1.7",
+        date = "May 2026",
+        isLatest = true,
+        changes = listOf(
+            "🚀 Complete CI/CD Pipeline with GitHub Actions",
+            "☁️ Automated Cloud APK builds & remote distribution",
+            "🔥 Firebase App Distribution and Crashlytics integration",
+            "🔒 Secure GitHub Secrets authentication"
+        )
+    ),
+    ChangelogEntry(
         version = "1.6",
         date = "March 2026",
-        isLatest = true,
+        isLatest = false,
         changes = listOf(
             "🛠️ Finalized AI Chat: Fixed floaty text bar & model logic (v1.5-flash-latest)",
             "🛠️ Graph Optimization: Clutter-free Monthly/Yearly views",
