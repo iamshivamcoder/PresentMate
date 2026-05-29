@@ -321,7 +321,7 @@ fun CalendarSyncSettingsScreen() {
 
 @Composable
 private fun CalendarEventCard(event: com.example.presentmate.calendar.CalendarEvent) {
-    val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
+    val timeFormat = com.example.presentmate.utils.DateTimeFormatters.timeFormat
     val startStr = timeFormat.format(java.util.Date(event.startTime))
     val endStr = timeFormat.format(java.util.Date(event.endTime))
     val now = System.currentTimeMillis()

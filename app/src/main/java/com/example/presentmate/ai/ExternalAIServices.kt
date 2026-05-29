@@ -268,7 +268,7 @@ private fun extractErrorMessage(errorRaw: String): String {
     }
 }
 
-private fun parseAttendanceData(response: String): List<ParsedAttendance> {
+internal fun parseAttendanceData(response: String): List<ParsedAttendance> {
     val records = mutableListOf<ParsedAttendance>()
     val pattern = """\[ATTENDANCE_DATA\](.*?)\[/ATTENDANCE_DATA\]""".toRegex(RegexOption.DOT_MATCHES_ALL)
     val match = pattern.find(response) ?: return records

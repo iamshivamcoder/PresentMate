@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -24,6 +25,16 @@ class ThemePreferencesTest {
         every { context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE) } returns sharedPreferences
         every { sharedPreferences.edit() } returns editor
         every { editor.putString(any(), any()) } returns editor
+    }
+
+    /**
+     * Reset the global singleton state after each test so tests cannot bleed into each other.
+     * ThemePreferences is an object with a mutableStateOf — without this reset, test ordering
+     * can cause intermittent failures (e.g., "dark" leaking into a test expecting "system").
+     */
+    @After
+    fun tearDown() {
+        ThemePreferences.currentThemeState.value = ThemePreferences.MODE_SYSTEM
     }
 
     @Test

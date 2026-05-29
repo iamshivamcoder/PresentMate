@@ -12,6 +12,9 @@ interface SavedPlaceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(savedPlace: SavedPlace)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(savedPlaces: List<SavedPlace>)
+
     @Delete
     suspend fun delete(savedPlace: SavedPlace)
 

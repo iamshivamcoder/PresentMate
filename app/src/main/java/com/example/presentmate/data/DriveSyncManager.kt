@@ -32,13 +32,15 @@ class DriveSyncManager @Inject constructor(
     private val ZIP_FILE_NAME = "presentmate_backup.zip"
 
     private fun getDriveService(): Drive {
-        val userEmail = firebaseAuth.currentUser?.email
+        val user = firebaseAuth.currentUser
             ?: throw IllegalStateException("User must be logged in to sync with Drive")
-
         val credential = GoogleAccountCredential.usingOAuth2(
             context, listOf(DriveScopes.DRIVE_APPDATA)
         )
-        credential.selectedAccountName = userEmail
+        val email = user.email
+        if (!email.isNullOrBlank()) {
+            credential.selectedAccountName = email
+        }
 
         return Drive.Builder(
             com.google.api.client.http.javanet.NetHttpTransport(),
@@ -97,6 +99,8 @@ class DriveSyncManager @Inject constructor(
     }
 
     suspend fun restoreDatabaseFromDrive(): Result<Boolean> = withContext(Dispatchers.IO) {
+        var backupDb: com.example.presentmate.db.PresentMateDatabase? = null
+        val backupDbName = "presentmate_temp_backup.db"
         try {
             val driveService = getDriveService()
 
@@ -116,18 +120,19 @@ class DriveSyncManager @Inject constructor(
             val zipFile = File(context.cacheDir, ZIP_FILE_NAME)
 
             // 2. Download the backup
-            FileOutputStream(zipFile).use { outStream ->
-                driveService.files().get(fileId).executeMediaAndDownloadTo(outStream)
+            withContext(Dispatchers.IO) {
+                FileOutputStream(zipFile).use { outStream ->
+                    driveService.files().get(fileId).executeMediaAndDownloadTo(outStream)
+                }
             }
 
             // 3. Unzip to temporary backup database location
-            val backupDbName = "presentmate_temp_backup.db"
             extractDatabaseZip(zipFile, backupDbName)
             zipFile.delete()
 
             // 4. Safely merge/replace data using Room to prevent SQLite corruption
             // We instantiate the backup database. Room will handle any schema migrations required!
-            val backupDb = androidx.room.Room.databaseBuilder(
+            backupDb = androidx.room.Room.databaseBuilder(
                 context,
                 com.example.presentmate.db.PresentMateDatabase::class.java,
                 backupDbName
@@ -141,24 +146,20 @@ class DriveSyncManager @Inject constructor(
                 
                 // Copy AttendanceRecords
                 val records = backupDb.attendanceDao().getAllRecordsNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
-                records.forEach { currentDb.attendanceDao().insertRecord(it) }
+                currentDb.attendanceDao().insertAll(records)
                 
                 // Copy SavedPlaces
                 val places = backupDb.savedPlaceDao().getAllNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
-                places.forEach { currentDb.savedPlaceDao().insert(it) }
+                currentDb.savedPlaceDao().insertAll(places)
                 
                 // Copy StudySessions
                 val sessions = backupDb.studySessionLogDao().getAllNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
-                sessions.forEach { currentDb.studySessionLogDao().insert(it) }
+                currentDb.studySessionLogDao().insertAll(sessions)
                 
                 // Copy StepLogs
                 val steps = backupDb.stepActivityLogDao().getAll((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
-                steps.forEach { currentDb.stepActivityLogDao().insert(it) }
+                currentDb.stepActivityLogDao().insertAll(steps)
             }
-
-            // Close and delete backup DB
-            backupDb.close()
-            context.deleteDatabase(backupDbName)
 
             Log.d(TAG, "Successfully restored database safely via Room")
             Result.success(true)
@@ -169,6 +170,9 @@ class DriveSyncManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to restore from Drive", e)
             Result.failure(e)
+        } finally {
+            backupDb?.close()
+            context.deleteDatabase(backupDbName)
         }
     }
 

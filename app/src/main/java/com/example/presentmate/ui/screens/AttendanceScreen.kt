@@ -27,7 +27,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,8 +64,8 @@ fun AttendanceScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val ongoingSession by viewModel.ongoingSession.collectAsState()
-    val attendanceRecords by viewModel.allRecords.collectAsState()
+    val ongoingSession by viewModel.ongoingSession.collectAsStateWithLifecycle()
+    val attendanceRecords by viewModel.allRecords.collectAsStateWithLifecycle()
     val sessionInProgress = ongoingSession != null
 
     LocationUtils.isLocationEnabled(context)

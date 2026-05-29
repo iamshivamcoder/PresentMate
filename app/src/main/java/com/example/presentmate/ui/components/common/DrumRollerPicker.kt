@@ -88,7 +88,7 @@ fun DrumRollerPicker(
             contentPadding = PaddingValues(vertical = itemHeight * halfVisible),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            items(items.size) { index ->
+            items(items.size, key = { it }) { index ->
                 val centreVisibleIndex = listState.firstVisibleItemIndex +
                         if (listState.firstVisibleItemScrollOffset > 0) 1 else 0
                 val distance = (index - centreVisibleIndex).let { kotlin.math.abs(it) }

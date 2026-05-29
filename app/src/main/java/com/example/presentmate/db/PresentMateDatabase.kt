@@ -16,11 +16,20 @@ interface AttendanceDao {
     @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun insertRecord(record: AttendanceRecord)
 
+    @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun insertAll(records: List<AttendanceRecord>)
+
     @androidx.room.Query("SELECT * FROM attendance_records WHERE userId = :userId ORDER BY date DESC")
     fun getAllRecords(userId: String): Flow<List<AttendanceRecord>>
 
     @androidx.room.Query("SELECT * FROM attendance_records WHERE userId = :userId ORDER BY date DESC")
     fun getAllRecordsNonFlow(userId: String): List<AttendanceRecord>
+
+    @androidx.room.Query("SELECT * FROM attendance_records WHERE userId = :userId AND date >= :startDate AND date <= :endDate ORDER BY date DESC")
+    fun getRecordsBetweenDates(userId: String, startDate: Long, endDate: Long): List<AttendanceRecord>
+
+    @androidx.room.Query("SELECT * FROM attendance_records WHERE userId = :userId ORDER BY date DESC")
+    fun getPagedRecords(userId: String): androidx.paging.PagingSource<Int, AttendanceRecord>
 
     @androidx.room.Query("SELECT * FROM attendance_records WHERE date = :date AND userId = :userId LIMIT 1")
     suspend fun getRecordByDate(date: Long, userId: String): AttendanceRecord?
@@ -50,7 +59,7 @@ interface AttendanceDao {
 // --- Unified Database --- //
 @Database(
     entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class, StudySessionLog::class, StepActivityLog::class, ActivityEvent::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class PresentMateDatabase : RoomDatabase() {
@@ -130,6 +139,15 @@ abstract class PresentMateDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_attendance_records_userId_date` ON `attendance_records` (`userId`, `date`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_deleted_records_userId` ON `deleted_records` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_study_session_logs_userId_calendarEventId` ON `study_session_logs` (`userId`, `calendarEventId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_saved_places_userId` ON `saved_places` (`userId`)")
+            }
+        }
+
         fun getDatabase(context: Context): PresentMateDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -137,7 +155,7 @@ abstract class PresentMateDatabase : RoomDatabase() {
                     PresentMateDatabase::class.java,
                     "presentmate_database"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .build()
                 INSTANCE = instance
                 instance

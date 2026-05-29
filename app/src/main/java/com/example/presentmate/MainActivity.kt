@@ -93,11 +93,13 @@ class MainActivity : ComponentActivity() {
                 showReminderDialog.value = true
             }
             else -> {
-                // Legacy: handle old partial_log_id extras
-                val legacyLogId = intent?.getIntExtra("partial_log_id", -1) ?: -1
-                if (legacyLogId != -1) {
-                    recapLogId.value = legacyLogId
-                    isRecapPartial.value = true
+                // Legacy: handle old partial_log_id extras but explicitly check if this intent was meant for it
+                if (intent?.action == "com.example.presentmate.ACTION_OPEN_LEGACY_RECAP") {
+                    val legacyLogId = intent.getIntExtra("partial_log_id", -1)
+                    if (legacyLogId != -1) {
+                        recapLogId.value = legacyLogId
+                        isRecapPartial.value = true
+                    }
                 }
             }
         }
@@ -121,13 +123,17 @@ class MainActivity : ComponentActivity() {
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!fineGranted) {
-            // Step 1: request fine + coarse only (no background yet — Android 11+ requires separate dialog)
+            val permissionsToRequest = mutableListOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+            // If on Android 14+, foreground service location is needed
+            if (Build.VERSION.SDK_INT >= 34) {
+                permissionsToRequest.add(Manifest.permission.FOREGROUND_SERVICE_LOCATION)
+            }
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ),
+                permissionsToRequest.toTypedArray(),
                 1002
             )
         } else {

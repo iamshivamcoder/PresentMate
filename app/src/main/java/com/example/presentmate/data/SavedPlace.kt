@@ -3,7 +3,7 @@ package com.example.presentmate.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "saved_places")
+@Entity(tableName = "saved_places", indices = [androidx.room.Index(value = ["userId"])])
 data class SavedPlace(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val userId: String = "",

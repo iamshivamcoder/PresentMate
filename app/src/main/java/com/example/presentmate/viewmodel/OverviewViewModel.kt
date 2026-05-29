@@ -24,6 +24,7 @@ import java.time.ZoneId
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 
+@androidx.compose.runtime.Stable
 data class OverviewUiState(
     val dailySummaries: List<DailySummary> = emptyList(),
     val graphData: List<GraphDataPoint> = emptyList(),

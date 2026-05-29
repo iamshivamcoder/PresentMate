@@ -12,6 +12,9 @@ interface StudySessionLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(log: StudySessionLog)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(logs: List<StudySessionLog>)
+
     @Update
     suspend fun update(log: StudySessionLog)
 

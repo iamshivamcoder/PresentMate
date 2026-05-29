@@ -11,9 +11,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed class AuthState {
-    object Idle : AuthState()
-    object Loading : AuthState()
-    object Authenticated : AuthState()
+    data object Idle : AuthState()
+    data object Loading : AuthState()
+    data object Authenticated : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
@@ -73,15 +73,12 @@ class AuthViewModel @Inject constructor(
 
     private suspend fun handleAuthResult(result: Result<*>) {
         if (result.isSuccess) {
-            _authState.value = AuthState.Loading // Keep loading while syncing
-            val syncResult = driveSyncManager.restoreDatabaseFromDrive()
-            
-            if (syncResult.isFailure && syncResult.exceptionOrNull() is com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
-                // We'll just ignore for now if the user hasn't granted permissions on first login
-                // The app will prompt for permission when they try to backup manually from Settings
-                _authState.value = AuthState.Authenticated
-            } else {
-                _authState.value = AuthState.Authenticated
+            _authState.value = AuthState.Authenticated
+            viewModelScope.launch {
+                val syncResult = driveSyncManager.restoreDatabaseFromDrive()
+                if (syncResult.isFailure && syncResult.exceptionOrNull() !is com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
+                    // Could log error here, but UI won't block
+                }
             }
         } else {
             _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error occurred")
@@ -91,6 +88,9 @@ class AuthViewModel @Inject constructor(
     fun resetState() {
         if (authRepository.currentUser != null) {
             _authState.value = AuthState.Authenticated
+            viewModelScope.launch {
+                driveSyncManager.restoreDatabaseFromDrive()
+            }
         } else {
             _authState.value = AuthState.Idle
         }

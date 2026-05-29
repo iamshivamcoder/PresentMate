@@ -30,11 +30,8 @@ android {
     val finalVersionCode = if (isCiBuild) baseVersionCode + ciRunNumber!! else baseVersionCode
     
     val ciCommitSha = System.getenv("GITHUB_SHA")?.take(7)
-    val finalVersionName = if (isCiBuild && ciCommitSha != null) {
-        "$baseVersionName-$ciCommitSha"
-    } else {
-        baseVersionName // Local builds keep stable version name
-    }
+    val buildSuffix = if (isCiBuild) ciRunNumber.toString() else "1"
+    val finalVersionName = "$baseVersionName.$buildSuffix"
 
     defaultConfig {
         applicationId = "com.example.presentmate"
@@ -211,7 +208,12 @@ dependencies {
     // Room
     implementation("androidx.room:room-runtime:2.7.1")
     implementation("androidx.room:room-ktx:2.7.1")
+    implementation("androidx.room:room-paging:2.7.1")
     ksp("androidx.room:room-compiler:2.7.1")
+    
+    // Paging
+    implementation("androidx.paging:paging-runtime:3.3.2")
+    implementation("androidx.paging:paging-compose:3.3.2")
 
     // Apache POI for .doc export
     implementation("org.apache.poi:poi:5.4.1")
@@ -227,10 +229,16 @@ dependencies {
     // Test dependencies
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.10")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     testImplementation("org.robolectric:robolectric:4.11.1")
     testImplementation("androidx.test:core:1.5.0")
     testImplementation("androidx.test.ext:junit:1.1.5")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation("androidx.navigation:navigation-testing:2.7.6")
+    // Turbine — StateFlow / SharedFlow testing
+    testImplementation("app.cash.turbine:turbine:1.1.0")
+    // WorkManager test support
+    testImplementation("androidx.work:work-testing:2.9.0")
+    // MockWebServer — AI service HTTP error-path tests
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

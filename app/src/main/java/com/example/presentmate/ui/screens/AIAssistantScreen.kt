@@ -19,6 +19,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +48,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AutoStories
@@ -59,12 +61,16 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -89,13 +95,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.example.presentmate.ai.AIPreferences
 import com.example.presentmate.viewmodel.AIAssistantViewModel
 import com.example.presentmate.viewmodel.ChatMessage
 import com.example.presentmate.viewmodel.ConfirmationState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AIAssistantScreen(viewModel: AIAssistantViewModel = hiltViewModel()) {
+fun AIAssistantScreen(viewModel: AIAssistantViewModel = hiltViewModel(), navController: NavController? = null) {
     val context = LocalContext.current
     val platform = remember { AIPreferences.getPlatform(context) }
 
@@ -155,9 +163,23 @@ fun AIAssistantScreen(viewModel: AIAssistantViewModel = hiltViewModel()) {
                 .navigationBarsPadding()
                 .imePadding()
         ) {
+            TopAppBar(
+                title = { Text("AI Assistant") },
+                navigationIcon = {
+                    IconButton(onClick = { navController?.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+
             // ── API key missing banner (compact) ──────────────────────────────────
             if (uiState.apiKeyMissing) {
-                ApiKeyBanner(platformName = platform.displayName)
+                ApiKeyBanner(platformName = platform.displayName) {
+                    navController?.navigate("aiPreferences")
+                }
             }
 
             // ── Message list ──────────────────────────────────────────────────────
@@ -212,7 +234,7 @@ fun AIAssistantScreen(viewModel: AIAssistantViewModel = hiltViewModel()) {
                     )
                 },
                 onSend = {
-                    if (inputText.isNotBlank() || selectedImageUri != null) {
+                    if (!uiState.apiKeyMissing && (inputText.isNotBlank() || selectedImageUri != null)) {
                         val uri = selectedImageUri
                         if (uri != null) {
                             viewModel.sendMessageWithImage(
@@ -892,11 +914,12 @@ private fun EmptyState(platformName: String) {
 // ── API key missing compact banner ────────────────────────────────────────────
 
 @Composable
-private fun ApiKeyBanner(platformName: String) {
+private fun ApiKeyBanner(platformName: String, onAddKeyClick: () -> Unit = {}) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clickable { onAddKeyClick() },
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.errorContainer,
         tonalElevation = 0.dp
@@ -913,7 +936,7 @@ private fun ApiKeyBanner(platformName: String) {
             )
             Spacer(Modifier.width(10.dp))
             Text(
-                "No $platformName key set — go to Settings → Preferences → AI Settings",
+                "No $platformName key set — tap to add in Settings",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.weight(1f)

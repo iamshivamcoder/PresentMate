@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,7 +30,7 @@ fun RecycleBinScreen(/*navController: NavHostController*/) { // Removed unused n
     val context = LocalContext.current
     val db = PresentMateDatabase.getDatabase(context)
     val scope = rememberCoroutineScope()
-    val deletedRecords by db.attendanceDao().getAllDeletedRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).collectAsState(initial = emptyList())
+    val deletedRecords by db.attendanceDao().getAllDeletedRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Removed Scaffold and TopAppBar as this is handled by MainActivity's Scaffold
     Column(

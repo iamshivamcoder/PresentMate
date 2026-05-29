@@ -218,7 +218,7 @@ fun AppNavigation() {
                 composable("helpScreen") { HelpScreen(_navController = navController) }
                 composable("whyPresentMateScreen") { WhyPresentMateScreen(_navController = navController) }
                 composable("calendarSyncSettings") { CalendarSyncSettingsScreen() }
-                composable("aiAssistant") { AIAssistantScreen() }
+                composable("aiAssistant") { AIAssistantScreen(navController = navController) }
                 composable("preferences") { PreferencesScreen(navController = navController) }
                 composable("notificationPreferences") { NotificationPreferencesScreen() }
                 composable("aiPreferences") { AIPreferencesScreen() }

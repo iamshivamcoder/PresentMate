@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -37,9 +38,20 @@ data class ChangelogEntry(
 
 private val changelog = listOf(
     ChangelogEntry(
+        version = "1.9",
+        date = "29 May 2026",
+        isLatest = true,
+        changes = listOf(
+            "⚡ 30-Point Performance & UX Optimizations",
+            "🧠 Improved AI Context Awareness (understands your full study history)",
+            "📊 2 New Data Charts (Pie & Line Trend) in Overview",
+            "☁️ Resolved Google Drive Backup crashes for non-email accounts"
+        )
+    ),
+    ChangelogEntry(
         version = "1.8",
         date = "28 May 2026",
-        isLatest = true,
+        isLatest = false,
         changes = listOf(
             "👥 Multi-User Data Isolation with safe Room Migrations",
             "☁️ Secure Google Drive AppData backup & restore integration",
@@ -166,7 +178,9 @@ fun ChangelogScreen() {
         }
 
         changelog.forEach { entry ->
-            ChangelogCard(entry)
+            key(entry.version) {
+                ChangelogCard(entry)
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -229,11 +243,13 @@ private fun ChangelogCard(entry: ChangelogEntry) {
             Spacer(modifier = Modifier.height(8.dp))
 
             entry.changes.forEach { change ->
-                Text(
-                    change,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 2.dp)
-                )
+                key(change) {
+                    Text(
+                        change,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 2.dp)
+                    )
+                }
             }
         }
     }

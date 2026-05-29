@@ -47,7 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -125,12 +125,12 @@ fun SettingsScreen(
     val deletedRecordsFlow = remember(db, uid) {
         db.attendanceDao().getAllDeletedRecords(uid).map { it.size }
     }
-    val deletedRecordsCount by deletedRecordsFlow.collectAsState(initial = 0)
+    val deletedRecordsCount by deletedRecordsFlow.collectAsStateWithLifecycle(initialValue = 0)
     
     val allRecordsFlow = remember(db, uid) {
         db.attendanceDao().getAllRecords(uid)
     }
-    val allRecords by allRecordsFlow.collectAsState(initial = emptyList())
+    val allRecords by allRecordsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val appVersion = remember { getAppVersion(context) }
     
     var isExporting by remember { mutableStateOf(false) }
@@ -141,14 +141,63 @@ fun SettingsScreen(
     var isBackingUpToDrive by remember { mutableStateOf(false) }
     var isRestoringFromDrive by remember { mutableStateOf(false) }
     var showRestoreConfirm by remember { mutableStateOf(false) }
+    
+
+    var pendingDriveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val intentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            Toast.makeText(context, "Google Drive authorized. Please try again.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Google Drive authorized. Retrying...", Toast.LENGTH_SHORT).show()
+            pendingDriveAction?.invoke()
+            pendingDriveAction = null
+        } else {
+            pendingDriveAction = null
         }
     }
+
+    // Helper functions for backup and restore so they can be retried
+    fun performDriveBackup() {
+        isBackingUpToDrive = true
+        authViewModel.backupDatabaseToDrive { result ->
+            isBackingUpToDrive = false
+            if (result.isSuccess) {
+                Toast.makeText(context, "Database backed up successfully!", Toast.LENGTH_SHORT).show()
+            } else {
+                val exception = result.exceptionOrNull()
+                if (exception is com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
+                    intentLauncher.launch(exception.intent)
+                } else {
+                    Toast.makeText(context, "Failed to backup: ${exception?.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    fun performDriveRestore() {
+        isRestoringFromDrive = true
+        authViewModel.restoreDatabaseFromDrive { result ->
+            isRestoringFromDrive = false
+            if (result.isSuccess) {
+                val restored = result.getOrDefault(false)
+                if (restored) {
+                    Toast.makeText(context, "Database restored successfully!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "No backup found in Google Drive.", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                val exception = result.exceptionOrNull()
+                if (exception is com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
+                    intentLauncher.launch(exception.intent)
+                } else {
+                    Toast.makeText(context, "Failed to restore: ${exception?.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+
 
     // SAF launcher for creating export file
     val exportLauncher = rememberLauncherForActivityResult(
@@ -182,7 +231,8 @@ fun SettingsScreen(
         uri?.let {
             isImporting = true
             scope.launch {
-                when (val result = DataTransferManager.importFromCSV(context, it)) {
+                val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"
+                when (val result = DataTransferManager.importFromCSV(context, it, currentUserId)) {
                     is DataTransferManager.ImportResult.Success -> {
                         pendingImportRecords = result.records
                         showImportConfirmDialog = true
@@ -202,9 +252,7 @@ fun SettingsScreen(
             records = pendingImportRecords,
             onConfirm = {
                 scope.launch {
-                    pendingImportRecords.forEach { record ->
-                        db.attendanceDao().insertRecord(record)
-                    }
+                    db.attendanceDao().insertAll(pendingImportRecords)
                     Toast.makeText(
                         context,
                         "Imported ${pendingImportRecords.size} records",
@@ -229,25 +277,8 @@ fun SettingsScreen(
             confirmButton = {
                 Button(onClick = {
                     showRestoreConfirm = false
-                    isRestoringFromDrive = true
-                    authViewModel.restoreDatabaseFromDrive { result ->
-                        isRestoringFromDrive = false
-                        if (result.isSuccess) {
-                            val restored = result.getOrDefault(false)
-                            if (restored) {
-                                Toast.makeText(context, "Database restored successfully!", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "No backup found in Google Drive.", Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            val exception = result.exceptionOrNull()
-                            if (exception is com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
-                                intentLauncher.launch(exception.intent)
-                            } else {
-                                Toast.makeText(context, "Failed to restore: ${exception?.message}", Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    }
+                    pendingDriveAction = { performDriveRestore() }
+                    performDriveRestore()
                 }) {
                     Text("Restore")
                 }
@@ -394,20 +425,8 @@ fun SettingsScreen(
                 icon = Icons.Filled.FileUpload,
                 onClick = {
                     if (!isBackingUpToDrive) {
-                        isBackingUpToDrive = true
-                        authViewModel.backupDatabaseToDrive { result ->
-                            isBackingUpToDrive = false
-                            if (result.isSuccess) {
-                                Toast.makeText(context, "Database backed up successfully!", Toast.LENGTH_SHORT).show()
-                            } else {
-                                val exception = result.exceptionOrNull()
-                                if (exception is com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException) {
-                                    intentLauncher.launch(exception.intent)
-                                } else {
-                                    Toast.makeText(context, "Failed to backup: ${exception?.message}", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        }
+                        pendingDriveAction = { performDriveBackup() }
+                        performDriveBackup()
                     }
                 },
                 trailingContent = if (isBackingUpToDrive) {
@@ -448,7 +467,7 @@ fun SettingsScreen(
         }
 
         SettingsGroup("Account") {
-            val authState by authViewModel.authState.collectAsState()
+            val authState by authViewModel.authState.collectAsStateWithLifecycle()
             
             SettingsItem(
                 title = if (authState is com.example.presentmate.ui.viewmodel.AuthState.Authenticated) "Sign Out" else "Sign In",

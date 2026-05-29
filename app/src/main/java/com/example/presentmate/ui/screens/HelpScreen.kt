@@ -92,7 +92,7 @@ fun HelpScreen(_navController: NavHostController) {
                 modifier = Modifier.padding(bottom = 8.dp)
             )
         }
-        items(faqs) { faq ->
+        items(faqs, key = { it.question }) { faq ->
             CollapsibleCard(
                 headerContent = {
                     Text(

@@ -40,4 +40,18 @@ class CalendarEventFilterTest {
         val keywords = listOf("His")
         assertTrue(CalendarEventFilter.matchesKeywords(title, keywords))
     }
+
+    @Test
+    fun `matchesKeywords with blank title does not crash`() {
+        val keywords = listOf("UPSC")
+        // Blank title should return false without throwing
+        assertFalse(CalendarEventFilter.matchesKeywords("", keywords))
+        assertFalse(CalendarEventFilter.matchesKeywords("   ", keywords))
+    }
+
+    @Test
+    fun `matchesKeywords with single character keyword matches correctly`() {
+        assertTrue(CalendarEventFilter.matchesKeywords("Exam A", listOf("A")))
+        assertFalse(CalendarEventFilter.matchesKeywords("Exam B", listOf("A")))
+    }
 }

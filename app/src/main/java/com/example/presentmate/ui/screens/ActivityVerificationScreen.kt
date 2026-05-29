@@ -39,8 +39,8 @@ fun ActivityVerificationScreen() {
     val context  = LocalContext.current
     val db       = remember { PresentMateDatabase.getDatabase(context) }
     val scope    = rememberCoroutineScope()
-    val timeFmt  = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
-    val dateFmt  = remember { SimpleDateFormat("dd MMM", Locale.getDefault()) }
+    val timeFmt  = rowTimeFmt
+    val dateFmt  = rowDateFmt
 
     // Live history
     val history by db.stepActivityLogDao().getAllFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))

@@ -16,9 +16,9 @@ import java.util.Locale
  */
 object DataTransferManager {
     
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    private val exportDateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.getDefault())
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.US)
+    private val exportDateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.US)
     
     /**
      * Generates a timestamped filename for export
@@ -42,7 +42,7 @@ object DataTransferManager {
     ): ExportResult {
         return try {
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                OutputStreamWriter(outputStream).use { writer ->
+                OutputStreamWriter(outputStream, Charsets.UTF_8).use { writer ->
                     // Write CSV header
                     writer.write("ID,Date,TimeIn,TimeOut,DurationMinutes\n")
                     
@@ -52,7 +52,7 @@ object DataTransferManager {
                         val timeOutStr = record.timeOut?.let { timeFormat.format(Date(it)) } ?: ""
                         
                         val durationMinutes = if (record.timeIn != null && record.timeOut != null) {
-                            (record.timeOut - record.timeIn) / (1000 * 60)
+                            maxOf(0L, (record.timeOut - record.timeIn) / (1000 * 60))
                         } else {
                             0L
                         }
@@ -77,13 +77,14 @@ object DataTransferManager {
      */
     suspend fun importFromCSV(
         context: Context,
-        uri: Uri
+        uri: Uri,
+        userId: String
     ): ImportResult {
         return try {
             val records = mutableListOf<AttendanceRecord>()
             
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
                     // Skip header line
                     val header = reader.readLine()
                     if (header == null || !header.startsWith("ID") && !header.contains("Date")) {
@@ -116,7 +117,7 @@ object DataTransferManager {
                             } else null
                             
                             records.add(
-                                AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", 
+                                AttendanceRecord(userId = userId, 
                                     date = date,
                                     timeIn = timeIn,
                                     timeOut = timeOut

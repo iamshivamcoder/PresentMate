@@ -9,6 +9,7 @@ import com.example.presentmate.ai.AIService
 import com.example.presentmate.ai.AIServiceFactory
 import com.example.presentmate.ai.ParsedAttendance
 import com.example.presentmate.db.AttendanceDao
+import com.example.presentmate.util.MainDispatcherRule
 import com.google.firebase.auth.FirebaseAuth
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
@@ -19,18 +20,15 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -39,6 +37,9 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class AIAssistantViewModelTest {
 
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
     @MockK
     private lateinit var attendanceDao: AttendanceDao
 
@@ -46,12 +47,10 @@ class AIAssistantViewModelTest {
     private lateinit var aiService: AIService
 
     private lateinit var context: Context
-    private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setUp() {
         MockKAnnotations.init(this)
-        Dispatchers.setMain(testDispatcher)
         context = ApplicationProvider.getApplicationContext()
         coEvery { attendanceDao.insertRecord(any()) } returns Unit
 
@@ -63,16 +62,16 @@ class AIAssistantViewModelTest {
         }
         every { FirebaseAuth.getInstance() } returns mockAuth
 
-        // Mock the static-like objects so we can control AIService creation
         mockkObject(AIPreferences)
         mockkObject(AIServiceFactory)
     }
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
         unmockkAll()
     }
+
+    // ─── Existing Tests (unchanged) ────────────────────────────────────────────
 
     @Test
     fun init_withNullService_setsApiKeyMissing() = runTest {
@@ -119,7 +118,7 @@ class AIAssistantViewModelTest {
         coEvery { aiService.sendMessage("Hello") } returns mockResponse
 
         val viewModel = AIAssistantViewModel(attendanceDao, context)
-        advanceUntilIdle() // Process init message
+        advanceUntilIdle()
 
         viewModel.sendMessage("Hello")
         advanceUntilIdle()
@@ -150,24 +149,17 @@ class AIAssistantViewModelTest {
         viewModel.sendMessage("Test")
         advanceUntilIdle()
 
-        // Verify FirstConfirmation State
         assertTrue(viewModel.uiState.value.confirmationState is ConfirmationState.FirstConfirmation)
 
-        // Confirm first time
         viewModel.onFirstConfirmation()
-
-        // Verify SecondConfirmation State
         assertTrue(viewModel.uiState.value.confirmationState is ConfirmationState.SecondConfirmation)
 
-        // Confirm second time
         viewModel.onSecondConfirmation()
         advanceUntilIdle()
 
-        // Verify committed to DB and state reset
         coVerify(exactly = 1) { attendanceDao.insertRecord(any()) }
         assertEquals(ConfirmationState.None, viewModel.uiState.value.confirmationState)
 
-        // Verify success message was added
         val lastMessage = viewModel.uiState.value.messages.last()
         assertTrue(lastMessage.content.contains("Successfully"))
     }
@@ -195,5 +187,93 @@ class AIAssistantViewModelTest {
 
         assertEquals(ConfirmationState.None, viewModel.uiState.value.confirmationState)
         coVerify(exactly = 0) { attendanceDao.insertRecord(any()) }
+    }
+
+    // ─── New Tests (Phase 5) ───────────────────────────────────────────────────
+
+    @Test
+    fun sendMessage_withBlankText_doesNotAddMessage() = runTest {
+        every { AIPreferences.getPlatform(any()) } returns AIPlatform.GEMINI
+        every { AIPreferences.getApiKey(any()) } returns "test-key"
+        every { AIPreferences.getTemperature(any()) } returns 0.7f
+        every { AIPreferences.getMaxTokens(any()) } returns 1024
+        every { AIServiceFactory.create(any(), any(), any(), any()) } returns aiService
+
+        val viewModel = AIAssistantViewModel(attendanceDao, context)
+        advanceUntilIdle()
+        val initialMessageCount = viewModel.uiState.value.messages.size
+
+        viewModel.sendMessage("   ") // blank
+        advanceUntilIdle()
+
+        // No new messages added — blank messages are guarded
+        assertEquals(initialMessageCount, viewModel.uiState.value.messages.size)
+    }
+
+    @Test
+    fun sendMessage_withErrorResponse_addsErrorMessage() = runTest {
+        every { AIPreferences.getPlatform(any()) } returns AIPlatform.GEMINI
+        every { AIPreferences.getApiKey(any()) } returns "test-key"
+        every { AIPreferences.getTemperature(any()) } returns 0.7f
+        every { AIPreferences.getMaxTokens(any()) } returns 1024
+        every { AIServiceFactory.create(any(), any(), any(), any()) } returns aiService
+
+        val errorResponse = AIResponse.Error("Rate limit exceeded")
+        coEvery { aiService.sendMessage(any()) } returns errorResponse
+
+        val viewModel = AIAssistantViewModel(attendanceDao, context)
+        advanceUntilIdle()
+
+        viewModel.sendMessage("Hello")
+        advanceUntilIdle()
+
+        val messages = viewModel.uiState.value.messages
+        val lastMessage = messages.last()
+        assertFalse(lastMessage.isFromUser)
+        assertTrue(lastMessage.content.contains("Rate limit exceeded"))
+    }
+
+    @Test
+    fun onFirstConfirmation_whenStateIsNone_doesNothing() = runTest {
+        every { AIPreferences.getPlatform(any()) } returns AIPlatform.GEMINI
+        every { AIPreferences.getApiKey(any()) } returns "test-key"
+        every { AIPreferences.getTemperature(any()) } returns 0.7f
+        every { AIPreferences.getMaxTokens(any()) } returns 1024
+        every { AIServiceFactory.create(any(), any(), any(), any()) } returns aiService
+
+        val viewModel = AIAssistantViewModel(attendanceDao, context)
+        advanceUntilIdle()
+        val messagesBefore = viewModel.uiState.value.messages.size
+
+        // Call onFirstConfirmation when state is None — should be a no-op
+        viewModel.onFirstConfirmation()
+        advanceUntilIdle()
+
+        assertEquals(ConfirmationState.None, viewModel.uiState.value.confirmationState)
+        // No extra messages should have been added
+        assertEquals(messagesBefore, viewModel.uiState.value.messages.size)
+    }
+
+    @Test
+    fun refreshAiServiceState_updatesApiKeyMissingFlag() = runTest {
+        // Start with no key
+        every { AIPreferences.getPlatform(any()) } returns AIPlatform.GEMINI
+        every { AIPreferences.getApiKey(any()) } returns ""
+        every { AIPreferences.getTemperature(any()) } returns 0.7f
+        every { AIPreferences.getMaxTokens(any()) } returns 1024
+        every { AIServiceFactory.create(any(), any(), any(), any()) } returns null
+
+        val viewModel = AIAssistantViewModel(attendanceDao, context)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.apiKeyMissing)
+
+        // Now simulate the user setting a key
+        every { AIPreferences.getApiKey(any()) } returns "new-valid-key"
+        every { AIServiceFactory.create(any(), any(), any(), any()) } returns aiService
+
+        viewModel.refreshAiServiceState()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.apiKeyMissing)
     }
 }

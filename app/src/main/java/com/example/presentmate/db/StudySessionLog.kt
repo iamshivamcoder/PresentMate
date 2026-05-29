@@ -3,7 +3,7 @@ package com.example.presentmate.db
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "study_session_logs")
+@Entity(tableName = "study_session_logs", indices = [androidx.room.Index(value = ["userId", "calendarEventId"])])
 data class StudySessionLog(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val userId: String = "",

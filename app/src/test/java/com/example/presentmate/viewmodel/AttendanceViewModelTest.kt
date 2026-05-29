@@ -1,7 +1,9 @@
 package com.example.presentmate.viewmodel
 
+import app.cash.turbine.test
 import com.example.presentmate.db.AttendanceDao
 import com.example.presentmate.db.AttendanceRecord
+import com.example.presentmate.util.MainDispatcherRule
 import com.google.firebase.auth.FirebaseAuth
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
@@ -11,40 +13,37 @@ import io.mockk.impl.annotations.MockK
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AttendanceViewModelTest {
 
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
     @MockK
     private lateinit var attendanceDao: AttendanceDao
 
     private lateinit var viewModel: AttendanceViewModel
-    private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setUp() {
         MockKAnnotations.init(this)
-        Dispatchers.setMain(testDispatcher)
 
         mockkStatic(FirebaseAuth::class)
         val mockAuth = mockk<FirebaseAuth>(relaxed = true) {
             every { currentUser } returns mockk(relaxed = true) {
-                every { uid } returns "test_user_id"
+                every { uid } returns "test_user"
             }
         }
         every { FirebaseAuth.getInstance() } returns mockAuth
@@ -61,7 +60,6 @@ class AttendanceViewModelTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
         unmockkAll()
     }
 
@@ -70,31 +68,35 @@ class AttendanceViewModelTest {
         viewModel.startSession()
         advanceUntilIdle()
 
-        coVerify { 
+        coVerify {
             attendanceDao.insertRecord(withArg { record ->
                 assertTrue(record.timeIn != null)
                 assertTrue(record.timeOut == null)
+                assertEquals("test_user", record.userId)
             })
         }
     }
 
     @Test
     fun endSession_updatesOngoingSession() = runTest {
-        val ongoingRecord = AttendanceRecord(id = 1, date = System.currentTimeMillis(), timeIn = System.currentTimeMillis(), timeOut = null)
+        val ongoingRecord = AttendanceRecord(
+            id = 1,
+            userId = "test_user",
+            date = System.currentTimeMillis(),
+            timeIn = System.currentTimeMillis(),
+            timeOut = null
+        )
         every { attendanceDao.getOngoingSession(any()) } returns ongoingRecord
         every { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(ongoingRecord)
-        
-        // Recreate viewModel so it picks up the flow
+
+        // Recreate viewModel so it picks up the new flow
         viewModel = AttendanceViewModel(attendanceDao)
-        backgroundScope.launch {
-            viewModel.ongoingSession.collect {} 
-        }
         advanceUntilIdle()
 
         viewModel.endSession()
         advanceUntilIdle()
 
-        coVerify { 
+        coVerify {
             attendanceDao.updateRecord(withArg { record ->
                 assertEquals(1, record.id)
                 assertNotNull(record.timeOut)
@@ -105,20 +107,67 @@ class AttendanceViewModelTest {
     @Test
     fun flowsEmittedCorrectly() = runTest {
         val testRecords = listOf(
-            AttendanceRecord(id = 1, date = 1000L, timeIn = 2000L, timeOut = 3000L)
+            AttendanceRecord(id = 1, userId = "test_user", date = 1000L, timeIn = 2000L, timeOut = 3000L)
         )
-        val ongoingRecord = AttendanceRecord(id = 2, date = 4000L, timeIn = 5000L, timeOut = null)
+        val ongoingRecord = AttendanceRecord(id = 2, userId = "test_user", date = 4000L, timeIn = 5000L, timeOut = null)
 
         every { attendanceDao.getAllRecords(any()) } returns flowOf(testRecords)
         every { attendanceDao.getOngoingSession(any()) } returns ongoingRecord
         every { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(ongoingRecord)
 
         viewModel = AttendanceViewModel(attendanceDao)
-        backgroundScope.launch { viewModel.ongoingSession.collect {} }
-        backgroundScope.launch { viewModel.allRecords.collect {} }
+
+        // Use Turbine to properly collect StateFlow emissions
+        viewModel.allRecords.test {
+            val emitted = awaitItem()
+            assertEquals(testRecords, emitted)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.ongoingSession.test {
+            val emitted = awaitItem()
+            assertEquals(ongoingRecord, emitted)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun updateSessionTimeIn_updatesOngoingRecord() = runTest {
+        val ongoingRecord = AttendanceRecord(
+            id = 1,
+            userId = "test_user",
+            date = System.currentTimeMillis(),
+            timeIn = 1000L,
+            timeOut = null
+        )
+        every { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(ongoingRecord)
+        every { attendanceDao.getOngoingSession(any()) } returns ongoingRecord
+
+        viewModel = AttendanceViewModel(attendanceDao)
         advanceUntilIdle()
 
-        assertEquals(testRecords, viewModel.allRecords.value)
-        assertEquals(ongoingRecord, viewModel.ongoingSession.value)
+        val newTimeIn = 2000L
+        viewModel.updateSessionTimeIn(newTimeIn)
+        advanceUntilIdle()
+
+        coVerify {
+            attendanceDao.updateRecord(withArg { record ->
+                assertEquals(newTimeIn, record.timeIn)
+                assertEquals(1, record.id)
+            })
+        }
+    }
+
+    @Test
+    fun endSession_whenNoOngoingSession_doesNothing() = runTest {
+        // Default setUp has getOngoingSessionFlow returning flowOf(null)
+        viewModel = AttendanceViewModel(attendanceDao)
+        advanceUntilIdle()
+
+        viewModel.endSession()
+        advanceUntilIdle()
+
+        // No update should be called since there is no ongoing session
+        coVerify(exactly = 0) { attendanceDao.updateRecord(any()) }
     }
 }

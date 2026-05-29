@@ -147,19 +147,21 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
                 )
             }
             recordsForDate.forEach { record ->
-                AttendanceRecordItem(
-                    record = record,
-                    onEdit = { r ->
-                        recordToEdit = r
-                        editedTimeInText = r.timeIn?.let { timeFormat.format(Date(it)) } ?: ""
-                        editedTimeOutText = r.timeOut?.let { timeFormat.format(Date(it)) } ?: ""
-                        showEditDialog = true
-                    },
-                    onDelete = { r ->
-                        recordToDelete = r
-                        showDeleteDialog = true
-                    }
-                )
+                key(record.id) {
+                    AttendanceRecordItem(
+                        record = record,
+                        onEdit = { r ->
+                            recordToEdit = r
+                            editedTimeInText = r.timeIn?.let { timeFormat.format(Date(it)) } ?: ""
+                            editedTimeOutText = r.timeOut?.let { timeFormat.format(Date(it)) } ?: ""
+                            showEditDialog = true
+                        },
+                        onDelete = { r ->
+                            recordToDelete = r
+                            showDeleteDialog = true
+                        }
+                    )
+                }
             }
         }
     }

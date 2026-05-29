@@ -212,7 +212,7 @@ private fun handleReminderConfirm(
         leaveStatus == LeaveStatus.TAKING_LEAVE -> {
             // Fix #6 — write to the SAME prefs/key that SessionReminderReceiver reads
             val prefs = context.getSharedPreferences("session_reminder_leave", android.content.Context.MODE_PRIVATE)
-            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            val today = com.example.presentmate.utils.DateTimeFormatters.exportDateFormat
                 .format(java.util.Date())
             prefs.edit().putBoolean(today, true).apply()
             onDismiss()

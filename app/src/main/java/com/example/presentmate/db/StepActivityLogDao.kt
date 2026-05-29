@@ -9,6 +9,9 @@ interface StepActivityLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(log: StepActivityLog): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(logs: List<StepActivityLog>)
+
     @Query("SELECT * FROM step_activity_logs WHERE userId = :userId ORDER BY detectedAt DESC")
     fun getAllFlow(userId: String): Flow<List<StepActivityLog>>
 

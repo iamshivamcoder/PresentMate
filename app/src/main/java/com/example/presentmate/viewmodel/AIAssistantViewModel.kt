@@ -48,6 +48,7 @@ sealed class ConfirmationState {
 /**
  * UI State for AI Assistant
  */
+@androidx.compose.runtime.Stable
 data class AIAssistantUiState(
     val messages: List<ChatMessage> = emptyList(),
     val isLoading: Boolean = false,
@@ -107,7 +108,8 @@ class AIAssistantViewModel @Inject constructor(
         addMessage(ChatMessage(content = "Thinking...", isFromUser = false, isLoading = true))
 
         viewModelScope.launch {
-            val response = service.sendMessage(text)
+            val contextualPrompt = buildContextualPrompt(text)
+            val response = service.sendMessage(contextualPrompt)
             when (response) {
                 is AIResponse.Success -> {
                     removeLoadingMessage()
@@ -140,9 +142,12 @@ class AIAssistantViewModel @Inject constructor(
         addMessage(ChatMessage(content = "Analyzing image...", isFromUser = false, isLoading = true))
 
         viewModelScope.launch {
-            val bitmap = resolveBitmap(imageUri)
+            val bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                resolveBitmap(imageUri)
+            }
             val response = if (bitmap != null) {
-                service.sendMessageWithImage(messageText, bitmap)
+                val contextualPrompt = buildContextualPrompt(messageText)
+                service.sendMessageWithImage(contextualPrompt, bitmap)
             } else {
                 AIResponse.Error("Could not decode the selected image.")
             }
@@ -199,7 +204,7 @@ class AIAssistantViewModel @Inject constructor(
                         timeOut = parsed.timeOut
                     )
                 }
-                records.forEach { attendanceDao.insertRecord(it) }
+                attendanceDao.insertAll(records)
                 _uiState.update { it.copy(confirmationState = ConfirmationState.None) }
                 addMessage(ChatMessage(
                     content = "✅ Successfully added ${records.size} record(s) to your database!",
@@ -220,5 +225,22 @@ class AIAssistantViewModel @Inject constructor(
 
     private fun removeLoadingMessage() {
         _uiState.update { state -> state.copy(messages = state.messages.filterNot { it.isLoading }) }
+    }
+    private suspend fun buildContextualPrompt(userText: String): String {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"
+            val allRecords = attendanceDao.getAllRecordsNonFlow(uid).take(50) // Limit to 50 to save tokens
+            if (allRecords.isNotEmpty()) {
+                val dataStr = allRecords.joinToString(separator = "\n") {
+                    val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(it.date))
+                    val timeInStr = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.timeIn))
+                    val timeOutStr = it.timeOut?.let { t -> java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(t)) } ?: "Ongoing"
+                    "${dateStr}: ${timeInStr} - ${timeOutStr}"
+                }
+                "[System Context: Here is the user's latest attendance data for reference:\n$dataStr]\n\nUser Message: $userText"
+            } else {
+                userText
+            }
+        }
     }
 }

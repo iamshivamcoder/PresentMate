@@ -36,14 +36,6 @@ fun ManageProfileScreen(
     val scope = rememberCoroutineScope()
 
     Scaffold(
-        topBar = {
-            AppTopBar(
-                title = "Manage Profile",
-                isHomeScreen = false,
-                onMenuClick = {},
-                onBackClick = onNavigateBack
-            )
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             Surface(

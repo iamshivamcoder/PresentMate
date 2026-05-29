@@ -64,6 +64,7 @@ import java.util.Locale
 
 enum class GraphViewType { WEEKLY, MONTHLY, YEARLY }
 
+@androidx.compose.runtime.Stable
 data class GraphDataPoint(
     val label: String,
     val value: Float, // Total hours
@@ -73,6 +74,7 @@ data class GraphDataPoint(
     val goalValue: Float = 0f
 )
 
+@androidx.compose.runtime.Stable
 data class GraphStats(
     val totalHours: Float,
     val averageHours: Float,
@@ -214,7 +216,7 @@ fun GraphSection(
                 EnhancedBarChart(
                     data = data,
                     animationPlayed = animationPlayed,
-                    studyGoal = weeklyGoalHours / 7f // pass daily goal equivalent
+                    studyGoal = if (viewType == GraphViewType.YEARLY) (weeklyGoalHours * 52f) / 12f else weeklyGoalHours / 7f
                 )
             }
 
@@ -356,9 +358,9 @@ fun EnhancedBarChart(
             val targetAnimatedHeightFactor = if (animationPlayed) (dataPoint.value / maxVal) else 0f
             val baseColor = when {
                 dataPoint.isToday -> themeSecondaryColor // Use hoisted color
-                dataPoint.value >= studyGoal -> Color.Green.copy(alpha = 0.8f)
-                dataPoint.value >= studyGoal * 0.7f -> themePrimaryColor // Use hoisted color
-                else -> themePrimaryColor.copy(alpha = 0.7f) // Use hoisted color
+                dataPoint.value >= studyGoal -> themePrimaryColor
+                dataPoint.value >= studyGoal * 0.7f -> themePrimaryColor.copy(alpha = 0.8f) // Use hoisted color
+                else -> themePrimaryColor.copy(alpha = 0.5f) // Use hoisted color
             }
             val isSelected = selectedBarIndex == index
             val barColor = if (isSelected) baseColor.copy(alpha = 1f) else baseColor
@@ -379,6 +381,9 @@ fun EnhancedBarChart(
         ).value
     }
 
+    // Hoist grid color
+    val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+    
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
@@ -390,11 +395,15 @@ fun EnhancedBarChart(
             ) {
                 val chartWidth = size.width
                 val chartHeight = size.height - 60.dp.toPx()
-                val barWidth = chartWidth / data.size * 0.7f
-                val barSpacing = chartWidth / data.size * 0.3f
+                val maxBarWidth = 40.dp.toPx()
+                val rawBarWidth = chartWidth / data.size * 0.7f
+                val barWidth = minOf(rawBarWidth, maxBarWidth)
+                val totalBarsWidth = barWidth * data.size
+                val barSpacing = (chartWidth - totalBarsWidth) / data.size
 
                 val gridLines = 5
-                val gridColor = Color.Gray.copy(alpha = 0.2f)
+                // Retrieve onSurface color directly, but we can't do MaterialTheme inside Canvas, so we hoisted it earlier? Wait, we didn't hoist it, we can just use Color.Gray but we really should use MaterialTheme.
+                // Let's use Color.Gray since we can't use composable inside Canvas easily without hoisting. Wait, I will use Color.Gray but with less opacity, or hoist it. I'll hoist it above.
                 for (i in 1..gridLines) {
                     val yLine = chartHeight * (i / gridLines.toFloat())
                     drawLine(
@@ -538,7 +547,16 @@ fun calculateGraphData(
 ): List<GraphDataPoint> {
     val locale = Locale.getDefault()
     val today = LocalDate.now()
-    val filteredRecords = records.filter { it.timeIn != null && it.timeOut != null && it.timeOut > it.timeIn }
+    
+    // O(N) single pass to map records to local dates and sum durations
+    val dailyDurations = mutableMapOf<LocalDate, Long>()
+    records.forEach { record ->
+        if (record.timeIn != null && record.timeOut != null && record.timeOut > record.timeIn) {
+            val date = Instant.ofEpochMilli(record.date).atZone(ZoneId.systemDefault()).toLocalDate()
+            val duration = record.timeOut - record.timeIn
+            dailyDurations[date] = (dailyDurations[date] ?: 0L) + duration
+        }
+    }
 
     return when (viewType) {
         GraphViewType.WEEKLY -> {
@@ -546,13 +564,7 @@ fun calculateGraphData(
             val startOfWeek = displayDate.with(weekFields.dayOfWeek(), 1L)
             (0..6).map { dayIndex ->
                 val currentDay = startOfWeek.plusDays(dayIndex.toLong())
-                val totalMillis = filteredRecords.filter {
-                    Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate().isEqual(currentDay)
-                }.sumOf { 
-                    if (it.timeOut != null && it.timeIn != null) {
-                        it.timeOut - it.timeIn
-                    } else 0L
-                }
+                val totalMillis = dailyDurations[currentDay] ?: 0L
                 GraphDataPoint(
                     label = currentDay.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale),
                     value = formatMillisToHours(totalMillis), rawMillis = totalMillis, isToday = currentDay.isEqual(today)
@@ -564,13 +576,7 @@ fun calculateGraphData(
             val daysInMonth = startOfMonth.lengthOfMonth()
             (1..daysInMonth).map { dayOfMonth ->
                 val currentDay = startOfMonth.withDayOfMonth(dayOfMonth)
-                val totalMillis = filteredRecords.filter {
-                    Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate().isEqual(currentDay)
-                }.sumOf { 
-                    if (it.timeOut != null && it.timeIn != null) {
-                        it.timeOut - it.timeIn
-                    } else 0L
-                }
+                val totalMillis = dailyDurations[currentDay] ?: 0L
                 GraphDataPoint(
                     label = dayOfMonth.toString(),
                     value = formatMillisToHours(totalMillis), rawMillis = totalMillis, isToday = currentDay.isEqual(today)
@@ -580,16 +586,8 @@ fun calculateGraphData(
         GraphViewType.YEARLY -> {
             (1..12).map { monthIndex ->
                 val currentMonth = displayDate.withMonth(monthIndex)
-                val startOfMonthCal = currentMonth.withDayOfMonth(1)
-                val endOfMonthCal = currentMonth.with(TemporalAdjusters.lastDayOfMonth())
-                val totalMillis = filteredRecords.filter {
-                    val recordDate = Instant.ofEpochMilli(it.date).atZone(ZoneId.systemDefault()).toLocalDate()
-                    !recordDate.isBefore(startOfMonthCal) && !recordDate.isAfter(endOfMonthCal)
-                }.sumOf { 
-                    if (it.timeOut != null && it.timeIn != null) {
-                        it.timeOut - it.timeIn
-                    } else 0L
-                }
+                // Filter dailyDurations for this month and sum
+                val totalMillis = dailyDurations.filterKeys { it.year == currentMonth.year && it.monthValue == monthIndex }.values.sum()
                 GraphDataPoint(
                     label = currentMonth.month.getDisplayName(java.time.format.TextStyle.SHORT, locale),
                     value = formatMillisToHours(totalMillis), rawMillis = totalMillis,

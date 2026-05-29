@@ -32,6 +32,7 @@ import kotlin.coroutines.resume
 /**
  * Represents the UI state for the location picker screen.
  */
+@androidx.compose.runtime.Stable
 data class LocationPickerUiState(
     val selectedLocation: GeoPoint? = null,
     val addressText: String = "",

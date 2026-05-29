@@ -55,7 +55,7 @@ fun WhyPresentMateScreen(_navController: NavHostController) {
                 modifier = Modifier.padding(bottom = 8.dp)
             )
         }
-        items(qnaList) { qna ->
+        items(qnaList, key = { it.question }) { qna ->
             CollapsibleCard(
                 headerContent = {
                     Text(
