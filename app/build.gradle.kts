@@ -8,6 +8,8 @@ plugins {
     id("com.google.firebase.crashlytics")
     id("com.google.firebase.appdistribution")
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -143,7 +145,8 @@ android {
 }
 
 dependencies {
-
+    "baselineProfile"(project(":baselineprofile"))
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.compose.material3)
     implementation(libs.gson)
@@ -230,5 +233,6 @@ dependencies {
     testImplementation("androidx.test:core:1.5.0")
     testImplementation("androidx.test.ext:junit:1.1.5")
     testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("androidx.navigation:navigation-testing:2.7.6")
 }

@@ -28,4 +28,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "PresentMate"
 include(":app")
+include(":baselineprofile")
  
