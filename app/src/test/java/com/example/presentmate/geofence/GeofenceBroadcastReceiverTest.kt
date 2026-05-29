@@ -72,7 +72,7 @@ class GeofenceBroadcastReceiverTest {
     fun `onReceive with enter transition should start a new session`() = runTest(testDispatcher) {
         every { geofencingEvent.geofenceTransition } returns Geofence.GEOFENCE_TRANSITION_ENTER
         every { geofencingEvent.hasError() } returns false
-        coEvery { attendanceDao.getOngoingSessionFlow() } returns flowOf(null)
+        coEvery { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(null)
         coEvery { attendanceDao.insertRecord(any()) } just runs
 
         val intent = mockk<Intent>()
@@ -90,7 +90,7 @@ class GeofenceBroadcastReceiverTest {
         val ongoingSession = AttendanceRecord(id = 1, date = 1L, timeIn = 1L, timeOut = null)
         every { geofencingEvent.geofenceTransition } returns Geofence.GEOFENCE_TRANSITION_EXIT
         every { geofencingEvent.hasError() } returns false
-        coEvery { attendanceDao.getOngoingSessionFlow() } returns flowOf(ongoingSession)
+        coEvery { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(ongoingSession)
         coEvery { attendanceDao.updateRecord(any()) } just runs
 
         val intent = mockk<Intent>()
@@ -110,7 +110,7 @@ class GeofenceBroadcastReceiverTest {
                 AttendanceRecord(id = 1, date = 100L, timeIn = 100L, timeOut = null)
             every { geofencingEvent.geofenceTransition } returns Geofence.GEOFENCE_TRANSITION_ENTER
             every { geofencingEvent.hasError() } returns false
-            coEvery { attendanceDao.getOngoingSessionFlow() } returns flowOf(existingSession)
+            coEvery { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(existingSession)
 
             val intent = mockk<Intent>()
 
@@ -127,7 +127,7 @@ class GeofenceBroadcastReceiverTest {
         runTest(testDispatcher) {
             every { geofencingEvent.geofenceTransition } returns Geofence.GEOFENCE_TRANSITION_EXIT
             every { geofencingEvent.hasError() } returns false
-            coEvery { attendanceDao.getOngoingSessionFlow() } returns flowOf(null)
+            coEvery { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(null)
 
             val intent = mockk<Intent>()
 

@@ -111,6 +111,21 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun signInAnonymously(): Result<FirebaseUser> {
+        return try {
+            val authResult = firebaseAuth.signInAnonymously().await()
+            val user = authResult.user
+            if (user != null) {
+                Result.success(user)
+            } else {
+                Result.failure(Exception("Failed to sign in anonymously."))
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Anonymous sign in failed", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
         return try {
             firebaseAuth.sendPasswordResetEmail(email).await()

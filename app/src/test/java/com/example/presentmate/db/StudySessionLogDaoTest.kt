@@ -48,10 +48,10 @@ class StudySessionLogDaoTest {
 
         dao.insert(log)
         // Since id is auto-generated, we get it by event ID first to know the id
-        val insertedLog = dao.getByEventId(1L)
+        val insertedLog = dao.getByEventId(1L, "test_user")
         assertNotNull(insertedLog)
         
-        val logById = dao.getById(insertedLog!!.id)
+        val logById = dao.getById(insertedLog!!.id, "test_user")
         assertEquals("Test Event", logById?.eventTitle)
     }
 
@@ -67,12 +67,12 @@ class StudySessionLogDaoTest {
         )
 
         dao.insert(log)
-        val insertedLog = dao.getByEventId(1L)!!
+        val insertedLog = dao.getByEventId(1L, "test_user")!!
         
         val updatedLog = insertedLog.copy(status = "COMPLETED", actualDurationMinutes = 60)
         dao.update(updatedLog)
 
-        val fetchedLog = dao.getById(insertedLog.id)
+        val fetchedLog = dao.getById(insertedLog.id, "test_user")
         assertEquals("COMPLETED", fetchedLog?.status)
         assertEquals(60, fetchedLog?.actualDurationMinutes)
     }
@@ -97,7 +97,7 @@ class StudySessionLogDaoTest {
         dao.insert(log3)
 
         // time is 3000, so log1 is overdue, log2 is not overdue, log3 is overdue but not pending
-        val overdueLogs = dao.getPendingOverdue(3000L)
+        val overdueLogs = dao.getPendingOverdue(3000L, "test_user")
         
         assertEquals(1, overdueLogs.size)
         assertEquals("Past Pending", overdueLogs[0].eventTitle)

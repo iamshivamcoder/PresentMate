@@ -184,6 +184,21 @@ fun LoginScreen(
                 ) {
                     Text("Continue with Google", style = MaterialTheme.typography.bodyMedium)
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedButton(
+                    onClick = { viewModel.signInAsGuest() },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Text("Continue as Guest", style = MaterialTheme.typography.bodyMedium)
+                }
                 
                 Spacer(modifier = Modifier.height(32.dp))
 

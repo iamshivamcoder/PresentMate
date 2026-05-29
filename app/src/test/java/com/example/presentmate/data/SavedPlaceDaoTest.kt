@@ -47,7 +47,7 @@ class SavedPlaceDaoTest {
 
         dao.insert(place)
         
-        val fetchedPlace = dao.getByName("Home")
+        val fetchedPlace = dao.getByName("Home", "test_user")
         assertNotNull(fetchedPlace)
         assertEquals(12.34, fetchedPlace!!.latitude, 0.001)
     }
@@ -62,12 +62,12 @@ class SavedPlaceDaoTest {
         )
 
         dao.insert(place)
-        val fetchedPlace = dao.getByName("Work")
+        val fetchedPlace = dao.getByName("Work", "test_user")
         assertNotNull(fetchedPlace)
 
         dao.delete(fetchedPlace!!)
         
-        val deletedPlace = dao.getByName("Work")
+        val deletedPlace = dao.getByName("Work", "test_user")
         assertNull(deletedPlace)
     }
 
@@ -77,7 +77,7 @@ class SavedPlaceDaoTest {
         dao.insert(SavedPlace(name = "Alpha", address = "A", latitude = 0.0, longitude = 0.0))
         dao.insert(SavedPlace(name = "Gamma", address = "A", latitude = 0.0, longitude = 0.0))
 
-        val places = dao.getAll().first()
+        val places = dao.getAll("test_user").first()
         
         assertEquals(3, places.size)
         assertEquals("Alpha", places[0].name)

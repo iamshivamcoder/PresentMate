@@ -8,8 +8,9 @@ import com.example.presentmate.data.GeofencePreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class LocationViewModel(private val context: Context) : ViewModel() {
+class LocationViewModel(application: android.app.Application) : androidx.lifecycle.AndroidViewModel(application) {
 
+    private val context = application
     private val prefs = GeofencePreferencesRepository.getPreferences(context)
 
     private val _isTrackingEnabled = MutableStateFlow(GeofencePreferencesRepository.isGeofenceEnabled(context))
@@ -63,7 +64,8 @@ class LocationViewModel(private val context: Context) : ViewModel() {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return LocationViewModel(context) as T
+                    val application = context.applicationContext as android.app.Application
+                    return LocationViewModel(application) as T
                 }
             }
         }

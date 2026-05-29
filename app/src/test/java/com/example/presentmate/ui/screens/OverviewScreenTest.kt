@@ -49,8 +49,8 @@ class OverviewScreenTest {
     @Test
     fun `initial state should have empty daily summaries`() = runTest(testDispatcher) {
         // Given
-        every { attendanceDao.getAllRecords() } returns flowOf(emptyList())
-        coEvery { attendanceDao.getAllRecordsNonFlow() } returns emptyList()
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(emptyList())
+        coEvery { attendanceDao.getAllRecordsNonFlow(any()) } returns emptyList()
 
         // When
         viewModel = OverviewViewModel(attendanceDao)
@@ -63,8 +63,8 @@ class OverviewScreenTest {
     @Test
     fun `initial state should have weekly graph view type`() = runTest(testDispatcher) {
         // Given
-        every { attendanceDao.getAllRecords() } returns flowOf(emptyList())
-        coEvery { attendanceDao.getAllRecordsNonFlow() } returns emptyList()
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(emptyList())
+        coEvery { attendanceDao.getAllRecordsNonFlow(any()) } returns emptyList()
 
         // When
         viewModel = OverviewViewModel(attendanceDao)
@@ -77,8 +77,8 @@ class OverviewScreenTest {
     @Test
     fun `onViewTypeChange should update graph view type`() = runTest(testDispatcher) {
         // Given
-        every { attendanceDao.getAllRecords() } returns flowOf(emptyList())
-        coEvery { attendanceDao.getAllRecordsNonFlow() } returns emptyList()
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(emptyList())
+        coEvery { attendanceDao.getAllRecordsNonFlow(any()) } returns emptyList()
         viewModel = OverviewViewModel(attendanceDao)
         advanceUntilIdle()
 
@@ -93,8 +93,8 @@ class OverviewScreenTest {
     @Test
     fun `onDateChange should update current display date`() = runTest(testDispatcher) {
         // Given
-        every { attendanceDao.getAllRecords() } returns flowOf(emptyList())
-        coEvery { attendanceDao.getAllRecordsNonFlow() } returns emptyList()
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(emptyList())
+        coEvery { attendanceDao.getAllRecordsNonFlow(any()) } returns emptyList()
         viewModel = OverviewViewModel(attendanceDao)
         advanceUntilIdle()
 

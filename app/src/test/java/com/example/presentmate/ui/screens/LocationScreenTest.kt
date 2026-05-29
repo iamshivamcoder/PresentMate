@@ -32,7 +32,7 @@ import org.junit.Test
 class LocationScreenTest {
 
     @MockK(relaxed = true)
-    private lateinit var context: Context
+    private lateinit var context: android.app.Application
 
     @MockK(relaxed = true)
     private lateinit var sharedPreferences: SharedPreferences

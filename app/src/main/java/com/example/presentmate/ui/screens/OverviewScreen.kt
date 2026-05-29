@@ -56,8 +56,9 @@ fun OverviewScreen(viewModel: OverviewViewModel = hiltViewModel()) {
     var weeklyGoalHours by remember { mutableFloatStateOf(prefs.getFloat("weekly_goal_hours", 10f)) }
 
     // Fix #12 — re-read on every Resume so changes from OverviewPreferencesScreen are picked up
-    androidx.compose.runtime.LaunchedEffect(lifecycleOwner.lifecycle.currentState) {
-        if (lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(lifecycleState) {
+        if (lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
             weeklyGoalHours = prefs.getFloat("weekly_goal_hours", 10f)
         }
     }

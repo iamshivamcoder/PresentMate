@@ -47,8 +47,8 @@ fun CalendarSyncSettingsScreen() {
     
     // State
     var isEnabled by remember { mutableStateOf(CalendarSyncPreferences.isCalendarSyncEnabled(context)) }
-    var selectedCalendarId by remember { mutableStateOf(CalendarSyncPreferences.getSelectedCalendarId(context)) }
-    var delayMinutes by remember { mutableStateOf(CalendarSyncPreferences.getDelayMinutes(context)) }
+    var selectedCalendarId by remember { androidx.compose.runtime.mutableLongStateOf(CalendarSyncPreferences.getSelectedCalendarId(context)) }
+    var delayMinutes by remember { androidx.compose.runtime.mutableIntStateOf(CalendarSyncPreferences.getDelayMinutes(context)) }
     
     var availableCalendars by remember { mutableStateOf<List<CalendarInfo>>(emptyList()) }
     var hasPermission by remember { 

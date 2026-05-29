@@ -39,9 +39,9 @@ class AttendanceViewModelTest {
         Dispatchers.setMain(testDispatcher)
 
         // Default mock responses
-        every { attendanceDao.getOngoingSession() } returns null
-        every { attendanceDao.getOngoingSessionFlow() } returns flowOf(null)
-        every { attendanceDao.getAllRecords() } returns flowOf(emptyList())
+        every { attendanceDao.getOngoingSession(any()) } returns null
+        every { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(null)
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(emptyList())
         coEvery { attendanceDao.insertRecord(any()) } returns Unit
         coEvery { attendanceDao.updateRecord(any()) } returns Unit
 
@@ -70,8 +70,8 @@ class AttendanceViewModelTest {
     @Test
     fun endSession_updatesOngoingSession() = runTest {
         val ongoingRecord = AttendanceRecord(id = 1, date = System.currentTimeMillis(), timeIn = System.currentTimeMillis(), timeOut = null)
-        every { attendanceDao.getOngoingSession() } returns ongoingRecord
-        every { attendanceDao.getOngoingSessionFlow() } returns flowOf(ongoingRecord)
+        every { attendanceDao.getOngoingSession(any()) } returns ongoingRecord
+        every { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(ongoingRecord)
         
         // Recreate viewModel so it picks up the flow
         viewModel = AttendanceViewModel(attendanceDao)
@@ -98,9 +98,9 @@ class AttendanceViewModelTest {
         )
         val ongoingRecord = AttendanceRecord(id = 2, date = 4000L, timeIn = 5000L, timeOut = null)
 
-        every { attendanceDao.getAllRecords() } returns flowOf(testRecords)
-        every { attendanceDao.getOngoingSession() } returns ongoingRecord
-        every { attendanceDao.getOngoingSessionFlow() } returns flowOf(ongoingRecord)
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(testRecords)
+        every { attendanceDao.getOngoingSession(any()) } returns ongoingRecord
+        every { attendanceDao.getOngoingSessionFlow(any()) } returns flowOf(ongoingRecord)
 
         viewModel = AttendanceViewModel(attendanceDao)
         backgroundScope.launch { viewModel.ongoingSession.collect {} }

@@ -79,6 +79,7 @@ fun AppNavigation() {
             "aiPreferences" -> "AI Settings"
             "themePreferences" -> "App Theme"
             "changelog" -> "Changelog"
+            "troubleshootScreen" -> "Troubleshoot"
             else -> "Present Mate"
         }
     }
@@ -227,6 +228,7 @@ fun AppNavigation() {
                 composable("themePreferences") { ThemePreferencesScreen() }
                 composable(Screen.ActivityVerification.route) { ActivityVerificationScreen() }
                 composable("changelog") { ChangelogScreen() }
+                composable("troubleshootScreen") { TroubleshootScreen(navController = navController) }
                 composable("manageProfile") {
                     com.example.presentmate.ui.screens.ManageProfileScreen(
                         onNavigateBack = { navController.popBackStack() }

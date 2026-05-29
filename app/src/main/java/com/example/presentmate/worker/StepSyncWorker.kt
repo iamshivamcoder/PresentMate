@@ -107,8 +107,8 @@ class StepSyncWorker @AssistedInject constructor(
             handler.removeCallbacks(timeoutRunnable)
         }
 
-        sensorManager.registerListener(listener, stepCounter, SensorManager.SENSOR_DELAY_NORMAL)
-        handler.postDelayed(timeoutRunnable, 4000L) // 4 seconds timeout
+        sensorManager.registerListener(listener, stepCounter, SensorManager.SENSOR_DELAY_NORMAL, handler)
+        handler.postDelayed(timeoutRunnable, 10000L) // 10 seconds timeout
     }
 
     private suspend fun readStepDelta(): Int {

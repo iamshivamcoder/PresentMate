@@ -103,11 +103,11 @@ class SettingsScreenTest {
             DeletedRecord(id = 2, originalId = 20, date = 2000L, timeIn = 2000L, timeOut = 3000L),
             DeletedRecord(id = 3, originalId = 30, date = 3000L, timeIn = 3000L, timeOut = 4000L)
         )
-        every { attendanceDao.getAllDeletedRecords() } returns flowOf(deletedRecords)
+        every { attendanceDao.getAllDeletedRecords(any()) } returns flowOf(deletedRecords)
 
         // When
         var recordCount = 0
-        attendanceDao.getAllDeletedRecords().collect { records ->
+        attendanceDao.getAllDeletedRecords("test_user").collect { records ->
             recordCount = records.size
         }
         advanceUntilIdle()

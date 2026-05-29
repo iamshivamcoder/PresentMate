@@ -60,8 +60,8 @@ class PresentMateUITest {
         every { FirebaseAuth.getInstance() } returns mockAuth
 
         val mockAttendanceDao = mockk<AttendanceDao>(relaxed = true) {
-            every { getAllDeletedRecords() } returns flowOf(emptyList())
-            every { getAllRecords() } returns flowOf(emptyList())
+            every { getAllDeletedRecords(any()) } returns flowOf(emptyList())
+            every { getAllRecords(any()) } returns flowOf(emptyList())
         }
         val mockDb = mockk<PresentMateDatabase>(relaxed = true) {
             every { attendanceDao() } returns mockAttendanceDao

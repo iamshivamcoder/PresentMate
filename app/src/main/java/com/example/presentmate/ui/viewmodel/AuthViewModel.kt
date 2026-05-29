@@ -52,6 +52,14 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun signInAsGuest() {
+        _authState.value = AuthState.Loading
+        viewModelScope.launch {
+            val result = authRepository.signInAnonymously()
+            handleAuthResult(result)
+        }
+    }
+
     fun sendPasswordResetEmail(email: String, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             val result = authRepository.sendPasswordResetEmail(email)

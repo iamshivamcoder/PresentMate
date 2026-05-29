@@ -43,7 +43,7 @@ class OverviewViewModelTest {
     fun setUp() {
         MockKAnnotations.init(this)
         Dispatchers.setMain(testDispatcher)
-        every { attendanceDao.getAllRecordsNonFlow() } returns emptyList()
+        every { attendanceDao.getAllRecordsNonFlow(any()) } returns emptyList()
     }
 
     @After
@@ -70,8 +70,8 @@ class OverviewViewModelTest {
             timeOut = null // <-- ongoing session, must be excluded
         )
 
-        every { attendanceDao.getAllRecords() } returns flowOf(listOf(complete, ongoing))
-        every { attendanceDao.getAllRecordsNonFlow() } returns listOf(complete, ongoing)
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(listOf(complete, ongoing))
+        every { attendanceDao.getAllRecordsNonFlow(any()) } returns listOf(complete, ongoing)
 
         val viewModel = OverviewViewModel(attendanceDao, testDispatcher)
         backgroundScope.launch { viewModel.uiState.collect {} }
@@ -98,8 +98,8 @@ class OverviewViewModelTest {
             AttendanceRecord(id = 1, date = today.toEpochMillis(), timeIn = session1Start, timeOut = session1End),
             AttendanceRecord(id = 2, date = today.toEpochMillis(), timeIn = session2Start, timeOut = session2End)
         )
-        every { attendanceDao.getAllRecords() } returns flowOf(records)
-        every { attendanceDao.getAllRecordsNonFlow() } returns records
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(records)
+        every { attendanceDao.getAllRecordsNonFlow(any()) } returns records
 
         val viewModel = OverviewViewModel(attendanceDao, testDispatcher)
         backgroundScope.launch { viewModel.uiState.collect {} }
@@ -124,8 +124,8 @@ class OverviewViewModelTest {
                 timeIn = today.toEpochMillis() + 3_600_000,
                 timeOut = today.toEpochMillis() + 7_200_000)
         )
-        every { attendanceDao.getAllRecords() } returns flowOf(records)
-        every { attendanceDao.getAllRecordsNonFlow() } returns records
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(records)
+        every { attendanceDao.getAllRecordsNonFlow(any()) } returns records
 
         val viewModel = OverviewViewModel(attendanceDao, testDispatcher)
         backgroundScope.launch { viewModel.uiState.collect {} }
@@ -142,8 +142,8 @@ class OverviewViewModelTest {
     // ------------------------------------------------------------------
     @Test
     fun `empty records list results in empty daily summaries and zeroed stats`() = runTest {
-        every { attendanceDao.getAllRecords() } returns flowOf(emptyList())
-        every { attendanceDao.getAllRecordsNonFlow() } returns emptyList()
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(emptyList())
+        every { attendanceDao.getAllRecordsNonFlow(any()) } returns emptyList()
 
         val viewModel = OverviewViewModel(attendanceDao, testDispatcher)
         backgroundScope.launch { viewModel.uiState.collect {} }
@@ -157,8 +157,8 @@ class OverviewViewModelTest {
     // ------------------------------------------------------------------
     @Test
     fun `onViewTypeChange updates selectedGraphViewType in uiState`() = runTest {
-        every { attendanceDao.getAllRecords() } returns flowOf(emptyList())
-        every { attendanceDao.getAllRecordsNonFlow() } returns emptyList()
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(emptyList())
+        every { attendanceDao.getAllRecordsNonFlow(any()) } returns emptyList()
 
         val viewModel = OverviewViewModel(attendanceDao, testDispatcher)
         backgroundScope.launch { viewModel.uiState.collect {} }
@@ -174,8 +174,8 @@ class OverviewViewModelTest {
 
     @Test
     fun `onDateChange updates currentDisplayDate in uiState`() = runTest {
-        every { attendanceDao.getAllRecords() } returns flowOf(emptyList())
-        every { attendanceDao.getAllRecordsNonFlow() } returns emptyList()
+        every { attendanceDao.getAllRecords(any()) } returns flowOf(emptyList())
+        every { attendanceDao.getAllRecordsNonFlow(any()) } returns emptyList()
 
         val viewModel = OverviewViewModel(attendanceDao, testDispatcher)
         backgroundScope.launch { viewModel.uiState.collect {} }

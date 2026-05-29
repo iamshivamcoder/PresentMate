@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FileDownload
@@ -120,11 +121,16 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    val deletedRecordsCount by db.attendanceDao().getAllDeletedRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
-        .map { it.size }
-        .collectAsState(initial = 0)
-    val allRecords by db.attendanceDao().getAllRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
-        .collectAsState(initial = emptyList())
+    val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"
+    val deletedRecordsFlow = remember(db, uid) {
+        db.attendanceDao().getAllDeletedRecords(uid).map { it.size }
+    }
+    val deletedRecordsCount by deletedRecordsFlow.collectAsState(initial = 0)
+    
+    val allRecordsFlow = remember(db, uid) {
+        db.attendanceDao().getAllRecords(uid)
+    }
+    val allRecords by allRecordsFlow.collectAsState(initial = emptyList())
     val appVersion = remember { getAppVersion(context) }
     
     var isExporting by remember { mutableStateOf(false) }
@@ -476,6 +482,12 @@ fun SettingsScreen(
                 description = "Find answers to your questions",
                 icon = Icons.AutoMirrored.Filled.HelpOutline,
                 onClick = { navController.navigate("helpScreen") }
+            )
+            SettingsItem(
+                title = "Troubleshoot",
+                description = "System diagnostics and permission checks",
+                icon = Icons.Filled.Build,
+                onClick = { navController.navigate("troubleshootScreen") }
             )
             SettingsItem(
                 title = "Why Present Mate?",
