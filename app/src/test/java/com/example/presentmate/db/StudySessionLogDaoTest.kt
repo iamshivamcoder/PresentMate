@@ -38,6 +38,7 @@ class StudySessionLogDaoTest {
     @Test
     fun insertAndGetById() = runBlocking {
         val log = StudySessionLog(
+            userId = "test_user",
             calendarEventId = 1L,
             eventTitle = "Test Event",
             subject = "Math",
@@ -58,6 +59,7 @@ class StudySessionLogDaoTest {
     @Test
     fun updateLog() = runBlocking {
         val log = StudySessionLog(
+            userId = "test_user",
             calendarEventId = 1L,
             eventTitle = "Test Event",
             subject = null,
@@ -80,15 +82,15 @@ class StudySessionLogDaoTest {
     @Test
     fun getPendingOverdue() = runBlocking {
         val log1 = StudySessionLog(
-            calendarEventId = 1L, eventTitle = "Past Pending", subject = "Math", topic = "Algebra",
+            userId = "test_user", calendarEventId = 1L, eventTitle = "Past Pending", subject = "Math", topic = "Algebra",
             scheduledStartTime = 1000L, scheduledEndTime = 2000L, status = "PENDING"
         )
         val log2 = StudySessionLog(
-            calendarEventId = 2L, eventTitle = "Future Pending", subject = "Math", topic = "Algebra",
+            userId = "test_user", calendarEventId = 2L, eventTitle = "Future Pending", subject = "Math", topic = "Algebra",
             scheduledStartTime = 5000L, scheduledEndTime = 6000L, status = "PENDING"
         )
         val log3 = StudySessionLog(
-            calendarEventId = 3L, eventTitle = "Past Completed", subject = "Math", topic = "Algebra",
+            userId = "test_user", calendarEventId = 3L, eventTitle = "Past Completed", subject = "Math", topic = "Algebra",
             scheduledStartTime = 1000L, scheduledEndTime = 2000L, status = "COMPLETED"
         )
 

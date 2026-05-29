@@ -38,12 +38,20 @@ class OverviewViewModel @Inject constructor(
     private val backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
+    private fun getUserId(): String {
+        return try {
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"
+        } catch (e: Exception) {
+            "test_user"
+        }
+    }
+
     private val _uiState = MutableStateFlow(OverviewUiState())
     val uiState: StateFlow<OverviewUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch(backgroundDispatcher) {
-            attendanceDao.getAllRecords((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned")).collect { records ->
+            attendanceDao.getAllRecords(getUserId()).collect { records ->
                 processRecords(records)
             }
         }
@@ -52,7 +60,7 @@ class OverviewViewModel @Inject constructor(
     fun onDateChange(newDate: LocalDate) {
         _uiState.update { it.copy(currentDisplayDate = newDate) }
         viewModelScope.launch(backgroundDispatcher) {
-            val records = attendanceDao.getAllRecordsNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
+            val records = attendanceDao.getAllRecordsNonFlow(getUserId())
             processRecords(records)
         }
     }
@@ -60,7 +68,7 @@ class OverviewViewModel @Inject constructor(
     fun onViewTypeChange(newViewType: GraphViewType) {
         _uiState.update { it.copy(selectedGraphViewType = newViewType) }
         viewModelScope.launch(backgroundDispatcher) {
-            val records = attendanceDao.getAllRecordsNonFlow((com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"))
+            val records = attendanceDao.getAllRecordsNonFlow(getUserId())
             processRecords(records)
         }
     }

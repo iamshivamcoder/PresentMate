@@ -39,6 +39,7 @@ class SavedPlaceDaoTest {
     @Test
     fun insertAndGetByName() = runBlocking {
         val place = SavedPlace(
+            userId = "test_user",
             name = "Home",
             address = "123 Home St",
             latitude = 12.34,
@@ -55,6 +56,7 @@ class SavedPlaceDaoTest {
     @Test
     fun deletePlace() = runBlocking {
         val place = SavedPlace(
+            userId = "test_user",
             name = "Work",
             address = "456 Work Ave",
             latitude = 12.34,
@@ -73,9 +75,9 @@ class SavedPlaceDaoTest {
 
     @Test
     fun getAllPlacesOrderedByName() = runBlocking {
-        dao.insert(SavedPlace(name = "Zeta", address = "A", latitude = 0.0, longitude = 0.0))
-        dao.insert(SavedPlace(name = "Alpha", address = "A", latitude = 0.0, longitude = 0.0))
-        dao.insert(SavedPlace(name = "Gamma", address = "A", latitude = 0.0, longitude = 0.0))
+        dao.insert(SavedPlace(userId = "test_user", name = "Zeta", address = "A", latitude = 0.0, longitude = 0.0))
+        dao.insert(SavedPlace(userId = "test_user", name = "Alpha", address = "A", latitude = 0.0, longitude = 0.0))
+        dao.insert(SavedPlace(userId = "test_user", name = "Gamma", address = "A", latitude = 0.0, longitude = 0.0))
 
         val places = dao.getAll("test_user").first()
         
