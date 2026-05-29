@@ -9,12 +9,15 @@ import com.example.presentmate.ai.AIService
 import com.example.presentmate.ai.AIServiceFactory
 import com.example.presentmate.ai.ParsedAttendance
 import com.example.presentmate.db.AttendanceDao
+import com.google.firebase.auth.FirebaseAuth
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -51,6 +54,14 @@ class AIAssistantViewModelTest {
         Dispatchers.setMain(testDispatcher)
         context = ApplicationProvider.getApplicationContext()
         coEvery { attendanceDao.insertRecord(any()) } returns Unit
+
+        mockkStatic(FirebaseAuth::class)
+        val mockAuth = mockk<FirebaseAuth>(relaxed = true) {
+            every { currentUser } returns mockk(relaxed = true) {
+                every { uid } returns "test_user_id"
+            }
+        }
+        every { FirebaseAuth.getInstance() } returns mockAuth
 
         // Mock the static-like objects so we can control AIService creation
         mockkObject(AIPreferences)

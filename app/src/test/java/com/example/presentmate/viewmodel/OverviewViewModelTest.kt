@@ -3,9 +3,12 @@ package com.example.presentmate.viewmodel
 import com.example.presentmate.db.AttendanceDao
 import com.example.presentmate.db.AttendanceRecord
 import com.example.presentmate.ui.components.GraphViewType
+import com.google.firebase.auth.FirebaseAuth
 import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,6 +46,15 @@ class OverviewViewModelTest {
     fun setUp() {
         MockKAnnotations.init(this)
         Dispatchers.setMain(testDispatcher)
+
+        mockkStatic(FirebaseAuth::class)
+        val mockAuth = mockk<FirebaseAuth>(relaxed = true) {
+            every { currentUser } returns mockk(relaxed = true) {
+                every { uid } returns "test_user_id"
+            }
+        }
+        every { FirebaseAuth.getInstance() } returns mockAuth
+
         every { attendanceDao.getAllRecordsNonFlow(any()) } returns emptyList()
     }
 

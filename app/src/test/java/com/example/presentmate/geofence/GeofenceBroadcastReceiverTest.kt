@@ -9,6 +9,7 @@ import com.example.presentmate.di.GeofenceBroadcastReceiverEntryPoint
 import com.example.presentmate.di.getEntryPoint
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingEvent
+import com.google.firebase.auth.FirebaseAuth
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
 import kotlinx.coroutines.CoroutineScope
@@ -55,6 +56,15 @@ class GeofenceBroadcastReceiverTest {
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
+
+        // Mock FirebaseAuth
+        mockkStatic(FirebaseAuth::class)
+        val mockAuth = mockk<FirebaseAuth>(relaxed = true) {
+            every { currentUser } returns mockk(relaxed = true) {
+                every { uid } returns "test_user_id"
+            }
+        }
+        every { FirebaseAuth.getInstance() } returns mockAuth
 
         // Mock GeofenceNotificationUtils to prevent null pointer exceptions
         mockkObject(GeofenceNotificationUtils)

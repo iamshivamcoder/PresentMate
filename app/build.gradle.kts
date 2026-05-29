@@ -137,6 +137,8 @@ android {
                 it.forkEvery = 0
                 // Give each test JVM enough heap.
                 it.jvmArgs("-Xmx2048m", "-XX:+UseG1GC")
+                // Avoid POSIX permission issues on Windows with old Guava in tests
+                it.systemProperty("java.io.tmpdir", layout.buildDirectory.get().asFile.resolve("tmp").absolutePath)
             }
         }
     }
