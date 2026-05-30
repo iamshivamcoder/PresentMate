@@ -50,7 +50,7 @@ interface AttendanceDao {
 // --- Unified Database --- //
 @Database(
     entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class, StudySessionLog::class, StepActivityLog::class, ActivityEvent::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class PresentMateDatabase : RoomDatabase() {
@@ -100,18 +100,51 @@ abstract class PresentMateDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_5_6 = object : Migration(5, 6) {
+                private val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE attendance_records ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE deleted_records ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
-                
-                // Add missing radius column before adding userId to avoid schema validation errors
-                // This handles cases where radius was added to the data class without a proper earlier migration
-                db.execSQL("ALTER TABLE saved_places ADD COLUMN radius REAL NOT NULL DEFAULT 100.0")
-                db.execSQL("ALTER TABLE saved_places ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
-                
-                db.execSQL("ALTER TABLE study_session_logs ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE step_activity_logs ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                // Migrate attendance_records
+                db.execSQL("CREATE TABLE IF NOT EXISTS attendance_records_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId TEXT NOT NULL, date INTEGER NOT NULL, timeIn INTEGER, timeOut INTEGER)")
+                db.execSQL("INSERT INTO attendance_records_new (id, userId, date, timeIn, timeOut) SELECT id, '', date, timeIn, timeOut FROM attendance_records")
+                db.execSQL("DROP TABLE attendance_records")
+                db.execSQL("ALTER TABLE attendance_records_new RENAME TO attendance_records")
+
+                // Migrate deleted_records
+                db.execSQL("CREATE TABLE IF NOT EXISTS deleted_records_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, originalId INTEGER NOT NULL, userId TEXT NOT NULL, date INTEGER NOT NULL, timeIn INTEGER, timeOut INTEGER, deletedAt INTEGER NOT NULL)")
+                db.execSQL("INSERT INTO deleted_records_new (id, originalId, userId, date, timeIn, timeOut, deletedAt) SELECT id, originalId, '', date, timeIn, timeOut, deletedAt FROM deleted_records")
+                db.execSQL("DROP TABLE deleted_records")
+                db.execSQL("ALTER TABLE deleted_records_new RENAME TO deleted_records")
+
+                // Migrate saved_places
+                db.execSQL("CREATE TABLE IF NOT EXISTS saved_places_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId TEXT NOT NULL, name TEXT NOT NULL, address TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, radius REAL NOT NULL)")
+                // Check if radius column exists in the old table using PRAGMA before selecting
+                val cursor = db.query("PRAGMA table_info(saved_places)")
+                var hasRadius = false
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(1) == "radius") {
+                        hasRadius = true
+                        break
+                    }
+                }
+                cursor.close()
+                if (hasRadius) {
+                    db.execSQL("INSERT INTO saved_places_new (id, userId, name, address, latitude, longitude, radius) SELECT id, '', name, address, latitude, longitude, radius FROM saved_places")
+                } else {
+                    db.execSQL("INSERT INTO saved_places_new (id, userId, name, address, latitude, longitude, radius) SELECT id, '', name, address, latitude, longitude, 100.0 FROM saved_places")
+                }
+                db.execSQL("DROP TABLE saved_places")
+                db.execSQL("ALTER TABLE saved_places_new RENAME TO saved_places")
+
+                // Migrate study_session_logs
+                db.execSQL("CREATE TABLE IF NOT EXISTS study_session_logs_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId TEXT NOT NULL, calendarEventId INTEGER NOT NULL, eventTitle TEXT NOT NULL, subject TEXT, topic TEXT, scheduledStartTime INTEGER NOT NULL, scheduledEndTime INTEGER NOT NULL, status TEXT NOT NULL, actualDurationMinutes INTEGER, recallNote TEXT, loggedAt INTEGER)")
+                db.execSQL("INSERT INTO study_session_logs_new (id, userId, calendarEventId, eventTitle, subject, topic, scheduledStartTime, scheduledEndTime, status, actualDurationMinutes, recallNote, loggedAt) SELECT id, '', calendarEventId, eventTitle, subject, topic, scheduledStartTime, scheduledEndTime, IFNULL(status, 'PENDING'), actualDurationMinutes, recallNote, loggedAt FROM study_session_logs")
+                db.execSQL("DROP TABLE study_session_logs")
+                db.execSQL("ALTER TABLE study_session_logs_new RENAME TO study_session_logs")
+
+                // Migrate step_activity_logs
+                db.execSQL("CREATE TABLE IF NOT EXISTS step_activity_logs_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId TEXT NOT NULL, detectedAt INTEGER NOT NULL, stepCount INTEGER NOT NULL, windowMinutes INTEGER NOT NULL, type TEXT NOT NULL, window TEXT NOT NULL, triggered INTEGER NOT NULL)")
+                db.execSQL("INSERT INTO step_activity_logs_new (id, userId, detectedAt, stepCount, windowMinutes, type, window, triggered) SELECT id, '', detectedAt, IFNULL(stepCount, 0), IFNULL(windowMinutes, 30), IFNULL(type, 'PERIODIC_SYNC'), IFNULL(window, 'BACKGROUND'), IFNULL(triggered, 0) FROM step_activity_logs")
+                db.execSQL("DROP TABLE step_activity_logs")
+                db.execSQL("ALTER TABLE step_activity_logs_new RENAME TO step_activity_logs")
             }
         }
 
@@ -130,6 +163,56 @@ abstract class PresentMateDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Re-run the robust recreate-and-copy migration for any users who ended up with a broken schema on version 7
+
+                // Migrate attendance_records
+                db.execSQL("CREATE TABLE IF NOT EXISTS attendance_records_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId TEXT NOT NULL, date INTEGER NOT NULL, timeIn INTEGER, timeOut INTEGER)")
+                db.execSQL("INSERT INTO attendance_records_new (id, userId, date, timeIn, timeOut) SELECT id, IFNULL(userId, ''), date, timeIn, timeOut FROM attendance_records")
+                db.execSQL("DROP TABLE attendance_records")
+                db.execSQL("ALTER TABLE attendance_records_new RENAME TO attendance_records")
+
+                // Migrate deleted_records
+                db.execSQL("CREATE TABLE IF NOT EXISTS deleted_records_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, originalId INTEGER NOT NULL, userId TEXT NOT NULL, date INTEGER NOT NULL, timeIn INTEGER, timeOut INTEGER, deletedAt INTEGER NOT NULL)")
+                db.execSQL("INSERT INTO deleted_records_new (id, originalId, userId, date, timeIn, timeOut, deletedAt) SELECT id, originalId, IFNULL(userId, ''), date, timeIn, timeOut, deletedAt FROM deleted_records")
+                db.execSQL("DROP TABLE deleted_records")
+                db.execSQL("ALTER TABLE deleted_records_new RENAME TO deleted_records")
+
+                // Migrate saved_places
+                db.execSQL("CREATE TABLE IF NOT EXISTS saved_places_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId TEXT NOT NULL, name TEXT NOT NULL, address TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, radius REAL NOT NULL)")
+                // Check if radius column exists
+                val cursor = db.query("PRAGMA table_info(saved_places)")
+                var hasRadius = false
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(1) == "radius") {
+                        hasRadius = true
+                        break
+                    }
+                }
+                cursor.close()
+                if (hasRadius) {
+                    db.execSQL("INSERT INTO saved_places_new (id, userId, name, address, latitude, longitude, radius) SELECT id, IFNULL(userId, ''), name, address, latitude, longitude, radius FROM saved_places")
+                } else {
+                    db.execSQL("INSERT INTO saved_places_new (id, userId, name, address, latitude, longitude, radius) SELECT id, IFNULL(userId, ''), name, address, latitude, longitude, 100.0 FROM saved_places")
+                }
+                db.execSQL("DROP TABLE saved_places")
+                db.execSQL("ALTER TABLE saved_places_new RENAME TO saved_places")
+
+                // Migrate study_session_logs
+                db.execSQL("CREATE TABLE IF NOT EXISTS study_session_logs_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId TEXT NOT NULL, calendarEventId INTEGER NOT NULL, eventTitle TEXT NOT NULL, subject TEXT, topic TEXT, scheduledStartTime INTEGER NOT NULL, scheduledEndTime INTEGER NOT NULL, status TEXT NOT NULL, actualDurationMinutes INTEGER, recallNote TEXT, loggedAt INTEGER)")
+                db.execSQL("INSERT INTO study_session_logs_new (id, userId, calendarEventId, eventTitle, subject, topic, scheduledStartTime, scheduledEndTime, status, actualDurationMinutes, recallNote, loggedAt) SELECT id, IFNULL(userId, ''), calendarEventId, eventTitle, subject, topic, scheduledStartTime, scheduledEndTime, IFNULL(status, 'PENDING'), actualDurationMinutes, recallNote, loggedAt FROM study_session_logs")
+                db.execSQL("DROP TABLE study_session_logs")
+                db.execSQL("ALTER TABLE study_session_logs_new RENAME TO study_session_logs")
+
+                // Migrate step_activity_logs
+                db.execSQL("CREATE TABLE IF NOT EXISTS step_activity_logs_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId TEXT NOT NULL, detectedAt INTEGER NOT NULL, stepCount INTEGER NOT NULL, windowMinutes INTEGER NOT NULL, type TEXT NOT NULL, window TEXT NOT NULL, triggered INTEGER NOT NULL)")
+                db.execSQL("INSERT INTO step_activity_logs_new (id, userId, detectedAt, stepCount, windowMinutes, type, window, triggered) SELECT id, IFNULL(userId, ''), detectedAt, IFNULL(stepCount, 0), IFNULL(windowMinutes, 30), IFNULL(type, 'PERIODIC_SYNC'), IFNULL(window, 'BACKGROUND'), IFNULL(triggered, 0) FROM step_activity_logs")
+                db.execSQL("DROP TABLE step_activity_logs")
+                db.execSQL("ALTER TABLE step_activity_logs_new RENAME TO step_activity_logs")
+            }
+        }
+
         fun getDatabase(context: Context): PresentMateDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -137,7 +220,7 @@ abstract class PresentMateDatabase : RoomDatabase() {
                     PresentMateDatabase::class.java,
                     "presentmate_database"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .build()
                 INSTANCE = instance
                 instance
