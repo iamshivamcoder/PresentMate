@@ -7,15 +7,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Loop
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +38,10 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+// Date and time formatters used throughout the screen
+private val rowDateFmt = SimpleDateFormat("dd MMM", Locale.getDefault())
+private val rowTimeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
+
 @Composable
 fun ActivityVerificationScreen() {
     val context  = LocalContext.current
@@ -47,31 +55,31 @@ fun ActivityVerificationScreen() {
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Latest burst entry drives the verification card (#2 fix)
-    val latestBurst = history.firstOrNull { it.type == "STAIR_BURST" }
+    val latestLog = history.firstOrNull() // Get most recent log regardless of type
 
     // ── Original screen state ─────────────────────────────────────────────
     var isWalkingDetected by remember { mutableStateOf(true) }
     var useCustomTime     by remember { mutableStateOf(false) }
 
     // Default from/to from latest burst, or current time
-    var startTimeMs by remember { mutableLongStateOf(latestBurst?.detectedAt ?: System.currentTimeMillis()) }
+    var startTimeMs by remember { mutableLongStateOf(latestLog?.detectedAt ?: System.currentTimeMillis()) }
     var endTimeMs   by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val startTimeStr by remember(startTimeMs) { mutableStateOf(timeFmt.format(Date(startTimeMs))) }
     val endTimeStr   by remember(endTimeMs)   { mutableStateOf(timeFmt.format(Date(endTimeMs))) }
 
     var isSyncing by remember { mutableStateOf(false) }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        item {
+            Spacer(modifier = Modifier.height(20.dp))
 
-        // ── Original: Header ────────────────────────────────────────────
-        Icon(
+            // ── Original: Header ────────────────────────────────────────────
+            Icon(
             imageVector = Icons.AutoMirrored.Filled.DirectionsWalk,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
@@ -98,12 +106,12 @@ fun ActivityVerificationScreen() {
         Spacer(modifier = Modifier.height(32.dp))
 
         // ── Fix #2: Real detected activity from latest burst ─────────────────
-        val activityTitle = if (latestBurst != null)
-            "${latestBurst.stepCount} steps detected"
+        val activityTitle = if (latestLog != null)
+            "${latestLog.stepCount} steps recorded"
         else
-            "No burst recorded yet"
-        val activityTime = if (latestBurst != null)
-            "${dateFmt.format(Date(latestBurst.detectedAt))}, ${timeFmt.format(Date(latestBurst.detectedAt))}"
+            "No activity recorded yet"
+        val activityTime = if (latestLog != null)
+            "${dateFmt.format(Date(latestLog.detectedAt))}, ${timeFmt.format(Date(latestLog.detectedAt))}"
         else
             "Tap Sync Now to record activity"
 
@@ -213,11 +221,11 @@ fun ActivityVerificationScreen() {
         // Fix #1 — Confirm saves verification; Skip just pops the snackbar/does nothing
         Button(
             onClick = {
-                if (latestBurst != null) {
+                if (latestLog != null) {
                     scope.launch {
                         // Mark the log as confirmed and save timing if custom time used
                         db.stepActivityLogDao().insert(
-                            latestBurst.copy(
+                            latestLog.copy(
                                 type      = if (isWalkingDetected) "STAIR_BURST" else "PERIODIC_SYNC",
                                 triggered = isWalkingDetected
                             )
@@ -309,29 +317,33 @@ fun ActivityVerificationScreen() {
             }
             Spacer(modifier = Modifier.height(12.dp))
         }
+        }
 
         // ── NEW: History List ──────────────────────────────────────────────
         if (history.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No history yet — tap Sync Now or wait for auto-sync.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No history yet — tap Sync Now or wait for auto-sync.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                history.take(20).forEach { log ->
-                    StepLogRow(log)
-                }
+            items(history.take(20), key = { it.id }) { log ->
+                StepLogRow(log)
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        item {
+            Spacer(modifier = Modifier.height(32.dp))
+        }
     }
 }
 
@@ -359,9 +371,6 @@ private fun MiniStatCard(modifier: Modifier, value: String, label: String, icon:
 }
 
 // ── History row card ────────────────────────────────────────────────────────
-
-private val rowDateFmt = SimpleDateFormat("dd MMM", Locale.getDefault())
-private val rowTimeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
 
 @Composable
 private fun StepLogRow(log: StepActivityLog) {

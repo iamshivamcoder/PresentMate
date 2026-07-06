@@ -7,6 +7,7 @@ import com.example.presentmate.ai.AIServiceFactory
 import com.example.presentmate.calendar.CalendarRepository
 import com.example.presentmate.data.SavedPlaceDao
 import com.example.presentmate.db.AttendanceDao
+import com.example.presentmate.db.ChatSessionDao
 import com.example.presentmate.db.PresentMateDatabase
 import com.example.presentmate.db.StepActivityLogDao
 import com.example.presentmate.db.StudySessionLogDao
@@ -56,6 +57,11 @@ object AppModule {
     @Provides
     fun provideActivityEventDao(database: PresentMateDatabase): com.example.presentmate.db.ActivityEventDao {
         return database.activityEventDao()
+    }
+
+    @Provides
+    fun provideChatSessionDao(database: PresentMateDatabase): ChatSessionDao {
+        return database.chatSessionDao()
     }
 
     @Provides

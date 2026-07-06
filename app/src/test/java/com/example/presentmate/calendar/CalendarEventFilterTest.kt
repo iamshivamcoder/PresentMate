@@ -51,7 +51,9 @@ class CalendarEventFilterTest {
 
     @Test
     fun `matchesKeywords with single character keyword matches correctly`() {
+        // "Exam A" contains "A" (case-insensitive) → true
         assertTrue(CalendarEventFilter.matchesKeywords("Exam A", listOf("A")))
-        assertFalse(CalendarEventFilter.matchesKeywords("Exam B", listOf("A")))
+        // "Orbit X" contains no 'a' or 'A' → false
+        assertFalse(CalendarEventFilter.matchesKeywords("Orbit X", listOf("A")))
     }
 }

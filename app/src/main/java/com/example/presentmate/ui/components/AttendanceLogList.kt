@@ -63,8 +63,9 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
         return
     }
 
-    if (showEditDialog && recordToEdit != null) {
-        val recordDate = Instant.ofEpochMilli(recordToEdit!!.date).atZone(ZoneId.systemDefault()).toLocalDate()
+    val currentRecordToEdit = recordToEdit
+    if (showEditDialog && currentRecordToEdit != null) {
+        val recordDate = Instant.ofEpochMilli(currentRecordToEdit.date).atZone(ZoneId.systemDefault()).toLocalDate()
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
             title = { Text("Edit Session") },
@@ -92,7 +93,7 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
                             val parsedTimeIn = try { timeFormat.parse(editedTimeInText)?.time } catch (_: Exception) { null }
                             val parsedTimeOut = try { timeFormat.parse(editedTimeOutText)?.time } catch (_: Exception) { null }
                             database.attendanceDao().updateRecord(
-                                recordToEdit!!.copy(
+                                currentRecordToEdit.copy(
                                     timeIn = parsedTimeIn,
                                     timeOut = parsedTimeOut
                                 )
@@ -107,7 +108,8 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
             }
         )
     }
-    if (showDeleteDialog && recordToDelete != null) {
+    val currentRecordToDelete = recordToDelete
+    if (showDeleteDialog && currentRecordToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Record") },
@@ -117,14 +119,14 @@ fun AttendanceLogList(records: List<AttendanceRecord>, modifier: Modifier = Modi
                     scope.launch {
                         database.attendanceDao().insertDeletedRecord(
                             DeletedRecord(
-                                originalId = recordToDelete!!.id,
-                                date = recordToDelete!!.date,
-                                timeIn = recordToDelete!!.timeIn,
-                                timeOut = recordToDelete!!.timeOut,
+                                originalId = currentRecordToDelete.id,
+                                date = currentRecordToDelete.date,
+                                timeIn = currentRecordToDelete.timeIn,
+                                timeOut = currentRecordToDelete.timeOut,
                                 deletedAt = System.currentTimeMillis()
                             )
                         )
-                        database.attendanceDao().deleteRecord(recordToDelete!!)
+                        database.attendanceDao().deleteRecord(currentRecordToDelete)
                         showDeleteDialog = false
                     }
                 }) { Text("Delete") }

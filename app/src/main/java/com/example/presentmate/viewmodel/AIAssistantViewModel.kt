@@ -2,6 +2,7 @@ package com.example.presentmate.viewmodel
 
 import android.content.Context
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.presentmate.ai.AIResponse
@@ -10,6 +11,9 @@ import com.example.presentmate.ai.AIServiceFactory
 import com.example.presentmate.ai.AIPreferences
 import com.example.presentmate.ai.ParsedAttendance
 import com.example.presentmate.db.AttendanceDao
+import com.example.presentmate.db.ChatMessageEntity
+import com.example.presentmate.db.ChatSession
+import com.example.presentmate.db.ChatSessionDao
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,22 +58,30 @@ data class AIAssistantUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val confirmationState: ConfirmationState = ConfirmationState.None,
-    val apiKeyMissing: Boolean = false
+    val apiKeyMissing: Boolean = false,
+    val currentSessionId: String? = null
 )
 
 /**
  * ViewModel for the AI Assistant screen.
  *
  * Injected via Hilt (@HiltViewModel) so the full Hilt graph is used.
+ * Supports persistent chat sessions — messages are saved to Room so they
+ * survive app restarts, mirroring the ChatGPT-style UX.
  */
 @HiltViewModel
 class AIAssistantViewModel @Inject constructor(
     private val attendanceDao: AttendanceDao,
-    @ApplicationContext private val context: Context
+    private val chatSessionDao: ChatSessionDao,
+    @ApplicationContext private val context: Context,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AIAssistantUiState())
     val uiState: StateFlow<AIAssistantUiState> = _uiState.asStateFlow()
+
+    private val uid: String
+        get() = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"
 
     private fun getAiService(): AIService? {
         val platform    = AIPreferences.getPlatform(context)
@@ -80,7 +92,12 @@ class AIAssistantViewModel @Inject constructor(
     }
 
     init {
-        refreshAiServiceState()
+        val sessionId = savedStateHandle.get<String>("sessionId")
+        if (sessionId != null) {
+            loadSession(sessionId)
+        } else {
+            refreshAiServiceState()
+        }
     }
 
     fun refreshAiServiceState() {
@@ -100,31 +117,114 @@ class AIAssistantViewModel @Inject constructor(
         }
     }
 
+    /** Load an existing session and its messages from DB */
+    fun loadSession(sessionId: String) {
+        viewModelScope.launch {
+            val service = getAiService()
+            val isMissing = service == null
+            val messages = chatSessionDao.getMessages(sessionId).map { entity ->
+                ChatMessage(
+                    id = entity.id,
+                    content = entity.content,
+                    isFromUser = entity.isFromUser,
+                    imageUri = entity.imageUriString?.let { Uri.parse(it) }
+                )
+            }
+            _uiState.update { it.copy(
+                messages = messages,
+                currentSessionId = sessionId,
+                apiKeyMissing = isMissing
+            )}
+        }
+    }
+
+    /** Start a completely new session, clearing the current messages */
+    fun startNewSession() {
+        _uiState.update { it.copy(
+            messages = emptyList(),
+            currentSessionId = null,
+            confirmationState = ConfirmationState.None
+        )}
+        refreshAiServiceState()
+    }
+
+    /** Delete a session and all its messages from the DB */
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            chatSessionDao.deleteMessagesForSession(sessionId)
+            chatSessionDao.deleteSession(sessionId)
+        }
+    }
+
+    private suspend fun ensureSession(firstUserMessage: String): String {
+        val existing = _uiState.value.currentSessionId
+        if (existing != null) {
+            // Update lastMessageAt
+            chatSessionDao.getSession(existing)?.let {
+                chatSessionDao.updateSession(it.copy(lastMessageAt = System.currentTimeMillis()))
+            }
+            return existing
+        }
+        val newId = UUID.randomUUID().toString()
+        val title = firstUserMessage.trim().take(40).let { if (it.length == 40) "$it…" else it }
+        chatSessionDao.insertSession(ChatSession(
+            id = newId,
+            userId = uid,
+            title = title,
+            createdAt = System.currentTimeMillis(),
+            lastMessageAt = System.currentTimeMillis()
+        ))
+        _uiState.update { it.copy(currentSessionId = newId) }
+        return newId
+    }
+
+    private suspend fun persistMessage(sessionId: String, message: ChatMessage) {
+        if (message.isLoading) return  // don't persist transient loading bubbles
+        chatSessionDao.insertMessage(ChatMessageEntity(
+            id = message.id,
+            sessionId = sessionId,
+            userId = uid,
+            content = message.content,
+            isFromUser = message.isFromUser,
+            imageUriString = message.imageUri?.toString(),
+            createdAt = System.currentTimeMillis()
+        ))
+    }
+
     fun sendMessage(text: String) {
         val service = getAiService()
         if (text.isBlank() || service == null) return
 
-        addMessage(ChatMessage(content = text, isFromUser = true))
-        addMessage(ChatMessage(content = "Thinking...", isFromUser = false, isLoading = true))
+        val userMsg = ChatMessage(content = text, isFromUser = true)
+        val loadingMsg = ChatMessage(content = "Thinking...", isFromUser = false, isLoading = true)
+        addMessage(userMsg)
+        addMessage(loadingMsg)
 
         viewModelScope.launch {
+            val sessionId = ensureSession(text)
+            persistMessage(sessionId, userMsg)
+
             val contextualPrompt = buildContextualPrompt(text)
             val response = service.sendMessage(contextualPrompt)
             when (response) {
                 is AIResponse.Success -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(
+                    val aiMsg = ChatMessage(
                         content = response.message,
                         isFromUser = false,
                         extractedRecords = response.extractedRecords
-                    ))
+                    )
+                    addMessage(aiMsg)
+                    persistMessage(sessionId, aiMsg)
                     if (response.extractedRecords.isNotEmpty()) {
                         promptFirstConfirmation(response.extractedRecords)
                     }
                 }
                 is AIResponse.Error -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(content = "❌ ${response.message}", isFromUser = false))
+                    val errMsg = ChatMessage(content = "❌ ${response.message}", isFromUser = false)
+                    addMessage(errMsg)
+                    persistMessage(sessionId, errMsg)
                 }
             }
         }
@@ -138,10 +238,15 @@ class AIAssistantViewModel @Inject constructor(
         val service = getAiService()
         if (service == null) return
         val messageText = text.ifBlank { "Please analyze this attendance sheet" }
-        addMessage(ChatMessage(content = messageText, isFromUser = true, imageUri = imageUri))
-        addMessage(ChatMessage(content = "Analyzing image...", isFromUser = false, isLoading = true))
+        val userMsg = ChatMessage(content = messageText, isFromUser = true, imageUri = imageUri)
+        val loadingMsg = ChatMessage(content = "Analyzing image...", isFromUser = false, isLoading = true)
+        addMessage(userMsg)
+        addMessage(loadingMsg)
 
         viewModelScope.launch {
+            val sessionId = ensureSession(messageText)
+            persistMessage(sessionId, userMsg)
+
             val bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 resolveBitmap(imageUri)
             }
@@ -154,18 +259,22 @@ class AIAssistantViewModel @Inject constructor(
             when (response) {
                 is AIResponse.Success -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(
+                    val aiMsg = ChatMessage(
                         content = response.message,
                         isFromUser = false,
                         extractedRecords = response.extractedRecords
-                    ))
+                    )
+                    addMessage(aiMsg)
+                    persistMessage(sessionId, aiMsg)
                     if (response.extractedRecords.isNotEmpty()) {
                         promptFirstConfirmation(response.extractedRecords)
                     }
                 }
                 is AIResponse.Error -> {
                     removeLoadingMessage()
-                    addMessage(ChatMessage(content = "❌ ${response.message}", isFromUser = false))
+                    val errMsg = ChatMessage(content = "❌ ${response.message}", isFromUser = false)
+                    addMessage(errMsg)
+                    persistMessage(sessionId, errMsg)
                 }
             }
         }
@@ -198,7 +307,7 @@ class AIAssistantViewModel @Inject constructor(
         if (state is ConfirmationState.SecondConfirmation) {
             viewModelScope.launch {
                 val records = state.records.map { parsed ->
-                    com.example.presentmate.db.AttendanceRecord(userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned", 
+                    com.example.presentmate.db.AttendanceRecord(userId = uid,
                         date = parsed.date,
                         timeIn = parsed.timeIn,
                         timeOut = parsed.timeOut
@@ -226,14 +335,14 @@ class AIAssistantViewModel @Inject constructor(
     private fun removeLoadingMessage() {
         _uiState.update { state -> state.copy(messages = state.messages.filterNot { it.isLoading }) }
     }
+
     private suspend fun buildContextualPrompt(userText: String): String {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unassigned"
-            val allRecords = attendanceDao.getAllRecordsNonFlow(uid).take(50) // Limit to 50 to save tokens
+            val allRecords = attendanceDao.getAllRecordsNonFlow(uid).take(50)
             if (allRecords.isNotEmpty()) {
                 val dataStr = allRecords.joinToString(separator = "\n") {
                     val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(it.date))
-                    val timeInStr = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.timeIn))
+                    val timeInStr = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.timeIn ?: it.date))
                     val timeOutStr = it.timeOut?.let { t -> java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(t)) } ?: "Ongoing"
                     "${dateStr}: ${timeInStr} - ${timeOutStr}"
                 }

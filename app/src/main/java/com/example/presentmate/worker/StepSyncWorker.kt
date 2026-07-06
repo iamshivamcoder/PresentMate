@@ -41,8 +41,8 @@ class StepSyncWorker @AssistedInject constructor(
             val steps = readStepDelta()
             val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             val window = when (hour) {
-                in 9..9   -> "MORNING"
-                in 20..20 -> "EVENING"
+                in 6..11  -> "MORNING"
+                in 17..21 -> "EVENING"
                 else      -> "BACKGROUND"
             }
 
@@ -127,8 +127,19 @@ class StepSyncWorker @AssistedInject constructor(
 
         if (currentTotal < 0) return 0          // no sensor data at all
 
-        val delta = if (prevSyncBase < 0) 0
-                    else (currentTotal - prevSyncBase).toInt().coerceAtLeast(0)
+        // First sync ever — save baseline and return 0 (no delta yet)
+        if (prevSyncBase < 0) {
+            prefs.edit().putLong(KEY_SYNC_BASE, currentTotal).apply()
+            return 0
+        }
+
+        // Sensor reboot resets the counter to 0 — treat as new baseline
+        if (currentTotal < prevSyncBase) {
+            prefs.edit().putLong(KEY_SYNC_BASE, currentTotal).apply()
+            return currentTotal.toInt().coerceAtLeast(0)
+        }
+
+        val delta = (currentTotal - prevSyncBase).toInt().coerceAtLeast(0)
 
         // Save new baseline for next sync
         prefs.edit().putLong(KEY_SYNC_BASE, currentTotal).apply()

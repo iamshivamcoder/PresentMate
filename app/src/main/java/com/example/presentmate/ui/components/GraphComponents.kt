@@ -1,5 +1,18 @@
 package com.example.presentmate.ui.components
 
+
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -17,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -343,27 +357,29 @@ fun EnhancedBarChart(
 
     val maxVal = maxOf(data.maxOfOrNull { it.value } ?: 1f, studyGoal)
     var selectedBarIndex by remember { mutableIntStateOf(-1) }
+    
+    val haptic = LocalHapticFeedback.current
 
-    // Hoist color scheme calls to the composable scope
+    val successColor = Color(0xFF4CAF50)
+    val failureColor = Color(0xFFF44336)
     val themeSecondaryColor = MaterialTheme.colorScheme.secondary
-    val themePrimaryColor = MaterialTheme.colorScheme.primary
     val themeOnSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
-
-    // Hoist TextStyle definitions
     val selectedTextStyle = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
     val defaultTextStyle = MaterialTheme.typography.labelSmall
 
-    val barProperties = remember(data, animationPlayed, selectedBarIndex, studyGoal, maxVal, themeSecondaryColor, themePrimaryColor) {
+    val maxDataValue = data.maxOfOrNull { it.value } ?: 0f
+    val minDataValue = data.minOfOrNull { it.value } ?: 0f
+
+    val barProperties = remember(data, animationPlayed, selectedBarIndex, studyGoal, maxVal) {
         data.mapIndexed { index, dataPoint ->
             val targetAnimatedHeightFactor = if (animationPlayed) (dataPoint.value / maxVal) else 0f
-            val baseColor = when {
-                dataPoint.isToday -> themeSecondaryColor // Use hoisted color
-                dataPoint.value >= studyGoal -> themePrimaryColor
-                dataPoint.value >= studyGoal * 0.7f -> themePrimaryColor.copy(alpha = 0.8f) // Use hoisted color
-                else -> themePrimaryColor.copy(alpha = 0.5f) // Use hoisted color
+            val baseColor = if (studyGoal > 0f) {
+                if (dataPoint.value >= studyGoal) successColor else failureColor
+            } else {
+                themeSecondaryColor
             }
             val isSelected = selectedBarIndex == index
-            val barColor = if (isSelected) baseColor.copy(alpha = 1f) else baseColor
+            val barColor = if (isSelected) baseColor.copy(alpha = 1f) else baseColor.copy(alpha = 0.7f)
 
             object {
                 val targetHeightFactor = targetAnimatedHeightFactor
@@ -376,14 +392,15 @@ fun EnhancedBarChart(
         val properties = barProperties[index]
         animateFloatAsState(
             targetValue = properties.targetHeightFactor,
-            animationSpec = tween(durationMillis = 800, delayMillis = index * 100, easing = LinearEasing),
+            animationSpec = tween(durationMillis = 800, delayMillis = index * 50, easing = LinearEasing),
             label = "barHeightFactor$index"
         ).value
     }
 
-    // Hoist grid color
     val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-    
+    val textMeasurer = rememberTextMeasurer()
+    val badgeTextStyle = TextStyle(color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
@@ -391,21 +408,47 @@ fun EnhancedBarChart(
                 .height(240.dp)
         ) {
             Canvas(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(data) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                val chartWidth = size.width
+                                val totalBarsWidth = (chartWidth / data.size * 0.7f).coerceAtMost(40.dp.toPx()) * data.size
+                                val barSpacing = (chartWidth - totalBarsWidth) / data.size
+                                val totalStep = (chartWidth / data.size * 0.7f).coerceAtMost(40.dp.toPx()) + barSpacing
+                                val index = (offset.x / totalStep).toInt().coerceIn(0, data.size - 1)
+                                if (selectedBarIndex != index) {
+                                    selectedBarIndex = index
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            },
+                            onDrag = { change, _ ->
+                                val chartWidth = size.width
+                                val totalBarsWidth = (chartWidth / data.size * 0.7f).coerceAtMost(40.dp.toPx()) * data.size
+                                val barSpacing = (chartWidth - totalBarsWidth) / data.size
+                                val totalStep = (chartWidth / data.size * 0.7f).coerceAtMost(40.dp.toPx()) + barSpacing
+                                val index = (change.position.x / totalStep).toInt().coerceIn(0, data.size - 1)
+                                if (selectedBarIndex != index) {
+                                    selectedBarIndex = index
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            },
+                            onDragEnd = { selectedBarIndex = -1 },
+                            onDragCancel = { selectedBarIndex = -1 }
+                        )
+                    }
             ) {
                 val chartWidth = size.width
                 val chartHeight = size.height - 60.dp.toPx()
-                val maxBarWidth = 40.dp.toPx()
                 val rawBarWidth = chartWidth / data.size * 0.7f
+                val maxBarWidth = 40.dp.toPx()
                 val barWidth = minOf(rawBarWidth, maxBarWidth)
                 val totalBarsWidth = barWidth * data.size
                 val barSpacing = (chartWidth - totalBarsWidth) / data.size
 
-                val gridLines = 5
-                // Retrieve onSurface color directly, but we can't do MaterialTheme inside Canvas, so we hoisted it earlier? Wait, we didn't hoist it, we can just use Color.Gray but we really should use MaterialTheme.
-                // Let's use Color.Gray since we can't use composable inside Canvas easily without hoisting. Wait, I will use Color.Gray but with less opacity, or hoist it. I'll hoist it above.
-                for (i in 1..gridLines) {
-                    val yLine = chartHeight * (i / gridLines.toFloat())
+                for (i in 1..5) {
+                    val yLine = chartHeight * (i / 5f)
                     drawLine(
                         color = gridColor, start = Offset(0f, yLine),
                         end = Offset(chartWidth, yLine), strokeWidth = 1.dp.toPx(),
@@ -415,7 +458,7 @@ fun EnhancedBarChart(
 
                 if (studyGoal > 0) {
                     val goalY = chartHeight - (studyGoal / maxVal * chartHeight)
-                    if (goalY >= 0 && goalY <= chartHeight) {
+                    if (goalY in 0f..chartHeight) {
                         drawLine(
                             color = Color.Red.copy(alpha = 0.6f),
                             start = Offset(0f, goalY), end = Offset(chartWidth, goalY),
@@ -425,7 +468,7 @@ fun EnhancedBarChart(
                     }
                 }
 
-                data.forEachIndexed { index, _ ->
+                data.forEachIndexed { index, dataPoint ->
                     val properties = barProperties[index]
                     val barActualHeight = animatedHeightFactors[index] * chartHeight
                     val x = index * (barWidth + barSpacing) + barSpacing / 2
@@ -438,6 +481,21 @@ fun EnhancedBarChart(
                         cornerRadius = CornerRadius(4.dp.toPx())
                     )
 
+                    // Min/Max Badges
+                    if (animationPlayed) {
+                        if (dataPoint.value == maxDataValue && maxDataValue > 0) {
+                            val badgeY = y - 16.dp.toPx()
+                            drawRoundRect(color = Color(0xFFFF9800), topLeft = Offset(x, badgeY), size = Size(barWidth, 12.dp.toPx()), cornerRadius = CornerRadius(2.dp.toPx()))
+                            val textLayoutResult = textMeasurer.measure("MAX", badgeTextStyle)
+                            drawText(textMeasurer, "MAX", topLeft = Offset(x + (barWidth - textLayoutResult.size.width) / 2f, badgeY), style = badgeTextStyle)
+                        } else if (dataPoint.value == minDataValue && minDataValue >= 0 && dataPoint.value != maxDataValue) {
+                            val badgeY = y - 16.dp.toPx()
+                            drawRoundRect(color = Color(0xFF9E9E9E), topLeft = Offset(x, badgeY), size = Size(barWidth, 12.dp.toPx()), cornerRadius = CornerRadius(2.dp.toPx()))
+                            val textLayoutResult = textMeasurer.measure("MIN", badgeTextStyle)
+                            drawText(textMeasurer, "MIN", topLeft = Offset(x + (barWidth - textLayoutResult.size.width) / 2f, badgeY), style = badgeTextStyle)
+                        }
+                    }
+
                     if (selectedBarIndex == index) {
                         drawRoundRect(
                             color = Color.White.copy(alpha = 0.9f),
@@ -446,15 +504,12 @@ fun EnhancedBarChart(
                             style = Stroke(width = 1.5.dp.toPx()),
                             cornerRadius = CornerRadius(5.dp.toPx())
                         )
+                        // Tooltip over bar
+                        val tooltipText = "${dataPoint.value.format(1)}h"
+                        val ttLayout = textMeasurer.measure(tooltipText, selectedTextStyle)
+                        drawRoundRect(color = Color.DarkGray, topLeft = Offset(x + barWidth/2 - ttLayout.size.width/2 - 8.dp.toPx(), y - 30.dp.toPx()), size = Size(ttLayout.size.width + 16.dp.toPx(), ttLayout.size.height + 8.dp.toPx()), cornerRadius = CornerRadius(4.dp.toPx()))
+                        drawText(textMeasurer, tooltipText, topLeft = Offset(x + barWidth/2 - ttLayout.size.width/2, y - 26.dp.toPx()), style = selectedTextStyle.copy(color = Color.White))
                     }
-                }
-            }
-            Row(
-                modifier = Modifier.matchParentSize(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                data.forEachIndexed { index, _ ->
-                    Box(modifier = Modifier.weight(1f).fillMaxSize().clickable { selectedBarIndex = if (selectedBarIndex == index) -1 else index })
                 }
             }
         }
@@ -471,31 +526,17 @@ fun EnhancedBarChart(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val isSelected = selectedBarIndex == index
-                    val valueColor by animateColorAsState(
-                        targetValue = if (isSelected) themePrimaryColor else themeOnSurfaceVariantColor,
-                        label = "valueColor$index"
-                    )
-                    Text(
-                        text = if (isSelected) {
-                            "${dataPoint.value.format(1)}h"
-                        } else if (data.size <= 7) {
-                            "${dataPoint.value.format(1)}h"
-                        } else "",
-                        style = if (isSelected) selectedTextStyle else defaultTextStyle, // Use hoisted styles
-                        color = valueColor, textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (data.size > 14) {
-                            // Logic to skip labels for dense data (Monthly)
                             if (index % 5 == 0 || index == data.size - 1) dataPoint.label else ""
                         } else {
                             dataPoint.label
                         },
-                        style = defaultTextStyle, // Use hoisted style
-                        color = themeOnSurfaceVariantColor,
+                        style = defaultTextStyle,
+                        color = if (isSelected) themeSecondaryColor else themeOnSurfaceVariantColor,
                         textAlign = TextAlign.Center, 
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (dataPoint.isToday) {
                         Box(modifier = Modifier.padding(top = 2.dp).size(4.dp).background(themeSecondaryColor, RoundedCornerShape(2.dp)))
@@ -509,7 +550,8 @@ fun EnhancedBarChart(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
         ) {
-            LegendItem(color = themePrimaryColor, label = "Study Time")
+            LegendItem(color = successColor, label = "Met Goal")
+            LegendItem(color = failureColor, label = "Missed Goal")
             if (studyGoal > 0) {
                 LegendItem(color = Color.Red.copy(alpha = 0.6f), label = "Daily Goal (${studyGoal.format(1)}h)", isDashed = true)
             }
@@ -593,6 +635,191 @@ fun calculateGraphData(
                     value = formatMillisToHours(totalMillis), rawMillis = totalMillis,
                     isToday = currentMonth.year == today.year && currentMonth.month == today.month
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun EnhancedLineChart(data: List<GraphDataPoint>, animationPlayed: Boolean, studyGoal: Float = 0f, modifier: Modifier = Modifier) {
+    if (data.isEmpty()) return
+    
+    val maxVal = (data.maxOfOrNull { it.value } ?: 1f).coerceAtLeast(1f)
+    val maxDataValue = data.maxOfOrNull { it.value } ?: 0f
+    val minDataValue = data.minOfOrNull { it.value } ?: 0f
+    
+    val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (animationPlayed) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(1500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "lineChartProgress"
+    )
+    val lineColor = MaterialTheme.colorScheme.primary
+    val successColor = Color(0xFF4CAF50)
+    val failureColor = Color(0xFFF44336)
+    
+    var scrubbedIndex by remember { mutableIntStateOf(-1) }
+    val haptic = LocalHapticFeedback.current
+    val textMeasurer = rememberTextMeasurer()
+    val tooltipStyle = MaterialTheme.typography.labelMedium.copy(color = Color.White, fontWeight = FontWeight.Bold)
+
+    androidx.compose.foundation.Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .pointerInput(data) {
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        val stepX = size.width / (data.size - 1).coerceAtLeast(1)
+                        val index = (offset.x / stepX).apply { Math.round(this) }.toInt().coerceIn(0, data.size - 1)
+                        if (scrubbedIndex != index) {
+                            scrubbedIndex = index
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    },
+                    onDrag = { change, _ ->
+                        val stepX = size.width / (data.size - 1).coerceAtLeast(1)
+                        val index = (change.position.x / stepX).apply { Math.round(this) }.toInt().coerceIn(0, data.size - 1)
+                        if (scrubbedIndex != index) {
+                            scrubbedIndex = index
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    },
+                    onDragEnd = { scrubbedIndex = -1 },
+                    onDragCancel = { scrubbedIndex = -1 }
+                )
+            }
+    ) {
+        val width = size.width
+        val height = size.height - 20.dp.toPx()
+        val stepX = width / (data.size - 1).coerceAtLeast(1)
+
+        val path = androidx.compose.ui.graphics.Path()
+        val points = mutableListOf<Offset>()
+
+        data.forEachIndexed { i, dp ->
+            val x = i * stepX
+            val y = height - ((dp.value / maxVal) * height * animatedProgress)
+            points.add(Offset(x, y))
+            
+            if (i == 0) {
+                path.moveTo(x, y)
+            } else {
+                val prevPt = points[i - 1]
+                val cp1x = prevPt.x + (x - prevPt.x) / 2f
+                val cp1y = prevPt.y
+                val cp2x = prevPt.x + (x - prevPt.x) / 2f
+                val cp2y = y
+                path.cubicTo(cp1x, cp1y, cp2x, cp2y, x, y)
+            }
+        }
+
+        drawPath(
+            path = path,
+            color = lineColor,
+            style = Stroke(width = 4.dp.toPx())
+        )
+        
+        val fillPath = androidx.compose.ui.graphics.Path().apply {
+            addPath(path)
+            lineTo(width, height)
+            lineTo(0f, height)
+            close()
+        }
+        drawPath(
+            path = fillPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(lineColor.copy(alpha = 0.4f), Color.Transparent),
+                startY = 0f,
+                endY = height
+            )
+        )
+
+        // Draw points with goal-based colors and min/max highlights
+        points.forEachIndexed { i, pt ->
+            val dp = data[i]
+            val pointColor = if (studyGoal > 0) {
+                if (dp.value >= studyGoal) successColor else failureColor
+            } else {
+                lineColor
+            }
+            
+            val isMin = dp.value == minDataValue && minDataValue >= 0f
+            val isMax = dp.value == maxDataValue && maxDataValue > 0f
+            
+            if (isMax || isMin || scrubbedIndex == i) {
+                val radius = if (scrubbedIndex == i) 6.dp.toPx() else 5.dp.toPx()
+                drawCircle(color = pointColor, radius = radius, center = pt)
+                drawCircle(color = Color.White, radius = radius / 2f, center = pt)
+            } else {
+                drawCircle(color = pointColor, radius = 3.dp.toPx(), center = pt)
+            }
+            
+            // Text Badges for Min/Max
+            if ((isMax || isMin) && scrubbedIndex != i) {
+                val badgeText = if (isMax) "MAX" else "MIN"
+                val ttLayout = textMeasurer.measure(badgeText, TextStyle(color = pointColor, fontSize = 9.sp, fontWeight = FontWeight.Bold))
+                drawText(textMeasurer, badgeText, topLeft = Offset(pt.x - ttLayout.size.width/2f, pt.y - 20.dp.toPx()), style = TextStyle(color = pointColor, fontSize = 9.sp, fontWeight = FontWeight.Bold))
+            }
+        }
+        
+        // Tooltip for scrubbing
+        if (scrubbedIndex in data.indices) {
+            val pt = points[scrubbedIndex]
+            val dp = data[scrubbedIndex]
+            
+            drawLine(color = Color.Gray.copy(alpha = 0.5f), start = Offset(pt.x, 0f), end = Offset(pt.x, height), strokeWidth = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)))
+            
+            val tooltipText = "${dp.label}\n${dp.value.format(1)}h"
+            val ttLayout = textMeasurer.measure(tooltipText, tooltipStyle)
+            val tooltipX = (pt.x - ttLayout.size.width / 2f).coerceIn(0f, width - ttLayout.size.width)
+            val tooltipY = (pt.y - 40.dp.toPx() - ttLayout.size.height).coerceAtLeast(0f)
+            
+            drawRoundRect(color = Color.DarkGray.copy(alpha=0.9f), topLeft = Offset(tooltipX - 8.dp.toPx(), tooltipY - 4.dp.toPx()), size = Size(ttLayout.size.width + 16.dp.toPx(), ttLayout.size.height + 8.dp.toPx()), cornerRadius = CornerRadius(6.dp.toPx()))
+            drawText(textMeasurer, tooltipText, topLeft = Offset(tooltipX, tooltipY), style = tooltipStyle)
+        }
+    }
+}
+
+@Composable
+fun EnhancedPieChart(values: List<Float>, colors: List<Color>, labels: List<String>, modifier: Modifier = Modifier) {
+    val total = values.sum().coerceAtLeast(0.01f)
+    val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.tween(1500, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+    )
+
+    Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(modifier = Modifier.size(150.dp), contentAlignment = Alignment.Center) {
+            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                var startAngle = -90f
+                val sweepAngles = values.map { (it / total) * 360f }
+                
+                sweepAngles.forEachIndexed { i, sweep ->
+                    val animatedSweep = sweep * animatedProgress
+                    drawArc(
+                        color = colors.getOrElse(i) { Color.Gray },
+                        startAngle = startAngle,
+                        sweepAngle = animatedSweep,
+                        useCenter = false,
+                        style = Stroke(width = 30.dp.toPx())
+                    )
+                    startAngle += animatedSweep
+                }
+            }
+            Text("${total.format(1)}h", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            labels.forEachIndexed { i, label ->
+                if (values.getOrElse(i){0f} > 0f) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(12.dp).clip(androidx.compose.foundation.shape.CircleShape).background(colors.getOrElse(i) { Color.Gray }))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(label, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
             }
         }
     }

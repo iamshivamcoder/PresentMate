@@ -50,11 +50,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.AlertDialog
@@ -168,6 +170,20 @@ fun AIAssistantScreen(viewModel: AIAssistantViewModel = hiltViewModel(), navCont
                 navigationIcon = {
                     IconButton(onClick = { navController?.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    // New Chat
+                    IconButton(onClick = { viewModel.startNewSession() }) {
+                        Icon(Icons.Default.Add, contentDescription = "New Chat")
+                    }
+                    // History
+                    IconButton(onClick = { navController?.navigate("chatHistory") }) {
+                        Icon(Icons.Default.List, contentDescription = "Chat History")
+                    }
+                    // Settings
+                    IconButton(onClick = { navController?.navigate("aiPreferences") }) {
+                        Icon(Icons.Default.Settings, contentDescription = "AI Settings")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

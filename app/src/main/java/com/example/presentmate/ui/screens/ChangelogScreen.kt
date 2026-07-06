@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material3.Card
@@ -38,9 +38,24 @@ data class ChangelogEntry(
 
 private val changelog = listOf(
     ChangelogEntry(
+        version = "2.0",
+        date = "06 Jul 2026",
+        isLatest = true,
+        changes = listOf(
+            "💬 AI Chat History — ChatGPT-style persistent conversations with New Chat & History browser",
+            "📊 Modern Interactive Charts — Bezier curves, scrubbing tooltips, haptic feedback, MIN/MAX badges",
+            "🎯 Goal-Based Chart Colors — Green for met goals, red for missed sessions",
+            "📅 Monthly Collapsible Daily Breakdown — grouped by month with expand/collapse",
+            "📈 Study Trends moved above Daily Breakdown for better overview flow",
+            "👣 Fixed Activity Screen step sync — correct delta calculation & wider morning/evening windows",
+            "☁️ Google Drive Backup — fixed schema compatibility for DB version 9",
+            "🔧 Activity Screen now shows most recent sync regardless of type"
+        )
+    ),
+    ChangelogEntry(
         version = "1.9",
         date = "29 May 2026",
-        isLatest = true,
+        isLatest = false,
         changes = listOf(
             "⚡ 30-Point Performance & UX Optimizations",
             "🧠 Improved AI Context Awareness (understands your full study history)",
@@ -138,15 +153,15 @@ private val changelog = listOf(
 
 @Composable
 fun ChangelogScreen() {
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header
-        Card(
+        item {
+            // Header
+            Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer
             )
@@ -176,14 +191,15 @@ fun ChangelogScreen() {
                 }
             }
         }
-
-        changelog.forEach { entry ->
-            key(entry.version) {
-                ChangelogCard(entry)
-            }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        items(changelog, key = { it.version }) { entry ->
+            ChangelogCard(entry)
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+        }
     }
 }
 

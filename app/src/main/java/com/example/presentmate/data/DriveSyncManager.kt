@@ -38,9 +38,10 @@ class DriveSyncManager @Inject constructor(
             context, listOf(DriveScopes.DRIVE_APPDATA)
         )
         val email = user.email
-        if (!email.isNullOrBlank()) {
-            credential.selectedAccountName = email
+        if (email.isNullOrBlank()) {
+            throw IllegalStateException("Google Drive Backup requires a linked email account.")
         }
+        credential.selectedAccountName = email
 
         return Drive.Builder(
             com.google.api.client.http.javanet.NetHttpTransport(),
@@ -136,7 +137,7 @@ class DriveSyncManager @Inject constructor(
                 context,
                 com.example.presentmate.db.PresentMateDatabase::class.java,
                 backupDbName
-            ).build()
+            ).fallbackToDestructiveMigration(true).build()
 
             val currentDb = com.example.presentmate.db.PresentMateDatabase.getDatabase(context)
 
@@ -200,7 +201,7 @@ class DriveSyncManager @Inject constructor(
             // Add manifest.json
             val manifestJson = """
                 {
-                    "schemaVersion": 7,
+                    "schemaVersion": 9,
                     "userId": "${firebaseAuth.currentUser?.uid ?: ""}",
                     "timestamp": ${System.currentTimeMillis()},
                     "appVersion": "${context.packageManager.getPackageInfo(context.packageName, 0).versionName}"

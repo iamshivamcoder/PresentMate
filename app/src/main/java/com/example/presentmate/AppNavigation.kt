@@ -85,8 +85,8 @@ fun AppNavigation() {
     }
 
     val authRoutes = listOf("welcome", "login", "signup", "reset_password")
-    val routesWithoutBottomBar = listOf("locationPickerScreen", "aiAssistant") + authRoutes
-    val routesWithCustomTopBar = listOf("locationPickerScreen", "aiAssistant") + authRoutes
+    val routesWithoutBottomBar = listOf("locationPickerScreen", "aiAssistant", "chatHistory") + authRoutes
+    val routesWithCustomTopBar = listOf("locationPickerScreen", "aiAssistant", "chatHistory") + authRoutes
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -218,7 +218,19 @@ fun AppNavigation() {
                 composable("helpScreen") { HelpScreen(_navController = navController) }
                 composable("whyPresentMateScreen") { WhyPresentMateScreen(_navController = navController) }
                 composable("calendarSyncSettings") { CalendarSyncSettingsScreen() }
-                composable("aiAssistant") { AIAssistantScreen(navController = navController) }
+                composable(
+                    "aiAssistant?sessionId={sessionId}",
+                    arguments = listOf(
+                        androidx.navigation.navArgument("sessionId") {
+                            type = androidx.navigation.NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    )
+                ) {
+                    AIAssistantScreen(navController = navController)
+                }
+                composable("chatHistory") { ChatHistoryScreen(navController = navController) }
                 composable("preferences") { PreferencesScreen(navController = navController) }
                 composable("notificationPreferences") { NotificationPreferencesScreen() }
                 composable("aiPreferences") { AIPreferencesScreen() }

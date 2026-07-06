@@ -209,33 +209,46 @@ class GeofenceManager(private val context: Context) {
             .build()
 
         // Fix #18 — remove ONLY this geofence by its ID (not the entire PendingIntent = all geofences)
-        geofencingClient.removeGeofences(listOf(id))
-            .addOnCompleteListener {
-                // Add regardless of removal result (it may not have existed yet)
-                geofencingClient.addGeofences(geofencingRequest, pendingIntent)
-                    .addOnSuccessListener {
-                        Log.d(TAG, "Geofence added successfully for ID: $id")
+        try {
+            geofencingClient.removeGeofences(listOf(id))
+                .addOnCompleteListener {
+                    // Add regardless of removal result (it may not have existed yet)
+                    try {
+                        geofencingClient.addGeofences(geofencingRequest, pendingIntent)
+                            .addOnSuccessListener {
+                                Log.d(TAG, "Geofence added successfully for ID: $id")
+                            }
+                            .addOnFailureListener { exception ->
+                                val errorCode = (exception as? com.google.android.gms.common.api.ApiException)?.statusCode ?: -1
+                                val errorMessage = GeofenceErrorMessages.getErrorMessage(errorCode)
+                                Log.e(TAG, "Failed to add geofence: $errorMessage", exception)
+                                GeofenceNotificationUtils.showGeofenceErrorNotification(context, errorMessage)
+                            }
+                    } catch (e: SecurityException) {
+                        Log.e(TAG, "SecurityException while adding geofence", e)
+                        GeofenceNotificationUtils.showGeofenceErrorNotification(context, "Location permission missing or revoked.")
                     }
-                    .addOnFailureListener { exception ->
-                        val errorCode = (exception as? com.google.android.gms.common.api.ApiException)?.statusCode ?: -1
-                        val errorMessage = GeofenceErrorMessages.getErrorMessage(errorCode)
-                        Log.e(TAG, "Failed to add geofence: $errorMessage", exception)
-                        // Show as notification — Toast is unsafe from a background BroadcastReceiver
-                        // (BadTokenException on Android 10+ when no foreground window exists)
-                        GeofenceNotificationUtils.showGeofenceErrorNotification(context, errorMessage)
-                    }
-            }
+                }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException while removing geofence", e)
+            GeofenceNotificationUtils.showGeofenceErrorNotification(context, "Location permission missing or revoked.")
+        }
     }
 
     fun removeGeofence(pendingIntent: PendingIntent, callback: ((Boolean) -> Unit)? = null) {
-        geofencingClient.removeGeofences(pendingIntent)
-            .addOnSuccessListener {
-                Log.d(TAG, "Geofence removed successfully.")
-                callback?.invoke(true)
-            }
-            .addOnFailureListener { exception ->
-                Log.e(TAG, "Failed to remove geofence.", exception)
-                callback?.invoke(false)
-            }
+        try {
+            geofencingClient.removeGeofences(pendingIntent)
+                .addOnSuccessListener {
+                    Log.d(TAG, "Geofence removed successfully.")
+                    callback?.invoke(true)
+                }
+                .addOnFailureListener { exception ->
+                    Log.e(TAG, "Failed to remove geofence.", exception)
+                    callback?.invoke(false)
+                }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException while removing geofence", e)
+            callback?.invoke(false)
+        }
     }
 }

@@ -89,7 +89,7 @@ fun ResetPasswordScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (errorMessage != null) {
-                    Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 16.dp))
+                    Text(errorMessage ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 16.dp))
                 }
 
                 Button(
