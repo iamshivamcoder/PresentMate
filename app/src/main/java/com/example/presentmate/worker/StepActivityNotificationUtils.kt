@@ -27,6 +27,7 @@ object StepActivityNotificationUtils {
     const val ACTION_STEP_YES_START = "com.example.presentmate.ACTION_STEP_YES_START"
     const val ACTION_STEP_YES_END   = "com.example.presentmate.ACTION_STEP_YES_END"
     const val ACTION_STEP_NOT_NOW   = "com.example.presentmate.ACTION_STEP_NOT_NOW"
+    const val ACTION_OPEN_STAIR_ACTIVITY_DIALOG = "com.example.presentmate.ACTION_OPEN_STAIR_ACTIVITY_DIALOG"
 
     fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -72,10 +73,11 @@ object StepActivityNotificationUtils {
         )
 
         val tapIntent = Intent(context, MainActivity::class.java).apply {
+            action = ACTION_OPEN_STAIR_ACTIVITY_DIALOG
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val tapPending = PendingIntent.getActivity(
-            context, 6014, tapIntent, PendingIntent.FLAG_IMMUTABLE
+            context, 6014, tapIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -111,12 +113,21 @@ object StepActivityNotificationUtils {
             context, 6023, notNowIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            action = ACTION_OPEN_STAIR_ACTIVITY_DIALOG
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val tapPending = PendingIntent.getActivity(
+            context, 6024, tapIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("Heading home? 🏠")
             .setContentText("Stair activity detected — shall I mark your session as done?")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setContentIntent(tapPending)
             .addAction(0, "Yes, Done ✅", endPending)
             .addAction(0, "Not now", notNowPending)
             .build()

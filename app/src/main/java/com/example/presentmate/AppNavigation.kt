@@ -254,6 +254,7 @@ fun AppNavigation() {
     val recapLogId     by MainActivity.recapLogId
     val isRecapPartial by MainActivity.isRecapPartial
     val showReminder   by MainActivity.showReminderDialog
+    val showStairActivity by MainActivity.showStairActivityDialog
 
     recapLogId?.let { logId ->
         StudyRecapDialog(
@@ -269,6 +270,12 @@ fun AppNavigation() {
     if (showReminder) {
         SessionReminderDialog(
             onDismiss = { MainActivity.showReminderDialog.value = false }
+        )
+    }
+
+    if (showStairActivity) {
+        com.example.presentmate.ui.components.AiActivityPromptDialog(
+            onDismiss = { MainActivity.showStairActivityDialog.value = false }
         )
     }
 }

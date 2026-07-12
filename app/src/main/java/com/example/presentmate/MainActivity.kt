@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
         val recapLogId      = mutableStateOf<Int?>(null)   // null = no dialog
         val isRecapPartial  = mutableStateOf(false)
         val showReminderDialog = mutableStateOf(false)
+        val showStairActivityDialog = mutableStateOf(false)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,6 +92,10 @@ class MainActivity : ComponentActivity() {
             SessionReminderNotificationUtils.ACTION_OPEN_REMINDER_DIALOG -> {
                 Log.d("MainActivity", "Opening session reminder dialog")
                 showReminderDialog.value = true
+            }
+            com.example.presentmate.worker.StepActivityNotificationUtils.ACTION_OPEN_STAIR_ACTIVITY_DIALOG -> {
+                Log.d("MainActivity", "Opening stair activity dialog")
+                showStairActivityDialog.value = true
             }
             else -> {
                 // Legacy: handle old partial_log_id extras but explicitly check if this intent was meant for it
