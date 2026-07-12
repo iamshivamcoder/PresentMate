@@ -25,7 +25,7 @@ class AuthRepository @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val credentialManager: CredentialManager,
     private val database: com.example.presentmate.db.PresentMateDatabase,
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
 
     // The Web Client ID generated in Firebase / Google Cloud Console

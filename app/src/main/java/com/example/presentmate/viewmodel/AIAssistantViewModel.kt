@@ -73,7 +73,7 @@ data class AIAssistantUiState(
 class AIAssistantViewModel @Inject constructor(
     private val attendanceDao: AttendanceDao,
     private val chatSessionDao: ChatSessionDao,
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 

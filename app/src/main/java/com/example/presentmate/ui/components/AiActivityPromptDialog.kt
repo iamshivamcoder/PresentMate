@@ -176,7 +176,7 @@ fun AiActivityPromptDialog(
                         }
                     }
 
-                    Divider()
+                    HorizontalDivider()
 
                     // Action Segmented Choice
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

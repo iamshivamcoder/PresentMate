@@ -24,7 +24,7 @@ import javax.inject.Singleton
 
 @Singleton
 class DriveSyncManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val firebaseAuth: FirebaseAuth
 ) {
     private val TAG = "DriveSyncManager"

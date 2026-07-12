@@ -37,7 +37,7 @@ data class StairActivityUiState(
 
 @HiltViewModel
 class StairActivityViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val attendanceDao: AttendanceDao
 ) : ViewModel() {
 

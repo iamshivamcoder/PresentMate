@@ -134,7 +134,7 @@ fun ManageProfileScreen(
                     readOnly = true // Email changes usually require re-auth
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 OutlinedTextField(
                     value = jobTitle,

@@ -227,7 +227,7 @@ abstract class PresentMateDatabase : RoomDatabase() {
                     PresentMateDatabase::class.java,
                     "presentmate_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(true)
                     .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .build()
                 INSTANCE = instance

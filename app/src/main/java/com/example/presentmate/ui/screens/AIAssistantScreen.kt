@@ -56,7 +56,7 @@ import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.AlertDialog
@@ -179,7 +179,7 @@ fun AIAssistantScreen(viewModel: AIAssistantViewModel = hiltViewModel(), navCont
                     }
                     // History
                     IconButton(onClick = { navController?.navigate("chatHistory") }) {
-                        Icon(Icons.Default.List, contentDescription = "Chat History")
+                        Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Chat History")
                     }
                     // Settings
                     IconButton(onClick = { navController?.navigate("aiPreferences") }) {
