@@ -3,6 +3,7 @@ package com.example.presentmate.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +29,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,7 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun AboutDeveloperScreen() {
+fun AboutDeveloperScreen(onNavigateToSecret: () -> Unit) {
     val context = LocalContext.current
     fun openUrl(url: String) = context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     Column(
@@ -68,7 +71,31 @@ fun AboutDeveloperScreen() {
         )
 
         // Name & Tagline
-        Text(text = "Shivam", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        var developerTapCount by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+        Text(
+            text = "Shivam",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.clickable {
+                developerTapCount++
+                if (developerTapCount in 4..7) {
+                    val remaining = 8 - developerTapCount
+                    android.widget.Toast.makeText(
+                        context,
+                        "You are now $remaining steps away from the secret developer portal!",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } else if (developerTapCount >= 8) {
+                    developerTapCount = 0
+                    android.widget.Toast.makeText(
+                        context,
+                        "Secret developer portal unlocked! 🚀",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    onNavigateToSecret()
+                }
+            }
+        )
         Text(
             text = "Solo Developer & Creator of Present Mate",
             style = MaterialTheme.typography.bodyMedium,

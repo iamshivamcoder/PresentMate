@@ -213,7 +213,16 @@ fun AppNavigation() {
                 }
                 composable("geofenceScreen") { GeofenceScreen(navController = navController) }
                 composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
-                composable(Screen.AboutDeveloper.route) { AboutDeveloperScreen() }
+                composable(Screen.AboutDeveloper.route) {
+                    AboutDeveloperScreen(
+                        onNavigateToSecret = { navController.navigate("developer_ideas") }
+                    )
+                }
+                composable("developer_ideas") {
+                    DeveloperIdeasScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
                 composable("recycleBin") { RecycleBinScreen() }
                 composable("helpScreen") { HelpScreen(_navController = navController) }
                 composable("whyPresentMateScreen") { WhyPresentMateScreen(_navController = navController) }

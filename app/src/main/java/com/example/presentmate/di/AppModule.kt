@@ -65,6 +65,11 @@ object AppModule {
     }
 
     @Provides
+    fun provideDeveloperIdeaDao(database: PresentMateDatabase): com.example.presentmate.db.DeveloperIdeaDao {
+        return database.developerIdeaDao()
+    }
+
+    @Provides
     @Singleton
     fun provideCalendarRepository(@ApplicationContext context: Context): CalendarRepository {
         return CalendarRepository(context)

@@ -58,8 +58,8 @@ interface AttendanceDao {
 
 // --- Unified Database --- //
 @Database(
-    entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class, StudySessionLog::class, StepActivityLog::class, ActivityEvent::class, ChatSession::class, ChatMessageEntity::class],
-    version = 9,
+    entities = [AttendanceRecord::class, DeletedRecord::class, SavedPlace::class, StudySessionLog::class, StepActivityLog::class, ActivityEvent::class, ChatSession::class, ChatMessageEntity::class, DeveloperIdea::class],
+    version = 10,
     exportSchema = false
 )
 abstract class PresentMateDatabase : RoomDatabase() {
@@ -69,6 +69,7 @@ abstract class PresentMateDatabase : RoomDatabase() {
     abstract fun stepActivityLogDao(): StepActivityLogDao
     abstract fun activityEventDao(): ActivityEventDao
     abstract fun chatSessionDao(): ChatSessionDao
+    abstract fun developerIdeaDao(): DeveloperIdeaDao
 
     companion object {
         @Volatile
@@ -220,6 +221,23 @@ abstract class PresentMateDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS developer_ideas (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        userId TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        priority TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): PresentMateDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -228,7 +246,7 @@ abstract class PresentMateDatabase : RoomDatabase() {
                     "presentmate_database"
                 )
                     .fallbackToDestructiveMigration(true)
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                     .build()
                 INSTANCE = instance
                 instance
